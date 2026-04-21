@@ -57,21 +57,11 @@ const HeroSection = () => {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link to="/login?role=student">
-                <Button size="lg" className="gap-2">
-                  Student Login <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
               <Link to="/login?role=teacher">
-                <Button variant="outline" size="lg" className="gap-2">
-                  Teacher Login <ArrowRight className="w-4 h-4" />
+                <Button size="lg" className="gap-2 text-base px-8 py-3 shadow-lg hover:shadow-xl transition-shadow">
+                  Login <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <a href="#features">
-                <Button variant="ghost" size="lg">
-                  Explore Features
-                </Button>
-              </a>
             </div>
           </motion.div>
           <motion.div

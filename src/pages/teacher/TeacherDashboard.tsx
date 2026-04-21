@@ -26,7 +26,8 @@ import {
   Video, VideoOff, CalendarOff, CalendarCheck, FileText, Upload,
   Clock, ArrowLeft, ChevronRight, Trophy, Presentation, Image,
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
-  Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X
+  Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
+  Maximize, Minimize, Pause, Send, MessageCircle, Medal
 } from "lucide-react";
 
 import {
@@ -247,6 +248,33 @@ const TeacherDashboard = () => {
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
 
+  // --- New UI state ---
+  const [sessionViewMode, setSessionViewMode] = useState<"tools" | "attendance" | "ai_chat">("tools");
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "ai"; text: string }>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sessionPaused, setSessionPaused] = useState(false);
+  const sessionContainerRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      sessionContainerRef.current?.requestFullscreen().catch((err) => {
+        toast.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
   const [leaveDate, setLeaveDate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
 
@@ -447,10 +475,10 @@ const TeacherDashboard = () => {
 
   // Session timer
   useEffect(() => {
-    if (!activeSession) return;
+    if (!activeSession || sessionPaused) return;
     const timer = setInterval(() => setSessionTime(prev => prev + 1), 1000);
     return () => clearInterval(timer);
-  }, [activeSession]);
+  }, [activeSession, sessionPaused]);
 
   /** Clear live-quiz UI and local scan buffers so a new live session never inherits the previous one. */
   const resetLiveQuizUiState = useCallback(() => {
@@ -805,7 +833,17 @@ const TeacherDashboard = () => {
         quizSubmitted: created.quizSubmitted,
       };
       setActiveSession(session);
-      setSessionTime(0);
+      // Check for resume data
+      const resumeData = getResumeData(topic.id);
+      if (resumeData) {
+        setSessionTime(resumeData.elapsedTime);
+        localStorage.removeItem(`pausedSession_${topic.id}`);
+        toast.info(`Resuming session from ${Math.floor(resumeData.elapsedTime / 60)}:${String(resumeData.elapsedTime % 60).padStart(2, "0")}`);
+      } else {
+        setSessionTime(0);
+      }
+      setSessionPaused(false);
+      setSessionViewMode("tools");
       setSessionAttendance(Object.fromEntries(classStudents.map((s) => [s.id, false])));
       setAttendanceMarked(false);
       setSessionQuizDone(false);
@@ -846,6 +884,59 @@ const TeacherDashboard = () => {
     } finally {
       setSessionEnding(false);
     }
+  };
+
+  const handlePauseSession = () => {
+    if (!activeSession) return;
+    if (!sessionPaused) {
+      const pauseData = {
+        topicId: activeSession.topicId,
+        topicName: activeSession.topicName,
+        chapterId: activeSession.chapterId,
+        elapsedTime: sessionTime,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(`pausedSession_${activeSession.topicId}`, JSON.stringify(pauseData));
+      setSessionPaused(true);
+      toast.success("Session paused.");
+    } else {
+      setSessionPaused(false);
+      toast.success("Session resumed.");
+    }
+  };
+
+  const getResumeData = (topicId: string) => {
+    try {
+      const raw = localStorage.getItem(`pausedSession_${topicId}`);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      // Only valid if paused within last 24 hours
+      if (Date.now() - data.timestamp > 86400000) {
+        localStorage.removeItem(`pausedSession_${topicId}`);
+        return null;
+      }
+      return data as { topicId: string; topicName: string; elapsedTime: number; timestamp: number };
+    } catch { return null; }
+  };
+
+  const handleSendChat = () => {
+    const msg = chatInput.trim();
+    if (!msg) return;
+    setChatMessages(prev => [...prev, { role: "user", text: msg }]);
+    setChatInput("");
+    // Placeholder AI response
+    setTimeout(() => {
+      const topicName = activeSession?.topicName || "this topic";
+      const responses = [
+        `That's a great question about ${topicName}! Let me help you think through this concept step by step.`,
+        `I'd suggest breaking ${topicName} into smaller parts for better understanding.`,
+        `You could try using visual aids or real-world examples to explain ${topicName} to students.`,
+        `Consider assigning a quick group activity to reinforce the concepts of ${topicName}.`,
+        `This is a common area where students struggle when learning ${topicName}. Try using analogies from daily life.`,
+      ];
+      const aiResponse = responses[Math.floor(Math.random() * responses.length)];
+      setChatMessages(prev => [...prev, { role: "ai", text: aiResponse }]);
+    }, 800);
   };
 
   const handleMarkAttendance = async () => {
@@ -916,65 +1007,85 @@ const TeacherDashboard = () => {
 
     return (
       <DashboardLayout title="Live Teaching Session">
-        {/* LIVE indicator */}
-        <div className="fixed top-3 right-20 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground text-sm font-bold animate-pulse">
-          <Radio className="w-4 h-4" /> LIVE • {formatTime(sessionTime)}
-        </div>
-
-        <div className="mb-4">
-          <Button
-            variant="ghost"
-            disabled={sessionEnding}
-            onClick={() => {
-              if (canEnd) handleEndSession();
-              else if (confirm("End session without completing requirements?")) handleEndSession();
-            }}
-            className="gap-1"
-          >
-            <ArrowLeft className="w-4 h-4" /> {sessionEnding ? "Ending…" : "End & Return"}
-          </Button>
-        </div>
-
-        {/* Session Info Bar */}
-        <div className="bg-teal-light rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <p className="text-xs text-muted-foreground">{activeSession.subjectName} → {sessionChapter?.name}</p>
-              <h2 className="font-display text-lg font-bold text-foreground">{activeSession.topicName}</h2>
-              <p className="text-xs text-muted-foreground">{activeSession.className} • Started {new Date(activeSession.startTime).toLocaleTimeString()}</p>
+        {/* Session Header Bar */}
+        <div className="bg-gradient-to-r from-primary/10 via-teal-light to-primary/5 rounded-xl p-4 mb-6 border border-primary/10 shadow-sm">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              {/* End & Return */}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={sessionEnding}
+                onClick={() => {
+                  if (canEnd) handleEndSession();
+                  else if (confirm("End session without completing requirements?")) handleEndSession();
+                }}
+                className="gap-1 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> {sessionEnding ? "Ending…" : "End & Return"}
+              </Button>
+              <div className="h-6 w-px bg-border" />
+              <div>
+                <p className="text-xs text-muted-foreground">{activeSession.subjectName} → {sessionChapter?.name}</p>
+                <h2 className="font-display text-lg font-bold text-foreground">{activeSession.topicName}</h2>
+                <p className="text-xs text-muted-foreground">{activeSession.className} • Started {new Date(activeSession.startTime).toLocaleTimeString()}</p>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Badge className={attendanceMarked ? "bg-success-light text-success" : "bg-amber-light text-amber"}>
-                {attendanceMarked ? "✅ Attendance Done" : "⏳ Attendance Pending"}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* LIVE indicator — flex positioned, no overlap */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold animate-pulse shadow-sm">
+                <Radio className="w-3.5 h-3.5" /> LIVE • {formatTime(sessionTime)}
+              </div>
+              {/* Attendance status badge */}
+              <Badge className={`gap-1 text-xs ${attendanceMarked ? "bg-success-light text-success border-success/20" : "bg-amber-light text-amber border-amber/20"}`}>
+                {attendanceMarked ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                {attendanceMarked ? "Attendance Done" : "Attendance Pending"}
               </Badge>
-              <Badge className={sessionQuizDone ? "bg-success-light text-success" : "bg-amber-light text-amber"}>
-                {sessionQuizDone ? "✅ Quiz Done" : "⏳ Quiz Pending"}
+              {/* Quiz status badge */}
+              <Badge className={`gap-1 text-xs ${sessionQuizDone ? "bg-success-light text-success border-success/20" : "bg-amber-light text-amber border-amber/20"}`}>
+                {sessionQuizDone ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                {sessionQuizDone ? "Quiz Done" : "Quiz Pending"}
               </Badge>
+              {/* Attendance top-right button */}
+              <Button
+                variant={sessionViewMode === "attendance" ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => setSessionViewMode(sessionViewMode === "attendance" ? "tools" : "attendance")}
+              >
+                <Users className="w-3.5 h-3.5" />
+                {sessionViewMode === "attendance" ? "Back to Tools" : "Attendance"}
+              </Button>
             </div>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main workspace - Camera or shared document */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="shadow-card border-border">
+        <div className={`grid lg:grid-cols-3 gap-6 ${isFullscreen ? "lg:grid-cols-1" : ""}`}>
+          {/* Main workspace */}
+          <div className={`${isFullscreen ? "" : "lg:col-span-2"} space-y-4`}>
+            <Card ref={sessionContainerRef} className={`shadow-card border-border overflow-hidden ${isFullscreen ? "w-screen h-screen rounded-none border-none flex flex-col justify-center bg-background p-8" : ""}`}>
               <CardContent className="p-4">
                 {mainScreenContentUrl ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-foreground truncate min-w-0">{mainScreenTitle}</p>
-                      <Button variant="default" size="sm" className="gap-1.5 shrink-0" onClick={() => { setMainScreenContentUrl(null); setMainScreenTitle(""); setMainScreenDirectUrl(null); }}>
-                        <Video className="w-3.5 h-3.5" /> Back to live
-                      </Button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button variant="outline" size="sm" className="gap-1 h-7 px-2" onClick={toggleFullscreen}>
+                          {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button variant="default" size="sm" className="gap-1.5 h-7" onClick={() => { setMainScreenContentUrl(null); setMainScreenTitle(""); setMainScreenDirectUrl(null); }}>
+                          <Video className="w-3.5 h-3.5" /> Back to live
+                        </Button>
+                      </div>
                     </div>
-                    <div className="rounded-xl overflow-hidden border border-border bg-muted min-h-[320px]">
+                    <div className={`rounded-xl overflow-hidden border border-border bg-muted ${isFullscreen ? "flex-1 flex items-center justify-center h-full" : "min-h-[320px]"}`}>
                       {mainScreenDirectUrl && /\.pptx?$/i.test(mainScreenDirectUrl) ? (
-                        <PptxViewer src={mainScreenContentUrl} width={960} height={540} />
+                        <PptxViewer src={mainScreenContentUrl} width={isFullscreen ? 1280 : 960} height={isFullscreen ? 720 : 540} />
                       ) : (
                         <iframe
                           src={mainScreenContentUrl}
                           title={mainScreenTitle}
-                          className="w-full aspect-video min-h-[320px]"
+                          className={`w-full ${isFullscreen ? "h-full" : "aspect-video min-h-[320px]"}`}
                           allow="fullscreen"
                         />
                       )}
@@ -988,20 +1099,29 @@ const TeacherDashboard = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="aspect-video bg-foreground/5 rounded-xl flex items-center justify-center border-2 border-dashed border-border relative">
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-3 animate-pulse">
-                        <div className="w-4 h-4 rounded-full bg-destructive" />
+                  <div className={`${isFullscreen ? "w-full max-w-2xl mx-auto" : "aspect-video"} bg-gradient-to-br from-foreground/[0.03] to-foreground/[0.07] rounded-xl flex items-center justify-center border border-border relative`}>
+                    <div className="text-center space-y-4">
+                      <div className={`${isFullscreen ? "w-32 h-32" : "w-20 h-20"} rounded-2xl bg-primary/10 flex items-center justify-center mx-auto transition-all`}>
+                        <BookOpen className={`${isFullscreen ? "w-12 h-12" : "w-8 h-8"} text-primary transition-all`} />
                       </div>
-                      <p className="text-foreground font-display font-bold">📹 Recording in Progress</p>
-                      <p className="text-2xl font-mono text-primary font-bold mt-1">{formatTime(sessionTime)}</p>
+                      <div>
+                        <p className={`text-foreground font-display font-bold ${isFullscreen ? "text-2xl" : "text-lg"}`}>{sessionChapter?.name}</p>
+                        <p className={`${isFullscreen ? "text-lg" : "text-sm"} text-muted-foreground`}>{activeSession.topicName}</p>
+                      </div>
+                      <p className={`${isFullscreen ? "text-5xl" : "text-3xl"} font-mono text-primary font-bold`}>{formatTime(sessionTime)}</p>
+                      <div className="flex items-center justify-center gap-2 pt-2">
+                        <Button variant="outline" size={isFullscreen ? "lg" : "sm"} className="gap-2" onClick={toggleFullscreen}>
+                          {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-3.5 h-3.5" />}
+                          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Topic Materials */}
+            {/* Topic Materials — PPT opens directly on screen */}
             <Card className="shadow-card border-border">
               <CardHeader className="pb-2">
                 <CardTitle className="font-display text-sm">Topic Materials</CardTitle>
@@ -1024,7 +1144,7 @@ const TeacherDashboard = () => {
                       <BookOpen className="w-3.5 h-3.5" /> Textual Reference
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" className="gap-1.5" disabled title="No textual material added for this chapter">
+                    <Button variant="outline" size="sm" className="gap-1.5 opacity-60" onClick={() => toast.error("No textual material available for this chapter")}>
                       <BookOpen className="w-3.5 h-3.5" /> Textual Reference
                     </Button>
                   )}
@@ -1034,17 +1154,17 @@ const TeacherDashboard = () => {
                       size="sm"
                       className="gap-1.5"
                       onClick={() => {
+                        // PPT opens directly on screen — no dialog
                         const path = sessionTopic.topicPptPath!;
-                        setMaterialPreviewRelativePath(path);
-                        setMaterialPreviewUrl(getMaterialViewerUrl(path));
-                        setMaterialPreviewTitle("PPT — " + (sessionTopic?.name ?? "Presentation"));
-                        setMaterialPreviewOpen(true);
+                        setMainScreenContentUrl(getMaterialViewerUrl(path));
+                        setMainScreenTitle("PPT — " + (sessionTopic?.name ?? "Presentation"));
+                        setMainScreenDirectUrl(getMaterialDirectUrl(path));
                       }}
                     >
                       <Presentation className="w-3.5 h-3.5" /> PPT
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" className="gap-1.5" disabled title="No PPT added for this topic">
+                    <Button variant="outline" size="sm" className="gap-1.5 opacity-60" onClick={() => toast.error("No PPT available for this topic")}>
                       <Presentation className="w-3.5 h-3.5" /> PPT
                     </Button>
                   )}
@@ -1053,117 +1173,177 @@ const TeacherDashboard = () => {
             </Card>
           </div>
 
-          {/* Right sidebar - Tools & Attendance */}
-          <div className="space-y-4">
-            {/* Teaching Tools */}
-            <Card className="shadow-card border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="font-display text-sm flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-accent" /> Teaching tools
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {[
-                  { icon: Presentation, label: "Topic PPT", desc: "Open slides stored for this topic" },
-                  { icon: QrCode, label: "Launch Quiz", desc: "QR-based quiz" },
-                  { icon: FileText, label: "Lesson Plan Viewer", desc: "Chapter lesson plan" },
-                ].map((tool, i) => (
-                  <button
-                    key={i}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary transition-colors text-left disabled:opacity-50 disabled:pointer-events-none"
-                    disabled={false}
-                    onClick={() => {
-                      if (tool.label === "Topic PPT") {
-                        if (sessionTopic?.topicPptPath) {
-                          const path = sessionTopic.topicPptPath;
-                          setMaterialPreviewRelativePath(path);
-                          setMaterialPreviewUrl(getMaterialViewerUrl(path));
-                          setMaterialPreviewTitle("PPT — " + (sessionTopic?.name ?? "Presentation"));
-                          setMaterialPreviewOpen(true);
-                        } else {
-                          toast.error("No PPT found in database for this topic.");
-                        }
-                      }
-                      if (tool.label === "Launch Quiz") handleLaunchLiveQuiz();
-                      if (tool.label === "Lesson Plan Viewer") setLessonPlanOpen(true);
-                    }}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-teal-light flex items-center justify-center">
-                      <tool.icon className="w-4 h-4 text-primary" />
+          {/* Right sidebar - Tools / Attendance (toggle) */}
+          {!isFullscreen && (
+            <div className="space-y-4">
+              {sessionViewMode === "tools" ? (
+                <>
+                  {/* Teaching Tools — AI PPT Generator removed */}
+                  <Card className="shadow-card border-border hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="font-display text-sm flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-accent" /> Teaching Tools
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {[
+                        { icon: QrCode, label: "Launch Quiz", desc: "QR-based quiz for students" },
+                        { icon: FileText, label: "Lesson Plan Viewer", desc: "Chapter lesson plan" },
+                        { icon: Bot, label: "AI Teaching Assistant", desc: "Get help with this topic" },
+                      ].map((tool, i) => (
+                        <button
+                          key={i}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary transition-colors text-left"
+                          onClick={() => {
+                            if (tool.label === "Launch Quiz") handleLaunchLiveQuiz();
+                            if (tool.label === "Lesson Plan Viewer") setLessonPlanOpen(true);
+                            if (tool.label === "AI Teaching Assistant") setSessionViewMode("ai_chat");
+                          }}
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-teal-light flex items-center justify-center">
+                            <tool.icon className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-foreground">{tool.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{tool.desc}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </CardContent>
+                  </Card>
+                </>
+              ) : sessionViewMode === "ai_chat" ? (
+                /* Inline AI Chatbot — replaces tools when clicked */
+                <Card className="shadow-card border-border flex flex-col h-[500px]">
+                  <CardHeader className="pb-3 border-b border-border bg-gradient-to-r from-teal-light to-secondary">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="font-display text-sm flex items-center gap-2">
+                        <Bot className="w-4 h-4 text-primary" /> AI Assistant
+                      </CardTitle>
+                      <button onClick={() => setSessionViewMode("tools")} className="p-1 hover:bg-black/5 rounded-full transition-colors text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-foreground">{tool.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{tool.desc}</p>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
+                    <div className="flex gap-2">
+                      <div className="w-6 h-6 rounded-full gradient-primary flex items-center justify-center shrink-0">
+                        <Bot className="w-3 h-3 text-primary-foreground" />
+                      </div>
+                      <div className="bg-card border border-border p-2.5 rounded-xl rounded-tl-sm shadow-sm text-xs text-foreground max-w-[90%]">
+                        Hello! I'm your AI teaching assistant. How can I help you with your session today?
+                      </div>
                     </div>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
 
-            {/* Attendance */}
-            <Card className="shadow-card border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="font-display text-sm flex items-center gap-2">
-                  <Users className="w-4 h-4 text-info" /> Attendance ({Object.values(sessionAttendance).filter(Boolean).length}/{classStudents.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!attendanceMarked && (
-                  <div className="mb-2 flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={() => {
-                        const allPresent = Object.fromEntries(classStudents.map((s) => [s.id, true]));
-                        setSessionAttendance(allPresent);
-                      }}
-                    >
-                      Mark all present
-                    </Button>
-                    <span className="text-[11px] text-muted-foreground">
-                      Then uncheck only absentees.
-                    </span>
-                  </div>
-                )}
-                <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {classStudents.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-secondary cursor-pointer">
-                      <Checkbox
-                        checked={sessionAttendance[s.id] || false}
-                        onCheckedChange={(checked) => {
-                          setSessionAttendance((prev) => ({ ...prev, [s.id]: !!checked }));
-                        }}
-                        disabled={attendanceMarked}
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex gap-2 ${msg.role === "user" ? "justify-end" : ""}`}>
+                        {msg.role === "ai" && (
+                          <div className="w-6 h-6 rounded-full gradient-primary flex items-center justify-center shrink-0">
+                            <Bot className="w-3 h-3 text-primary-foreground" />
+                          </div>
+                        )}
+                        <div className={`p-2.5 rounded-xl shadow-sm text-xs max-w-[90%] ${msg.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-tr-sm"
+                            : "bg-card border border-border text-foreground rounded-tl-sm"
+                          }`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                  <div className="p-3 border-t border-border bg-card">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder="Ask for lesson tips..."
+                        className="text-xs h-8 flex-1 rounded-full bg-secondary/50 border-transparent focus-visible:ring-1 focus-visible:ring-primary"
+                        onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
                       />
-                      <span className="text-xs text-foreground">{s.rollNo}. {s.name}</span>
-                    </label>
-                  ))}
-                </div>
-                {!attendanceMarked && (
-                  <Button size="sm" className="w-full mt-3" onClick={handleMarkAttendance} disabled={attendanceSubmitting}>
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> {attendanceSubmitting ? "Saving…" : "Submit Attendance"}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                      <Button size="icon" className="h-8 w-8 rounded-full shrink-0 shadow-sm" onClick={handleSendChat} disabled={!chatInput.trim()}>
+                        <Send className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                /* Attendance UI — replaces tools when toggled */
+                <Card className="shadow-card border-border">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-display text-sm flex items-center gap-2">
+                      <Users className="w-4 h-4 text-info" /> Attendance ({Object.values(sessionAttendance).filter(Boolean).length}/{classStudents.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {!attendanceMarked && (
+                      <div className="mb-2 flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            const allPresent = Object.fromEntries(classStudents.map((s) => [s.id, true]));
+                            setSessionAttendance(allPresent);
+                          }}
+                        >
+                          Mark all present
+                        </Button>
+                        <span className="text-[11px] text-muted-foreground">
+                          Then uncheck only absentees.
+                        </span>
+                      </div>
+                    )}
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {classStudents.map((s) => (
+                        <label key={s.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-secondary cursor-pointer transition-colors">
+                          <Checkbox
+                            checked={sessionAttendance[s.id] || false}
+                            onCheckedChange={(checked) => {
+                              setSessionAttendance((prev) => ({ ...prev, [s.id]: !!checked }));
+                            }}
+                            disabled={attendanceMarked}
+                          />
+                          <span className="text-xs text-foreground">{s.rollNo}. {s.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {!attendanceMarked && (
+                      <Button size="sm" className="w-full mt-3" onClick={handleMarkAttendance} disabled={attendanceSubmitting}>
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> {attendanceSubmitting ? "Saving…" : "Submit Attendance"}
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* End Session */}
-            <Button
-              size="lg"
-              variant="destructive"
-              className="w-full gap-2"
-              onClick={handleEndSession}
-              disabled={!canEnd}
-            >
-              <VideoOff className="w-5 h-5" /> End Session
-            </Button>
-            {!canEnd && (
-              <p className="text-xs text-muted-foreground text-center">
-                Complete attendance & quiz before ending session
-              </p>
-            )}
-          </div>
+              {/* Pause + End Session buttons */}
+              <div className="space-y-2">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full gap-2 border-amber/30 text-amber hover:bg-amber-light hover:text-amber transition-colors"
+                  onClick={handlePauseSession}
+                >
+                  {sessionPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
+                  {sessionPaused ? "Resume Session" : "Pause Session"}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="destructive"
+                  className="w-full gap-2"
+                  onClick={handleEndSession}
+                  disabled={!canEnd}
+                >
+                  <VideoOff className="w-5 h-5" /> End Session
+                </Button>
+                {!canEnd && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Complete attendance & quiz before ending session
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Launch Quiz — fully internal scanner flow (no external redirect/iframe) */}
@@ -1492,7 +1672,6 @@ const TeacherDashboard = () => {
             )}
           </DialogContent>
         </Dialog>
-
       </DashboardLayout>
     );
   }
@@ -1516,544 +1695,577 @@ const TeacherDashboard = () => {
           </aside>
           {/* Content Area */}
           <div className="flex-1 min-w-0">
-        <TabsContent value="overview" className="space-y-4">
-          <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" /> Overview — {currentSubject?.name} • {currentClass?.name}
-          </h3>
+            <TabsContent value="overview" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary" /> Overview — {currentSubject?.name} • {currentClass?.name}
+              </h3>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-card border-border">
-              <CardContent className="p-4 text-center">
-                <p className="font-display text-2xl font-bold text-foreground">{syllabusProgress}%</p>
-                <p className="text-xs text-muted-foreground">Syllabus Progress</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{completedChapterCount}/{filteredChapters.length} chapters</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-card border-border">
-              <CardContent className="p-4 text-center">
-                <p className="font-display text-2xl font-bold text-foreground">{completedQuizCount}/{totalQuizCount}</p>
-                <p className="text-xs text-muted-foreground">Quizzes</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Completed / Total</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-card border-border">
-              <CardContent className="p-4 text-center">
-                <p className="font-display text-2xl font-bold text-foreground">{conductedSessions}/{scheduledSessions}</p>
-                <p className="text-xs text-muted-foreground">Sessions</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Conducted/Scheduled</p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-card border-border">
-              <CardContent className="p-4 text-center">
-                <p className="font-display text-2xl font-bold text-foreground">{rankedStudentsByMarks.length}</p>
-                <p className="text-xs text-muted-foreground">Students Ranked</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Based on marks</p>
-              </CardContent>
-            </Card>
-          </div>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="shadow-card border-border">
+                  <CardContent className="p-4 text-center">
+                    <p className="font-display text-2xl font-bold text-foreground">{syllabusProgress}%</p>
+                    <p className="text-xs text-muted-foreground">Syllabus Progress</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{completedChapterCount}/{filteredChapters.length} chapters</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-card border-border">
+                  <CardContent className="p-4 text-center">
+                    <p className="font-display text-2xl font-bold text-foreground">{completedQuizCount}/{totalQuizCount}</p>
+                    <p className="text-xs text-muted-foreground">Quizzes</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Completed / Total</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-card border-border">
+                  <CardContent className="p-4 text-center">
+                    <p className="font-display text-2xl font-bold text-foreground">{conductedSessions}/{scheduledSessions}</p>
+                    <p className="text-xs text-muted-foreground">Sessions</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Conducted/Scheduled</p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-card border-border">
+                  <CardContent className="p-4 text-center">
+                    <p className="font-display text-2xl font-bold text-foreground">{rankedStudentsByMarks.length}</p>
+                    <p className="text-xs text-muted-foreground">Students Ranked</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Based on marks</p>
+                  </CardContent>
+                </Card>
+              </div>
 
-          <Card className="shadow-card border-border">
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-accent" /> Students by Marks
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {rankedStudentsByMarks.length > 0 ? (
-                rankedStudentsByMarks.map((item, index) => (
-                  <div key={item.student.id} className="p-3 bg-secondary rounded-xl flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-display font-bold text-sm">
-                      {index + 1}
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-lg flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-accent" /> Students by Marks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {rankedStudentsByMarks.length > 0 ? (
+                    rankedStudentsByMarks.map((item, index) => {
+                      const isTop3 = index < 3;
+                      const medalColors = [
+                        "bg-amber-100 border-amber-200 text-amber-600 shadow-[0_0_15px_rgba(245,158,11,0.2)]", // Gold
+                        "bg-slate-100 border-slate-200 text-slate-500 shadow-[0_0_10px_rgba(148,163,184,0.15)]", // Silver
+                        "bg-orange-100 border-orange-200 text-orange-700 shadow-[0_0_10px_rgba(194,65,12,0.15)]" // Bronze
+                      ];
+
+                      return (
+                        <div
+                          key={item.student.id}
+                          className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${isTop3
+                              ? "bg-gradient-to-r from-amber-light/40 to-white/50 border border-amber/10 shadow-sm scale-[1.02] z-10"
+                              : "bg-secondary/50 border border-transparent"
+                            }`}
+                        >
+                          <div className={`
+                        ${index === 0 ? "w-16 h-16" : isTop3 ? "w-14 h-14" : "w-11 h-11"} 
+                        rounded-full flex items-center justify-center shrink-0 border-2 relative transition-all
+                        ${isTop3 ? medalColors[index] : "bg-secondary border-border text-muted-foreground"}
+                      `}>
+                            {isTop3 ? (
+                              <div className="relative">
+                                <Medal className={`${index === 0 ? "w-9 h-9" : "w-7 h-7"}`} />
+                                <span className="absolute -top-1 -right-1 bg-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border border-current shadow-sm">
+                                  {index + 1}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="font-display font-bold text-sm">{index + 1}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-display font-bold text-foreground truncate ${index === 0 ? "text-base" : "text-sm"}`}>
+                              {item.student.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <span className="opacity-70">Roll No:</span>
+                              <span className="font-mono">{item.student.rollNo}</span>
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <Badge className={`
+                          px-2 py-1 text-xs font-bold rounded-lg
+                          ${index === 0 ? "bg-amber text-white ring-4 ring-amber/10" : isTop3 ? "bg-amber/10 text-amber border-amber/20" : "bg-success/10 text-success border-success/20"}
+                        `}>
+                              {item.percentage}%
+                            </Badge>
+                            {index === 0 && (
+                              <p className="text-[10px] font-bold text-amber mt-1 tracking-wider uppercase">Topper</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No students found for this class.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="timetable" className="space-y-4">
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-lg flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-primary" /> Class Timetable
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    School starts at 9:00 AM. Period duration: 40 mins. Breaks: 10:20-10:35 and 2:20-2:35. Lunch: 11:55-1:00.
+                  </p>
+                  {(() => {
+                    const dayNames: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday" };
+                    const rows = timetables
+                      .filter((t) => t.classId === selectedClass)
+                      .filter((t) => (t.subjectId ? t.subjectId === selectedSubject : false))
+                      .sort((a, b) => (a.weekDay - b.weekDay) || (a.periodNo - b.periodNo));
+                    if (!rows.length) return <p className="text-sm text-muted-foreground">No timetable slots mapped for your subject in this class.</p>;
+                    const periods = [1, 2, 3, 4, 5, 6, 7, 8];
+                    const grid = new Map<string, { subjectName: string; startTime: string; endTime: string }>();
+                    rows.forEach((r) => {
+                      grid.set(`${r.weekDay}-${r.periodNo}`, { subjectName: r.subjectName, startTime: r.startTime, endTime: r.endTime });
+                    });
+                    return (
+                      <div className="overflow-x-auto rounded-lg border border-border">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-secondary border-b border-border">
+                              <th className="p-2 text-left font-medium">Day \\ Period</th>
+                              {periods.map((p) => <th key={p} className="p-2 text-left font-medium">P{p}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[1, 2, 3, 4, 5, 6].map((day) => (
+                              <tr key={day} className="border-b border-border last:border-0">
+                                <td className="p-2 font-semibold text-foreground">{dayNames[day]}</td>
+                                {periods.map((p) => {
+                                  const slot = grid.get(`${day}-${p}`);
+                                  return (
+                                    <td key={`${day}-${p}`} className="p-2 align-top">
+                                      {slot ? (
+                                        <div className="rounded-md bg-teal-light px-2 py-1.5">
+                                          <p className="font-medium text-foreground">{slot.subjectName}</p>
+                                          <p className="text-[10px] text-muted-foreground">{String(slot.startTime).slice(0, 5)}-{String(slot.endTime).slice(0, 5)}</p>
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="chapters" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                {currentSubject?.icon} {currentSubject?.name} — {currentClass?.name}
+              </h3>
+              <div className="space-y-3">
+                {[...filteredChapters].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((ch) => {
+                  const chTopics = topics.filter((t) => sameId(t.chapterId, ch.id)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                  const inSyllabusScope = isChapterInSyllabusThroughDecember(ch);
+                  const status: keyof typeof statusColors = !inSyllabusScope
+                    ? "future_syllabus"
+                    : chTopics.length > 0
+                      ? deriveChapterStatusKey(chTopics, topicStatusState)
+                      : normalizeTopicStatus(chapterStatusState[String(ch.id)]);
+                  const sc = statusColors[status];
+                  const progress = getChapterProgress(ch.id);
+                  const isExpanded = selectedChapter === ch.id;
+
+                  return (
+                    <Card key={ch.id} className="shadow-card border-border overflow-hidden">
+                      {/* Chapter Header */}
+                      <div
+                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
+                        onClick={() => setSelectedChapter(isExpanded ? null : ch.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-10 rounded-full" style={{ backgroundColor: sc.color }} />
+                          <div>
+                            <h4 className="font-display font-semibold text-foreground text-sm">{ch.name}</h4>
+                            <div className="flex items-center gap-3 mt-1">
+                              <Badge className={`${sc.bg} ${sc.text} text-xs`}>{sc.label}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {chTopics.length} {chTopics.length === 1 ? "topic" : "topics"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-20 flex items-center gap-2">
+                            <Progress value={progress} className="h-2 flex-1" />
+                            <span className="text-xs text-muted-foreground">{progress}%</span>
+                          </div>
+                          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                        </div>
+                      </div>
+
+                      {/* Topics Dropdown */}
+                      {isExpanded && (
+                        <div className="border-t border-border bg-secondary/30 p-4 space-y-2">
+                          {chTopics.length > 0 ? chTopics.map((topic) => {
+                            const tStatusRaw = topicStatusState[String(topic.id)] || topic.status;
+                            const tNorm = !inSyllabusScope ? "not_started" : normalizeTopicStatus(tStatusRaw);
+                            const tsc = statusColors[tNorm];
+                            const isTopicExpanded = expandedTopics[topic.id];
+
+                            return (
+                              <div key={topic.id} className="bg-card rounded-xl border border-border overflow-hidden">
+                                <div
+                                  className="p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
+                                  onClick={() => toggleTopic(topic.id)}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {tNorm === "completed" ? (
+                                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                    ) : tNorm === "in_progress" ? (
+                                      <Clock className="w-4 h-4 text-amber flex-shrink-0" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
+                                    )}
+                                    <span className="text-sm font-medium text-foreground">{topic.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="h-7 text-xs gap-1"
+                                      disabled={sessionStartLoading}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStartSession(topic);
+                                      }}
+                                    >
+                                      <Play className="w-3 h-3" /> {sessionStartLoading ? "Starting…" : "Start Session"}
+                                    </Button>
+                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isTopicExpanded ? "rotate-180" : ""}`} />
+                                  </div>
+                                </div>
+
+                                {isTopicExpanded && (
+                                  <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2">
+                                    {ch.textbookChunkPdfPath && (
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0 text-xs font-medium gap-1.5"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const path = ch.textbookChunkPdfPath!;
+                                          setMaterialPreviewRelativePath(path);
+                                          setMaterialPreviewUrl(getMaterialViewerUrl(path));
+                                          setMaterialPreviewTitle("Textual material — " + ch.name);
+                                          setMaterialPreviewOpen(true);
+                                        }}
+                                      >
+                                        <BookOpen className="w-3.5 h-3.5" /> Watch textual material
+                                      </Button>
+                                    )}
+                                    {topic.topicPptPath && (
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0 text-xs font-medium gap-1.5"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const path = topic.topicPptPath!;
+                                          setMaterialPreviewRelativePath(path);
+                                          setMaterialPreviewUrl(getMaterialViewerUrl(path));
+                                          setMaterialPreviewTitle("PPT — " + topic.name);
+                                          setMaterialPreviewOpen(true);
+                                        }}
+                                      >
+                                        <Presentation className="w-3.5 h-3.5" /> Watch PPT
+                                      </Button>
+                                    )}
+                                    {!ch.textbookChunkPdfPath && !topic.topicPptPath && (
+                                      <p className="text-xs text-muted-foreground">No textual material or PPT added yet.</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }) : (
+                            <p className="text-sm text-muted-foreground p-2">No topics defined for this chapter yet.</p>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+                {filteredChapters.length === 0 && (
+                  <Card className="shadow-card border-border">
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      No chapters available for this subject and class combination.
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* STUDENTS TAB */}
+            <TabsContent value="students" className="space-y-4">
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="font-display text-lg flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" /> {currentClass?.name} — Students ({classStudents.length})
+                    </CardTitle>
+                    <div>
+                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadClassCsv()}>
+                        <FileDown className="w-4 h-4" /> Download Students CSV
+                      </Button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{item.student.name}</p>
-                      <p className="text-xs text-muted-foreground">Roll No: {item.student.rollNo}</p>
-                    </div>
-                    <Badge className="bg-success-light text-success">{item.percentage}%</Badge>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No students found for this class.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="timetable" className="space-y-4">
-          <Card className="shadow-card border-border">
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5 text-primary" /> Class Timetable
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">
-                School starts at 9:00 AM. Period duration: 40 mins. Breaks: 10:20-10:35 and 2:20-2:35. Lunch: 11:55-1:00.
-              </p>
-              {(() => {
-                const dayNames: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday" };
-                const rows = timetables
-                  .filter((t) => t.classId === selectedClass)
-                  .filter((t) => (t.subjectId ? t.subjectId === selectedSubject : false))
-                  .sort((a, b) => (a.weekDay - b.weekDay) || (a.periodNo - b.periodNo));
-                if (!rows.length) return <p className="text-sm text-muted-foreground">No timetable slots mapped for your subject in this class.</p>;
-                const periods = [1, 2, 3, 4, 5, 6, 7, 8];
-                const grid = new Map<string, { subjectName: string; startTime: string; endTime: string }>();
-                rows.forEach((r) => {
-                  grid.set(`${r.weekDay}-${r.periodNo}`, { subjectName: r.subjectName, startTime: r.startTime, endTime: r.endTime });
-                });
-                return (
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-xs">
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-secondary border-b border-border">
-                          <th className="p-2 text-left font-medium">Day \\ Period</th>
-                          {periods.map((p) => <th key={p} className="p-2 text-left font-medium">P{p}</th>)}
+                        <tr className="border-b border-border bg-secondary">
+                          <th className="text-left p-3 font-medium text-muted-foreground">Roll</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Attendance</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Performance</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {[1, 2, 3, 4, 5, 6].map((day) => (
-                          <tr key={day} className="border-b border-border last:border-0">
-                            <td className="p-2 font-semibold text-foreground">{dayNames[day]}</td>
-                            {periods.map((p) => {
-                              const slot = grid.get(`${day}-${p}`);
-                              return (
-                                <td key={`${day}-${p}`} className="p-2 align-top">
-                                  {slot ? (
-                                    <div className="rounded-md bg-teal-light px-2 py-1.5">
-                                      <p className="font-medium text-foreground">{slot.subjectName}</p>
-                                      <p className="text-[10px] text-muted-foreground">{String(slot.startTime).slice(0, 5)}-{String(slot.endTime).slice(0, 5)}</p>
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                  )}
-                                </td>
-                              );
-                            })}
+                        {classStudents.map(s => {
+                          const att = studentAttendance.find(a => a.studentId === s.id);
+                          return (
+                            <tr key={s.id} className="border-b border-border last:border-0">
+                              <td className="p-3 text-foreground">{s.rollNo}</td>
+                              <td className="p-3 text-foreground font-medium">{s.name}</td>
+                              <td className="p-3">
+                                {att ? (
+                                  <div className="flex items-center gap-2">
+                                    <Progress value={att.percentage} className="h-2 w-20" />
+                                    <span className="text-xs text-muted-foreground">{att.percentage}%</span>
+                                  </div>
+                                ) : <span className="text-xs text-muted-foreground">—</span>}
+                              </td>
+                              <td className="p-3">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs cursor-pointer"
+                                  onClick={() => setViewingStudent(s.id)}
+                                >
+                                  View
+                                </Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* CLASS STATUS TAB */}
+            <TabsContent value="classstatus" className="space-y-4">
+              {liveSessionsFromApi.filter((ls) => ls.classId === selectedClass && (ls.status === "active" || ls.status === "ongoing")).length > 0 && (
+                <Card className="shadow-card border-border border-primary/30 bg-primary/5">
+                  <CardHeader>
+                    <CardTitle className="font-display text-sm flex items-center gap-2 text-primary">
+                      <Radio className="w-4 h-4" /> Live / Ongoing sessions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {liveSessionsFromApi
+                      .filter((ls) => ls.classId === selectedClass && (ls.status === "active" || ls.status === "ongoing"))
+                      .map((ls) => (
+                        <div key={ls.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
+                          <span className="text-sm">{ls.subjectName} — {ls.topicName}</span>
+                          <Badge className="bg-destructive/10 text-destructive text-xs">Live</Badge>
+                        </div>
+                      ))}
+                  </CardContent>
+                </Card>
+              )}
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-lg flex items-center gap-2">
+                    <CalendarCheck className="w-5 h-5 text-primary" /> Class Status — {currentClass?.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border bg-secondary">
+                          <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Reason</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classStatusLocal.map((cs) => (
+                          <tr key={cs.id} className="border-b border-border last:border-0">
+                            <td className="p-3 text-foreground">{cs.date}</td>
+                            <td className="p-3">
+                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cs.status === "conducted" ? "bg-success-light text-success" : "bg-destructive/10 text-destructive"
+                                }`}>
+                                {cs.status === "conducted"
+                                  ? <><CheckCircle2 className="w-3 h-3" /> Conducted</>
+                                  : <><XCircle className="w-3 h-3" /> Cancelled</>
+                                }
+                              </span>
+                            </td>
+                            <td className="p-3 text-muted-foreground text-xs">{cs.reason || "—"}</td>
+                            <td className="p-3">
+                              <Select
+                                value={cs.status}
+                                onValueChange={(val) => {
+                                  setClassStatusLocal((prev) =>
+                                    prev.map((c) => (c.id === cs.id ? { ...c, status: val as "conducted" | "cancelled" } : c))
+                                  );
+                                }}
+                              >
+                                <SelectTrigger className="w-[130px] h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="conducted">Conducted</SelectItem>
+                                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="chapters" className="space-y-4">
-          <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-            {currentSubject?.icon} {currentSubject?.name} — {currentClass?.name}
-          </h3>
-          <div className="space-y-3">
-            {[...filteredChapters].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((ch) => {
-              const chTopics = topics.filter((t) => sameId(t.chapterId, ch.id)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-              const inSyllabusScope = isChapterInSyllabusThroughDecember(ch);
-              const status: keyof typeof statusColors = !inSyllabusScope
-                ? "future_syllabus"
-                : chTopics.length > 0
-                  ? deriveChapterStatusKey(chTopics, topicStatusState)
-                  : normalizeTopicStatus(chapterStatusState[String(ch.id)]);
-              const sc = statusColors[status];
-              const progress = getChapterProgress(ch.id);
-              const isExpanded = selectedChapter === ch.id;
-
-              return (
-                <Card key={ch.id} className="shadow-card border-border overflow-hidden">
-                  {/* Chapter Header */}
-                  <div
-                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
-                    onClick={() => setSelectedChapter(isExpanded ? null : ch.id)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-10 rounded-full" style={{ backgroundColor: sc.color }} />
-                      <div>
-                        <h4 className="font-display font-semibold text-foreground text-sm">{ch.name}</h4>
-                        <div className="flex items-center gap-3 mt-1">
-                          <Badge className={`${sc.bg} ${sc.text} text-xs`}>{sc.label}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {chTopics.length} {chTopics.length === 1 ? "topic" : "topics"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-20 flex items-center gap-2">
-                        <Progress value={progress} className="h-2 flex-1" />
-                        <span className="text-xs text-muted-foreground">{progress}%</span>
-                      </div>
-                      <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                    </div>
-                  </div>
-
-                  {/* Topics Dropdown */}
-                  {isExpanded && (
-                    <div className="border-t border-border bg-secondary/30 p-4 space-y-2">
-                      {chTopics.length > 0 ? chTopics.map((topic) => {
-                        const tStatusRaw = topicStatusState[String(topic.id)] || topic.status;
-                        const tNorm = !inSyllabusScope ? "not_started" : normalizeTopicStatus(tStatusRaw);
-                        const tsc = statusColors[tNorm];
-                        const isTopicExpanded = expandedTopics[topic.id];
-
-                        return (
-                          <div key={topic.id} className="bg-card rounded-xl border border-border overflow-hidden">
-                            <div
-                              className="p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
-                              onClick={() => toggleTopic(topic.id)}
-                            >
-                              <div className="flex items-center gap-2">
-                                {tNorm === "completed" ? (
-                                  <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                ) : tNorm === "in_progress" ? (
-                                  <Clock className="w-4 h-4 text-amber flex-shrink-0" />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
-                                )}
-                                <span className="text-sm font-medium text-foreground">{topic.name}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="h-7 text-xs gap-1"
-                                  disabled={sessionStartLoading}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStartSession(topic);
-                                  }}
-                                >
-                                  <Play className="w-3 h-3" /> {sessionStartLoading ? "Starting…" : "Start Session"}
-                                </Button>
-                                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isTopicExpanded ? "rotate-180" : ""}`} />
-                              </div>
-                            </div>
-
-                            {isTopicExpanded && (
-                              <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2">
-                                {ch.textbookChunkPdfPath && (
-                                  <Button
-                                    variant="link"
-                                    size="sm"
-                                    className="h-auto p-0 text-xs font-medium gap-1.5"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const path = ch.textbookChunkPdfPath!;
-                                      setMaterialPreviewRelativePath(path);
-                                      setMaterialPreviewUrl(getMaterialViewerUrl(path));
-                                      setMaterialPreviewTitle("Textual material — " + ch.name);
-                                      setMaterialPreviewOpen(true);
-                                    }}
-                                  >
-                                    <BookOpen className="w-3.5 h-3.5" /> Watch textual material
-                                  </Button>
-                                )}
-                                {topic.topicPptPath && (
-                                  <Button
-                                    variant="link"
-                                    size="sm"
-                                    className="h-auto p-0 text-xs font-medium gap-1.5"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const path = topic.topicPptPath!;
-                                      setMaterialPreviewRelativePath(path);
-                                      setMaterialPreviewUrl(getMaterialViewerUrl(path));
-                                      setMaterialPreviewTitle("PPT — " + topic.name);
-                                      setMaterialPreviewOpen(true);
-                                    }}
-                                  >
-                                    <Presentation className="w-3.5 h-3.5" /> Watch PPT
-                                  </Button>
-                                )}
-                                {!ch.textbookChunkPdfPath && !topic.topicPptPath && (
-                                  <p className="text-xs text-muted-foreground">No textual material or PPT added yet.</p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }) : (
-                        <p className="text-sm text-muted-foreground p-2">No topics defined for this chapter yet.</p>
-                      )}
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-            {filteredChapters.length === 0 && (
-              <Card className="shadow-card border-border">
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  No chapters available for this subject and class combination.
                 </CardContent>
               </Card>
-            )}
-          </div>
-        </TabsContent>
+            </TabsContent>
 
-        {/* STUDENTS TAB */}
-        <TabsContent value="students" className="space-y-4">
-          <Card className="shadow-card border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="font-display text-lg flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" /> {currentClass?.name} — Students ({classStudents.length})
-                </CardTitle>
-                <div>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadClassCsv()}>
-                    <FileDown className="w-4 h-4" /> Download Students CSV
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary">
-                      <th className="text-left p-3 font-medium text-muted-foreground">Roll</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Attendance</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Performance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classStudents.map(s => {
-                      const att = studentAttendance.find(a => a.studentId === s.id);
-                      return (
-                        <tr key={s.id} className="border-b border-border last:border-0">
-                          <td className="p-3 text-foreground">{s.rollNo}</td>
-                          <td className="p-3 text-foreground font-medium">{s.name}</td>
-                          <td className="p-3">
-                            {att ? (
-                              <div className="flex items-center gap-2">
-                                <Progress value={att.percentage} className="h-2 w-20" />
-                                <span className="text-xs text-muted-foreground">{att.percentage}%</span>
-                              </div>
-                            ) : <span className="text-xs text-muted-foreground">—</span>}
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              variant="outline"
-                              className="text-xs cursor-pointer"
-                              onClick={() => setViewingStudent(s.id)}
-                            >
-                              View
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* CLASS STATUS TAB */}
-        <TabsContent value="classstatus" className="space-y-4">
-          {liveSessionsFromApi.filter((ls) => ls.classId === selectedClass && (ls.status === "active" || ls.status === "ongoing")).length > 0 && (
-            <Card className="shadow-card border-border border-primary/30 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="font-display text-sm flex items-center gap-2 text-primary">
-                  <Radio className="w-4 h-4" /> Live / Ongoing sessions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {liveSessionsFromApi
-                  .filter((ls) => ls.classId === selectedClass && (ls.status === "active" || ls.status === "ongoing"))
-                  .map((ls) => (
-                    <div key={ls.id} className="flex items-center justify-between p-2 rounded-lg bg-background">
-                      <span className="text-sm">{ls.subjectName} — {ls.topicName}</span>
-                      <Badge className="bg-destructive/10 text-destructive text-xs">Live</Badge>
+            {/* LEAVE TAB */}
+            <TabsContent value="leave" className="space-y-4">
+              <div className="grid lg:grid-cols-2 gap-6">
+                <Card className="shadow-card border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg flex items-center gap-2">
+                      <CalendarOff className="w-5 h-5 text-primary" /> Apply for Leave
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {leaveError && <p className="text-sm text-destructive">{leaveError}</p>}
+                    <div>
+                      <Label>Date</Label>
+                      <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} className="mt-1" />
                     </div>
-                  ))}
-              </CardContent>
-            </Card>
-          )}
-          <Card className="shadow-card border-border">
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <CalendarCheck className="w-5 h-5 text-primary" /> Class Status — {currentClass?.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary">
-                      <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Reason</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classStatusLocal.map((cs) => (
-                      <tr key={cs.id} className="border-b border-border last:border-0">
-                        <td className="p-3 text-foreground">{cs.date}</td>
-                        <td className="p-3">
-                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                            cs.status === "conducted" ? "bg-success-light text-success" : "bg-destructive/10 text-destructive"
-                          }`}>
-                            {cs.status === "conducted"
-                              ? <><CheckCircle2 className="w-3 h-3" /> Conducted</>
-                              : <><XCircle className="w-3 h-3" /> Cancelled</>
-                            }
-                          </span>
-                        </td>
-                        <td className="p-3 text-muted-foreground text-xs">{cs.reason || "—"}</td>
-                        <td className="p-3">
-                          <Select
-                            value={cs.status}
-                            onValueChange={(val) => {
-                              setClassStatusLocal((prev) =>
-                                prev.map((c) => (c.id === cs.id ? { ...c, status: val as "conducted" | "cancelled" } : c))
-                              );
-                            }}
-                          >
-                            <SelectTrigger className="w-[130px] h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="conducted">Conducted</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* LEAVE TAB */}
-        <TabsContent value="leave" className="space-y-4">
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card className="shadow-card border-border">
-              <CardHeader>
-                <CardTitle className="font-display text-lg flex items-center gap-2">
-                  <CalendarOff className="w-5 h-5 text-primary" /> Apply for Leave
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {leaveError && <p className="text-sm text-destructive">{leaveError}</p>}
-                <div>
-                  <Label>Date</Label>
-                  <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} className="mt-1" />
-                </div>
-                <div>
-                  <Label>Reason</Label>
-                  <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Enter reason for leave..." className="mt-1" />
-                </div>
-                <Button onClick={handleApplyLeave} disabled={!leaveDate || !leaveReason || leaveSubmitting} className="w-full">
-                  {leaveSubmitting ? "Submitting…" : "Submit Leave Application"}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  ⚠️ While on leave, your classes will be marked as cancelled and students will be notified.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-card border-border">
-              <CardHeader>
-                <CardTitle className="font-display text-sm">Your leave applications</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {leaves.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No leave applications yet.</p>
-                ) : (
-                  <ul className="space-y-2 text-sm">
-                    {leaves.map((lv) => (
-                      <li key={lv.id} className="flex justify-between items-center p-2 rounded-lg bg-secondary">
-                        <span>{lv.date} — {lv.reason}</span>
-                        <Badge variant="outline" className="text-xs">{lv.status}</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* CO-CURRICULAR TAB */}
-        <TabsContent value="cocurricular" className="space-y-4">
-          <Card className="shadow-card border-border">
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-accent" /> Co-Curricular Activities
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {activities.map(act => (
-                  <div key={act.id} className="p-4 bg-secondary rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-2xl">{act.icon}</span>
-                      <div>
-                        <h4 className="font-display font-semibold text-foreground text-sm">{act.title}</h4>
-                        <Badge className={`text-xs ${
-                          act.status === "upcoming" ? "bg-info-light text-info" :
-                          act.status === "ongoing" ? "bg-success-light text-success" :
-                          "bg-secondary text-muted-foreground"
-                        }`}>{act.status}</Badge>
-                      </div>
+                    <div>
+                      <Label>Reason</Label>
+                      <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Enter reason for leave..." className="mt-1" />
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">{act.description}</p>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{act.date} • {act.registrations} registered</span>
-                      </div>
-                      {act.status !== "completed" && (
-                        <div>
-                          <div className="flex gap-2 mb-2">
-                            <Button variant="outline" size="sm" className="text-xs flex-1"
-                              onClick={() => beginRegister(act.id)}
-                            >
-                              Register Student
-                            </Button>
-                            <Button variant="outline" size="sm" className="text-xs flex-1"
-                              onClick={() => setViewingActivityRegistrations(act.id)}
-                            >
-                              Registered Students ({registrations.filter(r => r.activityId === act.id).length})
-                            </Button>
+                    <Button onClick={handleApplyLeave} disabled={!leaveDate || !leaveReason || leaveSubmitting} className="w-full">
+                      {leaveSubmitting ? "Submitting…" : "Submit Leave Application"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      ⚠️ While on leave, your classes will be marked as cancelled and students will be notified.
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="shadow-card border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-sm">Your leave applications</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {leaves.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No leave applications yet.</p>
+                    ) : (
+                      <ul className="space-y-2 text-sm">
+                        {leaves.map((lv) => (
+                          <li key={lv.id} className="flex justify-between items-center p-2 rounded-lg bg-secondary">
+                            <span>{lv.date} — {lv.reason}</span>
+                            <Badge variant="outline" className="text-xs">{lv.status}</Badge>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* CO-CURRICULAR TAB */}
+            <TabsContent value="cocurricular" className="space-y-4">
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-lg flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-accent" /> Co-Curricular Activities
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {activities.map(act => (
+                      <div key={act.id} className="p-4 bg-secondary rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">{act.icon}</span>
+                          <div>
+                            <h4 className="font-display font-semibold text-foreground text-sm">{act.title}</h4>
+                            <Badge className={`text-xs ${act.status === "upcoming" ? "bg-info-light text-info" :
+                                act.status === "ongoing" ? "bg-success-light text-success" :
+                                  "bg-secondary text-muted-foreground"
+                              }`}>{act.status}</Badge>
                           </div>
-                          {registeringActivity === act.id && (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                placeholder="Student ID"
-                                value={registerStudentId}
-                                onChange={e => setRegisterStudentId(e.target.value)}
-                                className="text-xs w-24"
-                              />
-                              <Button size="sm" onClick={confirmRegister} className="text-xs">
-                                OK
-                              </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{act.description}</p>
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">{act.date} • {act.registrations} registered</span>
+                          </div>
+                          {act.status !== "completed" && (
+                            <div>
+                              <div className="flex gap-2 mb-2">
+                                <Button variant="outline" size="sm" className="text-xs flex-1"
+                                  onClick={() => beginRegister(act.id)}
+                                >
+                                  Register Student
+                                </Button>
+                                <Button variant="outline" size="sm" className="text-xs flex-1"
+                                  onClick={() => setViewingActivityRegistrations(act.id)}
+                                >
+                                  Registered Students ({registrations.filter(r => r.activityId === act.id).length})
+                                </Button>
+                              </div>
+                              {registeringActivity === act.id && (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="text"
+                                    placeholder="Student ID"
+                                    value={registerStudentId}
+                                    onChange={e => setRegisterStudentId(e.target.value)}
+                                    className="text-xs w-24"
+                                  />
+                                  <Button size="sm" onClick={confirmRegister} className="text-xs">
+                                    OK
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </div> {/* end flex-1 wrapper */}
         </div> {/* end flex wrapper */}
       </Tabs>
-
-      {/* Floating AI Button */}
-      <button
-        onClick={() => setAiOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full gradient-primary shadow-hover flex items-center justify-center z-30 hover:scale-105 transition-transform"
-      >
-        <Bot className="w-6 h-6 text-primary-foreground" />
-      </button>
 
       {/* Registered Students modal */}
       <Dialog open={!!viewingActivityRegistrations} onOpenChange={open => { if (!open) setViewingActivityRegistrations(null); }}>
@@ -2111,7 +2323,7 @@ const TeacherDashboard = () => {
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                     <Tooltip />
-                    <Bar dataKey="score" fill="hsl(174,62%,38%)" radius={[4,4,0,0]} name="Score %" />
+                    <Bar dataKey="score" fill="hsl(174,62%,38%)" radius={[4, 4, 0, 0]} name="Score %" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

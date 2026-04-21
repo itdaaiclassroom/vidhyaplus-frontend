@@ -4,9 +4,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GraduationCap, ArrowLeft } from "lucide-react";
+import { GraduationCap, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { adminLogin, teacherLogin, studentLogin } from "@/api/client";
+import { toast } from "sonner";
 
 const Login = () => {
   const [searchParams] = useSearchParams();
@@ -15,12 +16,14 @@ const Login = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [teacherLoginMode, setTeacherLoginMode] = useState<"email" | "id">("email");
   const navigate = useNavigate();
   const { login } = useAuth();
 
   useEffect(() => {
     setEmail("");
     setPassword("");
+    setTeacherLoginMode("email");
   }, [role]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -42,14 +45,41 @@ const Login = () => {
         alert(err instanceof Error ? err.message : "Login failed");
       }
     } else if (role === "teacher") {
-      try {
-        const data = await teacherLogin({ email: email.trim(), password });
-        login("teacher", data.full_name, undefined, data.id);
-        navigate("/teacher/setup");
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Login failed");
+      if (teacherLoginMode === "id") {
+        // Teacher ID login — read stored credentials from localStorage
+        const storedTeacherId = localStorage.getItem("auth.teacherId");
+        const storedEmail = localStorage.getItem("teacher.lastEmail");
+        if (!storedTeacherId || !storedEmail) {
+          toast.error("Please login once using email before using Teacher ID.");
+          return;
+        }
+        if (email.trim() !== storedTeacherId) {
+          toast.error("Teacher ID does not match. Please check your ID.");
+          return;
+        }
+        try {
+          const data = await teacherLogin({ email: storedEmail, password });
+          login("teacher", data.full_name, undefined, data.id);
+          navigate("/teacher/setup");
+        } catch (err) {
+          alert(err instanceof Error ? err.message : "Login failed");
+        }
+      } else {
+        try {
+          const data = await teacherLogin({ email: email.trim(), password });
+          // Save email for future Teacher ID login
+          localStorage.setItem("teacher.lastEmail", email.trim());
+          login("teacher", data.full_name, undefined, data.id);
+          navigate("/teacher/setup");
+        } catch (err) {
+          alert(err instanceof Error ? err.message : "Login failed");
+        }
       }
     }
+  };
+
+  const handleForgotPassword = () => {
+    toast.info("Password reset is handled by the administrator. Please contact support.");
   };
 
   const roleLabels = { teacher: "Teacher", admin: "Admin", student: "Student" };
@@ -73,31 +103,90 @@ const Login = () => {
               {role === "student"
                 ? "Sign in with your Student ID and password"
                 : role === "teacher"
-                  ? "Sign in with your registered email and password"
+                  ? teacherLoginMode === "id"
+                    ? "Sign in with your Teacher ID and password"
+                    : "Sign in with your registered email and password"
                   : "Sign in with your admin email and password"}
             </p>
           </div>
+
+          {/* Teacher login mode toggle */}
+          {role === "teacher" && (
+            <div className="flex rounded-lg border border-border overflow-hidden mb-5">
+              <button
+                type="button"
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+                  teacherLoginMode === "email"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:bg-secondary"
+                }`}
+                onClick={() => { setTeacherLoginMode("email"); setEmail(""); }}
+              >
+                <Mail className="w-3.5 h-3.5" /> Login with Email
+              </button>
+              <button
+                type="button"
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+                  teacherLoginMode === "id"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:bg-secondary"
+                }`}
+                onClick={() => { setTeacherLoginMode("id"); setEmail(""); }}
+              >
+                <KeyRound className="w-3.5 h-3.5" /> Login with Teacher ID
+              </button>
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
 
             <div>
-              <Label htmlFor="email">{role === "student" ? "Student ID" : "Email"}</Label>
+              <Label htmlFor="email">
+                {role === "student"
+                  ? "Student ID"
+                  : role === "teacher" && teacherLoginMode === "id"
+                    ? "Teacher ID"
+                    : "Email"}
+              </Label>
               <Input
                 id="email"
-                type={role === "student" ? "text" : "email"}
+                type={role === "student" || (role === "teacher" && teacherLoginMode === "id") ? "text" : "email"}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="mt-1"
-                placeholder={role === "student" ? "e.g. 1" : ""}
+                placeholder={
+                  role === "student"
+                    ? "e.g. 1"
+                    : role === "teacher" && teacherLoginMode === "id"
+                      ? "e.g. 7"
+                      : ""
+                }
                 required
               />
               {role === "student" && (
                 <p className="text-xs text-muted-foreground mt-1">Use the numeric ID given by your school.</p>
+              )}
+              {role === "teacher" && teacherLoginMode === "id" && (
+                <p className="text-xs text-muted-foreground mt-1">Use the Teacher ID assigned after your first email login.</p>
               )}
             </div>
             <div>
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="mt-1" required />
             </div>
+
+            {/* Forgot Password — teacher only */}
+            {role === "teacher" && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-xs text-primary hover:text-primary/80 hover:underline transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
 
             <Button type="submit" className="w-full" size="lg">
               Sign In as {roleLabels[role]}
