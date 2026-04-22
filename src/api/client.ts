@@ -119,11 +119,47 @@ export interface AllDataResponse {
 }
 
 export async function fetchAll(): Promise<AllDataResponse> {
-  if (!API_BASE) throw new Error("API URL not set. In dev set VITE_API_URL (e.g. http://localhost:3001).");
+  if (!API_BASE) throw new Error("API URL not set.");
   const res = await fetch(`${API_BASE}/api/all`);
-  if (res.status === 404) throw new Error("API not found. Ensure the backend is running and VITE_API_URL points to it.");
-  if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-  return res.json() as Promise<AllDataResponse>;
+  if (res.status === 404) {
+    throw new Error("API not found. Ensure backend is running.");
+  }
+  if (!res.ok) {
+    throw new Error(await res.text().catch(() => res.statusText));
+  }
+  const data = await res.json();
+  console.log("API DATA:", data);
+  console.log("schools:", data.schools);
+  console.log("classes:", data.classes);
+  console.log("teachers:", data.teachers);
+  console.log("students:", data.students);
+  console.log("subjects:", data.subjects);
+  console.log("chapters:", data.chapters);
+  console.log("topics:", data.topics);
+  console.log("studentQuizResults:", data.studentQuizResults);
+  console.log("activityLogs:", data.activityLogs);
+  console.log("classStatus:", data.classStatus);
+  console.log("leaveApplications:", data.leaveApplications);
+  console.log("classRecordings:", data.classRecordings);
+  console.log("homework:", data.homework);
+  console.log("studentAttendance:", data.studentAttendance);
+  console.log("studyMaterials:", data.studyMaterials);
+  console.log("liveSessions:", data.liveSessions);
+  console.log("chapterQuizzes:", data.chapterQuizzes);
+  console.log("impactMetrics:", data.impactMetrics);
+  console.log("teacherEffectiveness:", data.teacherEffectiveness);
+  console.log("weakTopicHeatmap:", data.weakTopicHeatmap);
+  console.log("engagementMetrics:", data.engagementMetrics);
+  console.log("curriculum:", data.curriculum);
+  console.log("studentUsageLogs:", data.studentUsageLogs);
+  console.log("admins:", data.admins);
+  console.log("topicRecommendations:", data.topicRecommendations);
+  console.log("liveQuizSessions:", data.liveQuizSessions);
+  console.log("liveQuizAnswers:", data.liveQuizAnswers);
+  console.log("timetables:", data.timetables);
+  console.log("coCurricularActivities:", data.coCurricularActivities);
+
+  return data as AllDataResponse;
 }
 
 export function getApiBase(): string {

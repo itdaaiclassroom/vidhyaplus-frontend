@@ -15,7 +15,7 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer } from "@/api/client";
+import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer } from "@/api/client";
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
 
@@ -24,10 +24,10 @@ type LiveSessionLike = { id: string; teacherId: string; classId: string; subject
 import {
   BookOpen, Bot, Play, QrCode, CheckCircle2, XCircle, Lightbulb,
   Video, VideoOff, CalendarOff, CalendarCheck, FileText, Upload,
-  Clock, ArrowLeft, ChevronRight, Trophy, Presentation, Image,
+  Clock, ArrowLeft, ChevronRight, ChevronLeft, Trophy, Presentation, Image,
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
-  Maximize, Minimize, Pause, Send, MessageCircle, Medal
+  Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw
 } from "lucide-react";
 
 import {
@@ -303,6 +303,59 @@ const TeacherDashboard = () => {
   const leaves = useMemo(() => leaveApplications.filter((l) => l.teacherId === teacherId), [leaveApplications, teacherId]);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
+
+  // --- Attendance Calendar state ---
+  const today = new Date();
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth()); // 0-indexed
+  const [calendarUpdating, setCalendarUpdating] = useState<string | null>(null); // leave id being updated
+
+  /**
+   * Backend may return dates as "Wed Feb 18" (no year) OR "YYYY-MM-DD".
+   * Normalise both to "YYYY-MM-DD" using the current year so the calendar lookup works.
+   */
+  const parseLeaveDate = (raw: string): string => {
+    if (!raw) return raw;
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return raw.trim();
+    // Format: "Wed Feb 18" — day-name month-abbr day
+    const MONTHS: Record<string, string> = {
+      Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+      Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+    };
+    const parts = raw.trim().split(/\s+/);
+    if (parts.length >= 3) {
+      const month = MONTHS[parts[1]];
+      const day = parts[2].padStart(2, "0");
+      if (month && day) return `${new Date().getFullYear()}-${month}-${day}`;
+    }
+    return raw;
+  };
+
+  const leaveByDate = useMemo(() => {
+    const map = new Map<string, typeof leaves[0]>();
+    // Normalise every leave date to YYYY-MM-DD for reliable lookup
+    leaves.forEach((lv) => map.set(parseLeaveDate(lv.date), lv));
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaves]);
+
+  /**
+   * "Cancel leave" — sets status to "rejected" so the day is treated as present again.
+   * This is the corrective action when a leave was submitted by mistake.
+   */
+  const handleCancelLeave = async (leaveId: string) => {
+    setCalendarUpdating(leaveId);
+    try {
+      await updateLeaveApplicationStatus(leaveId, "rejected");
+      refetch();
+      toast.success("Leave cancelled — day marked as present.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel leave");
+    } finally {
+      setCalendarUpdating(null);
+    }
+  };
 
   const [activities, setActivities] = useState<Array<{ id: string; title: string; description: string; date: string; status: string; icon: string; registrations: number }>>([]);
   const [registrations, setRegistrations] = useState<Array<{ activityId: string; studentId: string; status: string }>>([]);
@@ -1243,8 +1296,8 @@ const TeacherDashboard = () => {
                           </div>
                         )}
                         <div className={`p-2.5 rounded-xl shadow-sm text-xs max-w-[90%] ${msg.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-tr-sm"
-                            : "bg-card border border-border text-foreground rounded-tl-sm"
+                          ? "bg-primary text-primary-foreground rounded-tr-sm"
+                          : "bg-card border border-border text-foreground rounded-tl-sm"
                           }`}>
                           {msg.text}
                         </div>
@@ -1687,7 +1740,7 @@ const TeacherDashboard = () => {
               <TabsTrigger value="overview" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Overview</TabsTrigger>
               <TabsTrigger value="chapters" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Chapters & Topics</TabsTrigger>
               <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
-              <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger>
+              {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
               <TabsTrigger value="timetable" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Timetable</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
               <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
@@ -1751,8 +1804,8 @@ const TeacherDashboard = () => {
                         <div
                           key={item.student.id}
                           className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${isTop3
-                              ? "bg-gradient-to-r from-amber-light/40 to-white/50 border border-amber/10 shadow-sm scale-[1.02] z-10"
-                              : "bg-secondary/50 border border-transparent"
+                            ? "bg-gradient-to-r from-amber-light/40 to-white/50 border border-amber/10 shadow-sm scale-[1.02] z-10"
+                            : "bg-secondary/50 border border-transparent"
                             }`}
                         >
                           <div className={`
@@ -2034,6 +2087,7 @@ const TeacherDashboard = () => {
                           <th className="text-left p-3 font-medium text-muted-foreground">Roll</th>
                           <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
                           <th className="text-left p-3 font-medium text-muted-foreground">Attendance</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Annual Score</th>
                           <th className="text-left p-3 font-medium text-muted-foreground">Performance</th>
                         </tr>
                       </thead>
@@ -2051,6 +2105,9 @@ const TeacherDashboard = () => {
                                     <span className="text-xs text-muted-foreground">{att.percentage}%</span>
                                   </div>
                                 ) : <span className="text-xs text-muted-foreground">—</span>}
+                              </td>
+                              <td className="p-3 text-foreground font-medium">
+                                {s.score ?? "—"}
                               </td>
                               <td className="p-3">
                                 <Badge
@@ -2071,9 +2128,185 @@ const TeacherDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* CLASS STATUS TAB */}
-            <TabsContent value="classstatus" className="space-y-4">
-              {liveSessionsFromApi.filter((ls) => ls.classId === selectedClass && (ls.status === "active" || ls.status === "ongoing")).length > 0 && (
+            {/* LEAVE TAB */}
+            <TabsContent value="leave" className="space-y-4">
+              <div className="grid lg:grid-cols-2 gap-6">
+                <Card className="shadow-card border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-lg flex items-center gap-2">
+                      <CalendarOff className="w-5 h-5 text-primary" /> Apply for Leave
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {leaveError && <p className="text-sm text-destructive">{leaveError}</p>}
+                    <div>
+                      <Label>Date</Label>
+                      <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Reason</Label>
+                      <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Enter reason for leave..." className="mt-1" />
+                    </div>
+                    <Button onClick={handleApplyLeave} disabled={!leaveDate || !leaveReason || leaveSubmitting} className="w-full">
+                      {leaveSubmitting ? "Submitting…" : "Submit Leave Application"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      ⚠️ While on leave, your classes will be marked as cancelled and students will be notified.
+                    </p>
+                  </CardContent>
+                </Card>
+                {/* ─── Attendance Calendar ─── */}
+                <Card className="shadow-card border-border">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="font-display text-base flex items-center gap-2">
+                        <CalendarCheck className="w-5 h-5 text-primary" /> Attendance Overview
+                      </CardTitle>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); }
+                            else setCalendarMonth(m => m - 1);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="text-xs font-medium text-foreground min-w-[90px] text-center">
+                          {new Date(calendarYear, calendarMonth).toLocaleString("default", { month: "long", year: "numeric" })}
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); }
+                            else setCalendarMonth(m => m + 1);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Legend */}
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span className="inline-block w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/40"></span> Present
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span className="inline-block w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40"></span> Absent (Leave)
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span className="inline-block w-3 h-3 rounded-full bg-secondary border border-border"></span> Sunday / Holiday
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {(() => {
+                      const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+                      const firstWeekday = new Date(calendarYear, calendarMonth, 1).getDay(); // 0=Sun
+                      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                      const cells: JSX.Element[] = [];
+                      // Header row
+                      dayNames.forEach((d) => (
+                        cells.push(
+                          <div key={`h-${d}`} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
+                        )
+                      ));
+                      // Empty leading cells
+                      for (let i = 0; i < firstWeekday; i++) {
+                        cells.push(<div key={`e-${i}`} />);
+                      }
+                      // Day cells
+                      for (let day = 1; day <= daysInMonth; day++) {
+                        const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                        const weekday = new Date(calendarYear, calendarMonth, day).getDay();
+                        const isSunday = weekday === 0;
+                        // leaveByDate keys are already normalised to YYYY-MM-DD
+                        const lv = leaveByDate.get(dateStr);
+                        // Only "approved" status means teacher is absent on that date
+                        const isAbsent = lv?.status === "approved";
+                        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                        const isToday = dateStr === todayStr;
+                        const isFuture = new Date(calendarYear, calendarMonth, day) > today;
+
+                        let cellBg = "";
+                        let cellText = "text-foreground";
+                        let dotColor = "";
+                        let title = dateStr;
+
+                        if (isSunday) {
+                          cellBg = "bg-secondary/60";
+                          cellText = "text-muted-foreground";
+                          title = "Sunday – Holiday";
+                        } else if (isAbsent) {
+                          // Approved leave → absent → red, clickable to cancel
+                          cellBg = "bg-red-500/15 hover:bg-red-500/25";
+                          cellText = "text-red-600 dark:text-red-400 font-semibold";
+                          dotColor = "bg-red-500";
+                          title = `Absent – ${lv?.reason || "Approved leave"} (click to cancel)`;
+                        } else if (!isFuture) {
+                          // Past weekday, no approved leave → present → green
+                          cellBg = "bg-emerald-500/10 hover:bg-emerald-500/15";
+                          cellText = "text-emerald-700 dark:text-emerald-400";
+                          dotColor = "bg-emerald-500";
+                          title = "Present";
+                        } else {
+                          // Future date — no colour
+                          cellText = "text-muted-foreground/60";
+                        }
+
+                        cells.push(
+                          <div
+                            key={dateStr}
+                            title={title}
+                            onClick={() => { if (isAbsent && lv) handleCancelLeave(lv.id); }}
+                            className={`relative flex flex-col items-center justify-center rounded-lg aspect-square text-xs transition-all duration-150 ${cellBg
+                              } ${isToday ? "ring-2 ring-primary ring-offset-1" : ""
+                              } ${isAbsent ? "cursor-pointer" : ""}`}
+                          >
+                            <span className={cellText}>{day}</span>
+                            {dotColor && <span className={`absolute bottom-1 w-1 h-1 rounded-full ${dotColor}`} />}
+                            {calendarUpdating === lv?.id && (
+                              <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/70">
+                                <RotateCcw className="w-3 h-3 animate-spin text-primary" />
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-7 gap-1">{cells}</div>
+                      );
+                    })()}
+                    {/* Approved leaves list — cancel if applied by mistake */}
+                    {leaves.filter(lv => lv.status === "approved").length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-border space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Approved Leaves — click <span className="text-red-500">×</span> to cancel if applied by mistake</p>
+                        {leaves.filter(lv => lv.status === "approved").map(lv => (
+                          <div key={lv.id} className="flex items-center justify-between p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                            <div>
+                              <span className="text-xs font-medium text-red-600 dark:text-red-400">{lv.date}</span>
+                              <span className="text-xs text-muted-foreground ml-2">{lv.reason}</span>
+                            </div>
+                            <button
+                              onClick={() => handleCancelLeave(lv.id)}
+                              disabled={calendarUpdating === lv.id}
+                              className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                              title="Cancel this leave (applied by mistake)"
+                            >
+                              <RotateCcw className={`w-3 h-3 ${calendarUpdating === lv.id ? "animate-spin" : ""}`} />
+                              Cancel Leave
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Class Status section — visible within Leave tab */}
+              {/* {liveSessionsFromApi.filter((ls) => ls.classId === selectedClass && (ls.status === "active" || ls.status === "ongoing")).length > 0 && (
                 <Card className="shadow-card border-border border-primary/30 bg-primary/5">
                   <CardHeader>
                     <CardTitle className="font-display text-sm flex items-center gap-2 text-primary">
@@ -2091,7 +2324,7 @@ const TeacherDashboard = () => {
                       ))}
                   </CardContent>
                 </Card>
-              )}
+              )} */}
               <Card className="shadow-card border-border">
                 <CardHeader>
                   <CardTitle className="font-display text-lg flex items-center gap-2">
@@ -2150,55 +2383,6 @@ const TeacherDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* LEAVE TAB */}
-            <TabsContent value="leave" className="space-y-4">
-              <div className="grid lg:grid-cols-2 gap-6">
-                <Card className="shadow-card border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg flex items-center gap-2">
-                      <CalendarOff className="w-5 h-5 text-primary" /> Apply for Leave
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {leaveError && <p className="text-sm text-destructive">{leaveError}</p>}
-                    <div>
-                      <Label>Date</Label>
-                      <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label>Reason</Label>
-                      <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Enter reason for leave..." className="mt-1" />
-                    </div>
-                    <Button onClick={handleApplyLeave} disabled={!leaveDate || !leaveReason || leaveSubmitting} className="w-full">
-                      {leaveSubmitting ? "Submitting…" : "Submit Leave Application"}
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      ⚠️ While on leave, your classes will be marked as cancelled and students will be notified.
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="shadow-card border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-sm">Your leave applications</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {leaves.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No leave applications yet.</p>
-                    ) : (
-                      <ul className="space-y-2 text-sm">
-                        {leaves.map((lv) => (
-                          <li key={lv.id} className="flex justify-between items-center p-2 rounded-lg bg-secondary">
-                            <span>{lv.date} — {lv.reason}</span>
-                            <Badge variant="outline" className="text-xs">{lv.status}</Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
             {/* CO-CURRICULAR TAB */}
             <TabsContent value="cocurricular" className="space-y-4">
               <Card className="shadow-card border-border">
@@ -2216,8 +2400,8 @@ const TeacherDashboard = () => {
                           <div>
                             <h4 className="font-display font-semibold text-foreground text-sm">{act.title}</h4>
                             <Badge className={`text-xs ${act.status === "upcoming" ? "bg-info-light text-info" :
-                                act.status === "ongoing" ? "bg-success-light text-success" :
-                                  "bg-secondary text-muted-foreground"
+                              act.status === "ongoing" ? "bg-success-light text-success" :
+                                "bg-secondary text-muted-foreground"
                               }`}>{act.status}</Badge>
                           </div>
                         </div>
