@@ -34,6 +34,7 @@ import {
 } from "recharts";
 import { StudentForm, TeacherForm } from "./RegistrationForms";
 import { createSchool, updateSchool, deleteSchool, getTeacherAssignments, updateTeacher, updateTeacherAssignments, updateChapterTextbook, updateTopicPpt, getApiBase } from "@/api/client";
+import { uploadFileToR2, deleteFileFromR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
@@ -85,6 +86,9 @@ const AdminDashboard = () => {
   const toPreviewUrl = (url: string) => {
     const raw = (url || "").trim();
     if (!raw) return "";
+    if (raw.toLowerCase().includes(".pdf")) {
+      return raw + (raw.includes("#") ? "&" : "#") + "toolbar=0&navpanes=0&scrollbar=0";
+    }
     return raw;
   };
   const isPptxUrl = (url: string) => /\.(ppt|pptx)(\?|#|$)/i.test((url || "").trim());
@@ -1618,9 +1622,8 @@ const AdminDashboard = () => {
                             <BookOpen className="w-4 h-4" /> Textual material (chapter PDF)
                           </p>
                           {(ch as { textbookChunkPdfPath?: string | null })?.textbookChunkPdfPath && (
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Current: {(ch as { textbookChunkPdfPath: string }).textbookChunkPdfPath}
-                              {" · "}
+                            <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                              <span className="bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">Textbook Uploaded</span>
                               <button
                                 type="button"
                                 className="text-primary hover:underline"
@@ -1651,21 +1654,22 @@ const AdminDashboard = () => {
                               const file = e.target.files[0];
                               setUploadingTextbookFor(chapterId);
                               try {
-                                const base64 = await file.arrayBuffer().then((buf) => {
-                                  let binary = "";
-                                  const bytes = new Uint8Array(buf);
-                                  const chunk = 0x8000;
-                                  for (let i = 0; i < bytes.length; i += chunk) {
-                                    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-                                  }
-                                  return btoa(binary);
-                                });
-                                if (!base64) throw new Error("Failed to read file");
-                                await updateChapterTextbook(chapterId, { file: base64, filename: file.name });
+                                // 1. Delete old textbook if it exists
+                                const oldPath = (ch as { textbookChunkPdfPath?: string | null })?.textbookChunkPdfPath;
+                                if (oldPath && oldPath.startsWith("http")) {
+                                  try { await deleteFileFromR2(oldPath); } catch (e) { console.warn("Failed to delete old textbook", e); }
+                                }
+
+                                // 2. Upload to R2 directly
+                                const publicUrl = await uploadFileToR2(file, 'textbooks');
+
+                                // 3. Update database with new public URL
+                                await updateChapterTextbook(chapterId, { path: publicUrl });
+
                                 refetch?.();
-                                toast.success("Textbook uploaded and saved.");
+                                toast.success("Textbook uploaded to R2 and saved.");
                               } catch (err) {
-                                toast.error(err instanceof Error ? err.message : "Upload failed. File may be too large or server error.");
+                                toast.error(err instanceof Error ? err.message : "Upload failed.");
                               } finally {
                                 setUploadingTextbookFor(null);
                                 e.target.value = "";
@@ -1752,21 +1756,22 @@ const AdminDashboard = () => {
                                     const file = e.target.files[0];
                                     setUploadingPptFor(t.id);
                                     try {
-                                      const base64 = await file.arrayBuffer().then((buf) => {
-                                        let binary = "";
-                                        const bytes = new Uint8Array(buf);
-                                        const chunk = 0x8000;
-                                        for (let i = 0; i < bytes.length; i += chunk) {
-                                          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-                                        }
-                                        return btoa(binary);
-                                      });
-                                      if (!base64) throw new Error("Failed to read file");
-                                      await updateTopicPpt(t.id, { file: base64, filename: file.name });
+                                      // 1. Delete old PPT if it exists
+                                      const oldPath = (t as { topicPptPath?: string | null })?.topicPptPath;
+                                      if (oldPath && oldPath.startsWith("http")) {
+                                        try { await deleteFileFromR2(oldPath); } catch (e) { console.warn("Failed to delete old PPT", e); }
+                                      }
+
+                                      // 2. Upload to R2 directly
+                                      const publicUrl = await uploadFileToR2(file, 'ppts');
+
+                                      // 3. Update database with new public URL
+                                      await updateTopicPpt(t.id, { path: publicUrl });
+
                                       refetch?.();
-                                      toast.success("PPT uploaded and saved.");
+                                      toast.success("PPT uploaded to R2 and saved.");
                                     } catch (err) {
-                                      toast.error(err instanceof Error ? err.message : "Upload failed. File may be too large or server error.");
+                                      toast.error(err instanceof Error ? err.message : "Upload failed.");
                                     } finally {
                                       setUploadingPptFor(null);
                                       e.target.value = "";
