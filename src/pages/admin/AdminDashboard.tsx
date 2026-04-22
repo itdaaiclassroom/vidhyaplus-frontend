@@ -147,6 +147,7 @@ const AdminDashboard = () => {
       const classIds = schoolClassIds.get(s.id) || [];
       const schoolStudentIds = new Set(students.filter((st) => st.classId && classIds.includes(st.classId)).map((st) => st.id));
       const quizzes = studentQuizResults.filter((r) => schoolStudentIds.has(r.studentId)).length;
+      console.log(data);
       return {
         name: s.name,
         sessions: s.sessionsCompleted ?? 0,
@@ -180,15 +181,15 @@ const AdminDashboard = () => {
       { name: "Ongoing Live", value: ongoingLive, color: "hsl(38, 92%, 55%)" },
     ].filter((d) => d.value > 0).length
       ? [
-          { name: "Conducted", value: conducted, color: "hsl(174, 62%, 38%)" },
-          { name: "Cancelled", value: cancelled, color: "hsl(0, 70%, 50%)" },
-          { name: "Ongoing Live", value: ongoingLive, color: "hsl(38, 92%, 55%)" },
-        ]
+        { name: "Conducted", value: conducted, color: "hsl(174, 62%, 38%)" },
+        { name: "Cancelled", value: cancelled, color: "hsl(0, 70%, 50%)" },
+        { name: "Ongoing Live", value: ongoingLive, color: "hsl(38, 92%, 55%)" },
+      ]
       : [
-          { name: "Conducted", value: 0, color: "hsl(174, 62%, 38%)" },
-          { name: "Cancelled", value: 0, color: "hsl(0, 70%, 50%)" },
-          { name: "Ongoing Live", value: 0, color: "hsl(38, 92%, 55%)" },
-        ];
+        { name: "Conducted", value: 0, color: "hsl(174, 62%, 38%)" },
+        { name: "Cancelled", value: 0, color: "hsl(0, 70%, 50%)" },
+        { name: "Ongoing Live", value: 0, color: "hsl(38, 92%, 55%)" },
+      ];
   }, [combinedClassStatus]);
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -353,7 +354,7 @@ const AdminDashboard = () => {
   );
 
   const filteredTeacherEffectiveness = useMemo(() => {
-    return (teacherEffectiveness as Array<{ teacherId: string; [k: string]: unknown }>)
+    return (teacherEffectiveness as Array<{ teacherId: string;[k: string]: unknown }>)
       .map(te => {
         const teacher = teachers.find(t => t.id === te.teacherId);
         if (!teacher) return null;
@@ -494,7 +495,7 @@ const AdminDashboard = () => {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const fileName = `${classDetail.name.replace(/\s+/g, "_")}_students_${new Date().toISOString().slice(0,10)}.csv`;
+    const fileName = `${classDetail.name.replace(/\s+/g, "_")}_students_${new Date().toISOString().slice(0, 10)}.csv`;
     a.href = url;
     a.setAttribute("download", fileName);
     document.body.appendChild(a);
@@ -676,21 +677,21 @@ const AdminDashboard = () => {
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="classstatus">Class Status</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
-            <div className="relative inline-block" ref={registrationRef}>
-              <Button variant="ghost" onClick={() => setShowRegistrationMenu(v => !v)} className="h-9">Registration</Button>
-              {showRegistrationMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-popover border border-border rounded-md shadow-lg z-50">
-                  <button
-                    onClick={() => { setShowRegistrationMenu(false); setRegistrationModalType("student"); }}
-                    className="w-full text-left px-3 py-2 hover:bg-secondary"
-                  >Student Registration</button>
-                  <button
-                    onClick={() => { setShowRegistrationMenu(false); setRegistrationModalType("teacher"); }}
-                    className="w-full text-left px-3 py-2 hover:bg-secondary"
-                  >Teacher Registration</button>
-                </div>
-              )}
-            </div>
+          <div className="relative inline-block" ref={registrationRef}>
+            <Button variant="ghost" onClick={() => setShowRegistrationMenu(v => !v)} className="h-9">Registration</Button>
+            {showRegistrationMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-popover border border-border rounded-md shadow-lg z-50">
+                <button
+                  onClick={() => { setShowRegistrationMenu(false); setRegistrationModalType("student"); }}
+                  className="w-full text-left px-3 py-2 hover:bg-secondary"
+                >Student Registration</button>
+                <button
+                  onClick={() => { setShowRegistrationMenu(false); setRegistrationModalType("teacher"); }}
+                  className="w-full text-left px-3 py-2 hover:bg-secondary"
+                >Teacher Registration</button>
+              </div>
+            )}
+          </div>
         </TabsList>
 
         {/* OVERVIEW */}
@@ -710,7 +711,7 @@ const AdminDashboard = () => {
                       ? () => setActiveTab("teachers")
                       : c.label === "Students"
                         ? () => navigate("/admin/students-filter")
-                      : undefined
+                        : undefined
                 }
               >
                 <CardContent className="p-4 flex items-center gap-3">
@@ -834,20 +835,20 @@ const AdminDashboard = () => {
                       });
                       return [...bySubject.values()].sort((a, b) => (a.avgScore ?? 0) - (b.avgScore ?? 0));
                     })().map((topic, i) => (
-                        <div key={i} className="flex items-center gap-4 p-3 bg-secondary rounded-xl">
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-sm font-medium text-foreground">{topic.chapter}</p>
-                              <Badge variant="outline" className="text-xs">{topic.subject}</Badge>
-                            </div>
-                            <Progress value={topic.avgScore ?? 0} className="h-2" />
+                      <div key={i} className="flex items-center gap-4 p-3 bg-secondary rounded-xl">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-medium text-foreground">{topic.chapter}</p>
+                            <Badge variant="outline" className="text-xs">{topic.subject}</Badge>
                           </div>
-                          <div className="text-right">
-                            <p className={`text-sm font-bold ${(topic.avgScore ?? 0) < 50 ? "text-destructive" : "text-amber"}`}>{topic.avgScore ?? 0}%</p>
-                            <p className="text-xs text-muted-foreground">{topic.weakStudents ?? 0} weak</p>
-                          </div>
+                          <Progress value={topic.avgScore ?? 0} className="h-2" />
                         </div>
-                      ))
+                        <div className="text-right">
+                          <p className={`text-sm font-bold ${(topic.avgScore ?? 0) < 50 ? "text-destructive" : "text-amber"}`}>{topic.avgScore ?? 0}%</p>
+                          <p className="text-xs text-muted-foreground">{topic.weakStudents ?? 0} weak</p>
+                        </div>
+                      </div>
+                    ))
                   ) : (
                     <div className="py-8 text-center text-muted-foreground text-sm">No chapter quiz data yet. Weak topics are computed from the database.</div>
                   )}
@@ -872,62 +873,62 @@ const AdminDashboard = () => {
                 </Button>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-              {schools.map(s => {
-                const schoolClasses = classes.filter(c => c.schoolId === s.id);
-                const schoolClassIds = new Set(schoolClasses.map((c) => c.id));
-                const schoolStudentIds = new Set(students.filter((st) => st.classId && schoolClassIds.has(st.classId)).map((st) => st.id));
-                const schoolAttendance = studentAttendance.filter((a) => schoolStudentIds.has(a.studentId));
-                const engagementPct = schoolAttendance.length ? Math.round(schoolAttendance.reduce((sum, a) => sum + a.percentage, 0) / schoolAttendance.length) : 0;
-                const schoolResults = studentQuizResults.filter((r) => schoolStudentIds.has(r.studentId));
-                const totalSc = schoolResults.reduce((sum, r) => sum + r.score, 0);
-                const totalTot = schoolResults.reduce((sum, r) => sum + r.total, 0);
-                const performancePct = totalTot > 0 ? Math.round((totalSc / totalTot) * 100) : 0;
-                const completionPct = s.sessionsCompleted > 0 ? Math.min(100, Math.round((schoolResults.length / s.sessionsCompleted) * 10)) : 0;
-                const schoolSessions = activeSessions.filter(ls =>
-                  classes.filter(c => c.schoolId === s.id).some(c => c.id === ls.classId)
-                );
-                return (
-                  <Card key={s.id} className="shadow-card border-border card-hover cursor-pointer relative" onClick={() => setSelectedSchool(s.id)}>
-                    {schoolSessions.length > 0 && (
-                      <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-destructive text-destructive-foreground text-xs font-bold animate-pulse">
-                        <Radio className="w-3 h-3" /> {schoolSessions.length} LIVE
-                      </div>
-                    )}
-                    <CardContent className="p-5">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-display font-semibold text-foreground">{s.name}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">{s.code} • {s.district}</p>
-                          <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
-                            <span>{s.teachers} teacher(s)</span>
-                            <span>{s.students} students</span>
-                            <span>{s.sessionsCompleted} sessions</span>
+                {schools.map(s => {
+                  const schoolClasses = classes.filter(c => c.schoolId === s.id);
+                  const schoolClassIds = new Set(schoolClasses.map((c) => c.id));
+                  const schoolStudentIds = new Set(students.filter((st) => st.classId && schoolClassIds.has(st.classId)).map((st) => st.id));
+                  const schoolAttendance = studentAttendance.filter((a) => schoolStudentIds.has(a.studentId));
+                  const engagementPct = schoolAttendance.length ? Math.round(schoolAttendance.reduce((sum, a) => sum + a.percentage, 0) / schoolAttendance.length) : 0;
+                  const schoolResults = studentQuizResults.filter((r) => schoolStudentIds.has(r.studentId));
+                  const totalSc = schoolResults.reduce((sum, r) => sum + r.score, 0);
+                  const totalTot = schoolResults.reduce((sum, r) => sum + r.total, 0);
+                  const performancePct = totalTot > 0 ? Math.round((totalSc / totalTot) * 100) : 0;
+                  const completionPct = s.sessionsCompleted > 0 ? Math.min(100, Math.round((schoolResults.length / s.sessionsCompleted) * 10)) : 0;
+                  const schoolSessions = activeSessions.filter(ls =>
+                    classes.filter(c => c.schoolId === s.id).some(c => c.id === ls.classId)
+                  );
+                  return (
+                    <Card key={s.id} className="shadow-card border-border card-hover cursor-pointer relative" onClick={() => setSelectedSchool(s.id)}>
+                      {schoolSessions.length > 0 && (
+                        <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-destructive text-destructive-foreground text-xs font-bold animate-pulse">
+                          <Radio className="w-3 h-3" /> {schoolSessions.length} LIVE
+                        </div>
+                      )}
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-display font-semibold text-foreground">{s.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">{s.code} • {s.district}</p>
+                            <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+                              <span>{s.teachers} teacher(s)</span>
+                              <span>{s.students} students</span>
+                              <span>{s.sessionsCompleted} sessions</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-3">
+                              <div className="bg-secondary rounded-lg p-2 text-center">
+                                <p className="font-display text-sm font-bold text-foreground">{engagementPct}%</p>
+                                <p className="text-[10px] text-muted-foreground">Engagement</p>
+                              </div>
+                              <div className="bg-secondary rounded-lg p-2 text-center">
+                                <p className="font-display text-sm font-bold text-foreground">{completionPct}%</p>
+                                <p className="text-[10px] text-muted-foreground">Completion</p>
+                              </div>
+                              <div className="bg-secondary rounded-lg p-2 text-center">
+                                <p className="font-display text-sm font-bold text-foreground">{performancePct}%</p>
+                                <p className="text-[10px] text-muted-foreground">Performance</p>
+                              </div>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            <div className="bg-secondary rounded-lg p-2 text-center">
-                              <p className="font-display text-sm font-bold text-foreground">{engagementPct}%</p>
-                              <p className="text-[10px] text-muted-foreground">Engagement</p>
-                            </div>
-                            <div className="bg-secondary rounded-lg p-2 text-center">
-                              <p className="font-display text-sm font-bold text-foreground">{completionPct}%</p>
-                              <p className="text-[10px] text-muted-foreground">Completion</p>
-                            </div>
-                            <div className="bg-secondary rounded-lg p-2 text-center">
-                              <p className="font-display text-sm font-bold text-foreground">{performancePct}%</p>
-                              <p className="text-[10px] text-muted-foreground">Performance</p>
-                            </div>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingSchool({ id: s.id, name: s.name, code: s.code, district: s.district, mandal: (s as { mandal?: string }).mandal, sessionsCompleted: s.sessionsCompleted, activeStatus: s.activeStatus }); setSchoolFormOpen(true); }}>Edit</Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => { if (window.confirm("Delete this school?")) deleteSchool(s.id).then(() => refetch()); }}>Delete</Button>
+                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
                           </div>
                         </div>
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { setEditingSchool({ id: s.id, name: s.name, code: s.code, district: s.district, mandal: (s as { mandal?: string }).mandal, sessionsCompleted: s.sessionsCompleted, activeStatus: s.activeStatus }); setSchoolFormOpen(true); }}>Edit</Button>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => { if (window.confirm("Delete this school?")) deleteSchool(s.id).then(() => refetch()); }}>Delete</Button>
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           ) : !selectedClass ? (
@@ -979,7 +980,7 @@ const AdminDashboard = () => {
               <Button variant="ghost" onClick={() => setSelectedClass(null)} className="mb-6 gap-2">
                 <ArrowLeft className="w-4 h-4" /> Back to Classes
               </Button>
-              
+
               <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
                 <h2 className="font-display text-2xl font-bold text-foreground">{classDetail?.name}</h2>
                 <div className="flex items-center gap-2">
@@ -1090,14 +1091,14 @@ const AdminDashboard = () => {
                   <ArrowLeft className="w-4 h-4" /> Back to {classDetail?.name}
                 </Button>
               </div>
-              
+
               <div className="mb-6 p-6 bg-gradient-to-r from-teal-light/10 to-info-light/10 rounded-xl border border-border">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
                     {subjects.find(s => s.id === selectedSubject)?.icon} {subjects.find(s => s.id === selectedSubject)?.name}
                   </h2>
                 </div>
-                
+
                 {/* Teacher Info */}
                 <div className="bg-card border border-border rounded-lg p-4 mb-4">
                   <p className="text-xs text-muted-foreground mb-1">Teaching by</p>
@@ -1130,21 +1131,21 @@ const AdminDashboard = () => {
               {(() => {
                 const subjectChapters = chapters.filter(ch => ch.subjectId === selectedSubject && ch.grade === (classDetail?.grade || 0));
                 const subjectChapterIds = subjectChapters.map(ch => ch.id);
-                
+
                 // Calculate scores for each student in this subject
                 const studentScores = classStudents.map(student => {
-                  const studentResults = studentQuizResults.filter(r => 
-                    r.studentId === student.id && 
+                  const studentResults = studentQuizResults.filter(r =>
+                    r.studentId === student.id &&
                     subjectChapterIds.some(chId => {
                       const ch = chapters.find(c => c.id === chId);
                       return ch && r.chapterId === ch.id;
                     })
                   );
-                  
+
                   const totalScore = studentResults.reduce((sum, r) => sum + r.score, 0);
                   const totalPossible = studentResults.reduce((sum, r) => sum + r.total, 0);
                   const percentage = totalPossible > 0 ? Math.round((totalScore / totalPossible) * 100) : 0;
-                  
+
                   return { student, percentage, totalScore, totalPossible };
                 });
 
@@ -1424,16 +1425,16 @@ const AdminDashboard = () => {
                           return true;
                         })
                         .map(lv => {
-                      const teacher = teachers.find(t => t.id === lv.teacherId);
-                      return (
-                        <tr key={lv.id} className="border-b border-border last:border-0">
-                          <td className="p-3 text-foreground font-medium">{teacher?.name}</td>
-                          <td className="p-3 text-foreground">{lv.date}</td>
-                          <td className="p-3 text-muted-foreground">{lv.reason}</td>
-                          <td className="p-3 text-muted-foreground">{lv.appliedOn}</td>
-                        </tr>
-                      );
-                    }))}
+                          const teacher = teachers.find(t => t.id === lv.teacherId);
+                          return (
+                            <tr key={lv.id} className="border-b border-border last:border-0">
+                              <td className="p-3 text-foreground font-medium">{teacher?.name}</td>
+                              <td className="p-3 text-foreground">{lv.date}</td>
+                              <td className="p-3 text-muted-foreground">{lv.reason}</td>
+                              <td className="p-3 text-muted-foreground">{lv.appliedOn}</td>
+                            </tr>
+                          );
+                        }))}
                   </tbody>
                 </table>
               </div>
@@ -1878,11 +1879,10 @@ const AdminDashboard = () => {
                             <td className="p-3 text-foreground font-medium">{cls?.name}</td>
                             <td className="p-3 text-foreground">{teacher?.name}</td>
                             <td className="p-3">
-                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                                cs.status === "conducted" ? "bg-success-light text-success" :
-                                isLive ? "bg-primary/20 text-primary" :
-                                "bg-destructive/10 text-destructive"
-                              }`}>
+                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cs.status === "conducted" ? "bg-success-light text-success" :
+                                  isLive ? "bg-primary/20 text-primary" :
+                                    "bg-destructive/10 text-destructive"
+                                }`}>
                                 {cs.status === "conducted"
                                   ? <><CheckCircle2 className="w-3 h-3" /> Conducted</>
                                   : isLive
