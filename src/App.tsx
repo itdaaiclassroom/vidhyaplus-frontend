@@ -28,6 +28,8 @@ import NotFound from "./pages/NotFound";
 import StudentRegistration from "./pages/admin/StudentRegistration";
 import TeacherRegistration from "./pages/admin/TeacherRegistration";
 import MvpSubmissionHub from "./pages/MvpSubmissionHub";
+import PrincipalDashboard from "./pages/principal/PrincipalDashboard";
+
 
 const queryClient = new QueryClient();
 
@@ -62,6 +64,8 @@ const App = () => (
             <Route path="/student/quiz-results" element={<StudentQuizResults />} />
             <Route path="/student/live-quiz/:sessionId" element={<StudentLiveQuiz />} />
             <Route path="/student/qr/:token" element={<StudentQrProfile />} />
+            <Route path="/principal" element={<PrincipalDashboard />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

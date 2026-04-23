@@ -11,8 +11,9 @@ import { toast } from "sonner";
 
 const Login = () => {
   const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get("role") as "teacher" | "admin" | "student" | null;
-  const role: "teacher" | "admin" | "student" = roleParam === "student" ? "student" : roleParam === "teacher" ? "teacher" : "admin";
+  const roleParam = searchParams.get("role") as "teacher" | "admin" | "student" | "principal" | null;
+  const role: "teacher" | "admin" | "student" | "principal" = roleParam === "student" ? "student" : roleParam === "teacher" ? "teacher" : roleParam === "principal" ? "principal" : "admin";
+
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,14 +76,20 @@ const Login = () => {
           alert(err instanceof Error ? err.message : "Login failed");
         }
       }
+    } else if (role === "principal") {
+      // Demo login for principal
+      login("principal", "Principal");
+      navigate("/principal");
     }
   };
+
 
   const handleForgotPassword = () => {
     toast.info("Password reset is handled by the administrator. Please contact support.");
   };
 
-  const roleLabels = { teacher: "Teacher", admin: "Admin", student: "Student" };
+  const roleLabels = { teacher: "Teacher", admin: "Admin", student: "Student", principal: "Principal" };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-light via-background to-amber-light p-4">
