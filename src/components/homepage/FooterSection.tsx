@@ -39,6 +39,8 @@ const FooterSection = () => {
             <ul className="space-y-2 text-sm">
               <li><Link to="/login?role=teacher" className="text-muted-foreground hover:text-background transition-colors">Teacher Login</Link></li>
               <li><Link to="/login?role=admin" className="text-muted-foreground hover:text-background transition-colors">Admin Login</Link></li>
+              <li><Link to="/login?role=principal" className="text-muted-foreground hover:text-background transition-colors">Principal Login</Link></li>
+
             </ul>
           </div>
         </div>

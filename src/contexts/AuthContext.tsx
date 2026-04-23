@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-type Role = "teacher" | "admin" | "student" | null;
+type Role = "teacher" | "admin" | "student" | "principal" | null;
+
 
 interface AuthContextType {
   role: Role;
@@ -27,7 +28,8 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<Role>(() => {
     const saved = localStorage.getItem("auth.role");
-    return (saved === "teacher" || saved === "admin" || saved === "student") ? saved : null;
+    return (saved === "teacher" || saved === "admin" || saved === "student" || saved === "principal") ? saved : null;
+
   });
   const [userName, setUserName] = useState(() => localStorage.getItem("auth.userName") || "");
   const [studentId, setStudentId] = useState<string | null>(() => localStorage.getItem("auth.studentId"));
@@ -35,7 +37,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (r: Role, name = "", sId?: string, tId?: string) => {
     setRole(r);
-    setUserName(name || (r === "admin" ? "Administrator" : r === "student" ? "Student" : "Teacher"));
+    setUserName(name || (r === "admin" ? "Administrator" : r === "student" ? "Student" : r === "principal" ? "Principal" : "Teacher"));
+
     setStudentId(sId || null);
     setTeacherId(tId || null);
   };
