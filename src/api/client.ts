@@ -14,6 +14,9 @@ function resolveApiBase(): string {
   return "";
 }
 const API_BASE = resolveApiBase();
+const AI_API_BASE = import.meta.env.VITE_AI_API_URL || "http://localhost:8001";
+
+
 
 export interface AllDataResponse {
   schools: Array<{ id: string; name: string; code: string; district: string; mandal?: string; teachers: number; students: number; classes: number; sessionsCompleted: number; activeStatus: boolean }>;
@@ -658,3 +661,39 @@ export async function submitStudentMark(body: {
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
+
+export async function getAiRecommendations(payload: {
+  topic: string;
+  subject: string;
+  grade: number;
+}): Promise<{
+  videos: Array<{ title: string; url: string; description?: string }>;
+  resources: Array<{ title: string; url: string; snippet?: string }>;
+}> {
+  const res = await fetch(`${AI_API_BASE}/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`AI Recommendation service returned ${res.status}`);
+  return res.json();
+}
+
+
+export async function askAiAssistant(payload: {
+  question: string;
+  topic?: string;
+  subject?: string;
+  chapter?: string;
+}): Promise<{ question: string; answer: string }> {
+  const res = await fetch(`${AI_API_BASE}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`AI Assistant service returned ${res.status}`);
+  return res.json();
+}
+
+
+

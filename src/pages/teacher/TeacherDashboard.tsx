@@ -15,7 +15,8 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer } from "@/api/client";
+import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant } from "@/api/client";
+
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
 
@@ -27,7 +28,8 @@ import {
   Clock, ArrowLeft, ChevronRight, ChevronLeft, Trophy, Presentation, Image,
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
-  Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw
+  Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
+  Youtube, ExternalLink
 } from "lucide-react";
 
 import {
@@ -247,9 +249,15 @@ const TeacherDashboard = () => {
   const [sessionStartLoading, setSessionStartLoading] = useState(false);
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
+  const [recommendations, setRecommendations] = useState<{ videos: any[], resources: any[] } | null>(null);
+  const [recoLoading, setRecoLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
+
 
   // --- New UI state ---
-  const [sessionViewMode, setSessionViewMode] = useState<"tools" | "attendance" | "ai_chat">("tools");
+  const [sessionViewMode, setSessionViewMode] = useState<"tools" | "attendance" | "ai_chat" | "recommendations">("tools");
+
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "ai"; text: string }>>([]);
   const [chatInput, setChatInput] = useState("");
@@ -777,6 +785,27 @@ const TeacherDashboard = () => {
     [liveQuizSession, manualCurrentQuestion, manualQuestionNo]
   );
 
+  const handleAutoWorkflow = async (chapterId: string) => {
+    setWorkflowLoading(chapterId);
+    try {
+      const base = getApiBase();
+      const res = await fetch(`${base}/api/chapters/${chapterId}/auto-workflow`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success(`Successfully generated ${data.results.length} topics with PPTs and Quizzes!`);
+        refetch?.();
+      } else {
+        toast.error(data.error || "Failed to trigger workflow");
+      }
+    } catch (e) {
+      toast.error("Network error triggering workflow");
+    } finally {
+      setWorkflowLoading(null);
+    }
+  };
+
   useEffect(() => {
     if (!showLaunchQuizDialog || !liveQuizSession) return;
     liveQuizStatusPollSeq.current = 0;
@@ -972,25 +1001,35 @@ const TeacherDashboard = () => {
     } catch { return null; }
   };
 
-  const handleSendChat = () => {
+  const handleSendChat = async () => {
     const msg = chatInput.trim();
-    if (!msg) return;
-    setChatMessages(prev => [...prev, { role: "user", text: msg }]);
+    if (!msg || chatLoading) return;
+    
+    const userMsg = { role: "user" as const, text: msg };
+    setChatMessages(prev => [...prev, userMsg]);
     setChatInput("");
-    // Placeholder AI response
-    setTimeout(() => {
-      const topicName = activeSession?.topicName || "this topic";
-      const responses = [
-        `That's a great question about ${topicName}! Let me help you think through this concept step by step.`,
-        `I'd suggest breaking ${topicName} into smaller parts for better understanding.`,
-        `You could try using visual aids or real-world examples to explain ${topicName} to students.`,
-        `Consider assigning a quick group activity to reinforce the concepts of ${topicName}.`,
-        `This is a common area where students struggle when learning ${topicName}. Try using analogies from daily life.`,
-      ];
-      const aiResponse = responses[Math.floor(Math.random() * responses.length)];
-      setChatMessages(prev => [...prev, { role: "ai", text: aiResponse }]);
-    }, 800);
+    setChatLoading(true);
+    
+    try {
+      const activeChapter = activeSession?.chapterId 
+        ? chapters.find(c => sameId(c.id, activeSession.chapterId))
+        : null;
+
+      const res = await askAiAssistant({
+        question: msg,
+        topic: activeSession?.topicName,
+        subject: activeSession?.subjectName,
+        chapter: activeChapter?.name
+      });
+      setChatMessages(prev => [...prev, { role: "ai", text: res.answer }]);
+    } catch (e) {
+      console.error(e);
+      setChatMessages(prev => [...prev, { role: "ai", text: "I'm sorry, I'm having trouble connecting to my brain right now. Please ensure the AI server is running." }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
+
 
   const handleMarkAttendance = async () => {
     if (!activeSession || !classStudents.length) return;
@@ -1041,7 +1080,29 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleChapterStatusChange = (chId: string, newStatus: string) => {
+  const handleFetchRecommendations = useCallback(async () => {
+    if (!activeSession) return;
+    setRecoLoading(true);
+    try {
+      const res = await getAiRecommendations({
+        topic: activeSession.topicName,
+        subject: activeSession.subjectName,
+        grade: grade
+      });
+      setRecommendations(res);
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : "Could not fetch recommendations.";
+      toast.error(msg + " Ensure AI server is running on port 8001.");
+
+    } finally {
+      setRecoLoading(false);
+    }
+
+  }, [activeSession, grade]);
+
+   const handleChapterStatusChange = (chId: string, newStatus: string) => {
+
     setChapterStatusState((prev) => ({ ...prev, [chId]: newStatus }));
   };
 
@@ -1243,6 +1304,7 @@ const TeacherDashboard = () => {
                         { icon: QrCode, label: "Launch Quiz", desc: "QR-based quiz for students" },
                         { icon: FileText, label: "Lesson Plan Viewer", desc: "Chapter lesson plan" },
                         { icon: Bot, label: "AI Teaching Assistant", desc: "Get help with this topic" },
+                        { icon: Youtube, label: "YouTube Recommendations", desc: "Related videos & notes" },
                       ].map((tool, i) => (
                         <button
                           key={i}
@@ -1251,8 +1313,13 @@ const TeacherDashboard = () => {
                             if (tool.label === "Launch Quiz") handleLaunchLiveQuiz();
                             if (tool.label === "Lesson Plan Viewer") setLessonPlanOpen(true);
                             if (tool.label === "AI Teaching Assistant") setSessionViewMode("ai_chat");
+                            if (tool.label === "YouTube Recommendations") {
+                              setSessionViewMode("recommendations");
+                              handleFetchRecommendations();
+                            }
                           }}
                         >
+
                           <div className="w-8 h-8 rounded-lg bg-teal-light flex items-center justify-center">
                             <tool.icon className="w-4 h-4 text-primary" />
                           </div>
@@ -1303,7 +1370,19 @@ const TeacherDashboard = () => {
                         </div>
                       </div>
                     ))}
+                    
+                    {chatLoading && (
+                      <div className="flex gap-2 animate-pulse">
+                        <div className="w-6 h-6 rounded-full gradient-primary flex items-center justify-center shrink-0">
+                          <Bot className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                        <div className="bg-card border border-border p-2.5 rounded-xl rounded-tl-sm shadow-sm text-[10px] text-muted-foreground">
+                          Thinking...
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
+
                   <div className="p-3 border-t border-border bg-card">
                     <div className="flex items-center gap-2">
                       <Input
@@ -1319,7 +1398,97 @@ const TeacherDashboard = () => {
                     </div>
                   </div>
                 </Card>
+              ) : sessionViewMode === "recommendations" ? (
+                /* Recommendations View — replaces tools when clicked */
+                <Card className="shadow-card border-border flex flex-col h-[500px]">
+                  <CardHeader className="pb-3 border-b border-border bg-gradient-to-r from-teal-light to-secondary">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="font-display text-sm flex items-center gap-2">
+                        <Youtube className="w-4 h-4 text-primary" /> Recommendations
+                      </CardTitle>
+                      <button onClick={() => setSessionViewMode("tools")} className="p-1 hover:bg-black/5 rounded-full transition-colors text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
+                    {recoLoading ? (
+                      <div className="flex flex-col items-center justify-center h-full space-y-3">
+                        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        <p className="text-xs text-muted-foreground">Finding best resources...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {recommendations?.videos && recommendations.videos.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <Youtube className="w-3 h-3" /> YouTube Videos
+                            </h4>
+                            {recommendations.videos.map((vid, i) => (
+                              <button
+                                key={i}
+                                className="w-full text-left p-2.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-sm transition-all group"
+                                onClick={() => {
+                                  // Open in main session screen if it's a youtube embeddable link
+                                  const videoIdMatch = vid.url.match(/(?:v=|\/embed\/|youtu\.be\/)([^&?#]+)/);
+                                  if (videoIdMatch) {
+                                    const embedUrl = `https://www.youtube.com/embed/${videoIdMatch[1]}`;
+                                    setMainScreenContentUrl(embedUrl);
+                                    setMainScreenTitle(vid.title);
+                                    setMainScreenDirectUrl(vid.url);
+                                  } else {
+                                    window.open(vid.url, "_blank");
+                                  }
+                                }}
+                              >
+                                <p className="text-xs font-medium text-foreground line-clamp-2 group-hover:text-primary">{vid.title}</p>
+                                {vid.description && (
+                                  <p className="text-[10px] text-muted-foreground line-clamp-1 mt-1">{vid.description}</p>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {recommendations?.resources && recommendations.resources.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                              <ExternalLink className="w-3 h-3" /> E-Resources
+                            </h4>
+                            {recommendations.resources.map((res, i) => (
+                              <a
+                                key={i}
+                                href={res.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block p-2.5 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-sm transition-all group"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-xs font-medium text-foreground line-clamp-1 group-hover:text-primary">{res.title}</p>
+                                  <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                                </div>
+                                {res.snippet && (
+                                  <p className="text-[10px] text-muted-foreground line-clamp-1 mt-1">{res.snippet}</p>
+                                )}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {!recommendations?.videos?.length && !recommendations?.resources?.length && (
+                          <div className="text-center py-10">
+                            <p className="text-xs text-muted-foreground">No recommendations found for this topic.</p>
+                            <Button variant="outline" size="sm" className="mt-4" onClick={handleFetchRecommendations}>
+                              <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retry
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ) : (
+
                 /* Attendance UI — replaces tools when toggled */
                 <Card className="shadow-card border-border">
                   <CardHeader className="pb-2">
@@ -2047,7 +2216,27 @@ const TeacherDashboard = () => {
                               </div>
                             );
                           }) : (
-                            <p className="text-sm text-muted-foreground p-2">No topics defined for this chapter yet.</p>
+                            <div className="pt-2">
+                              {ch.textbookChunkPdfPath ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                                    disabled={!!workflowLoading}
+                                    onClick={(e) => { e.stopPropagation(); handleAutoWorkflow(ch.id); }}
+                                  >
+                                    <Sparkles className={`w-3.5 h-3.5 ${workflowLoading === ch.id ? "animate-spin" : ""}`} />
+                                    {workflowLoading === ch.id ? "Processing Chapter..." : "AI Auto-Generate Topics & Quizzes"}
+                                  </Button>
+                                  <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                                    Click to automatically segment this chapter into topics and generate materials.
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-sm text-muted-foreground p-2">No topics defined. Upload a textbook PDF to enable AI auto-generation.</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
