@@ -70,16 +70,27 @@ const Login = () => {
           const data = await teacherLogin({ email: email.trim(), password });
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
-          login("teacher", data.full_name, undefined, data.id);
-          navigate("/teacher/setup");
+          const actualRole = (data.role as any) || "teacher";
+          login(actualRole, data.full_name, undefined, data.id, data.school_id);
+          
+          if (actualRole === "principal") {
+            navigate("/principal");
+          } else {
+            navigate("/teacher/setup");
+          }
         } catch (err) {
           alert(err instanceof Error ? err.message : "Login failed");
         }
       }
     } else if (role === "principal") {
-      // Demo login for principal
-      login("principal", "Principal");
-      navigate("/principal");
+      try {
+        const data = await teacherLogin({ email: email.trim(), password });
+        const actualRole = (data.role as any) || "principal";
+        login(actualRole, data.full_name, undefined, data.id, data.school_id);
+        navigate("/principal");
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Login failed");
+      }
     }
   };
 

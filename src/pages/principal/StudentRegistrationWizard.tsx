@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { registerStudent, fetchAll } from "@/api/client";
+import { toast } from "sonner";
 
 type StepKey = "personal" | "family" | "contact" | "summary";
 
@@ -43,7 +46,19 @@ const steps: { key: StepKey; title: string; desc?: string }[] = [
 ];
 
 const StudentRegistrationWizard: React.FC = () => {
+  const { schoolId } = useAuth();
   const [current, setCurrent] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [sections, setSections] = useState<Array<{ id: string, name: string }>>([]);
+  
+  useEffect(() => {
+    fetchAll().then(data => {
+      if (data.classes && schoolId) {
+        setSections(data.classes.filter(c => c.schoolId === schoolId));
+      }
+    }).catch(console.error);
+  }, [schoolId]);
+
   const [form, setForm] = useState<StudentForm>({
     fullName: "",
     dob: "",
@@ -77,10 +92,44 @@ const StudentRegistrationWizard: React.FC = () => {
   const next = () => setCurrent((c) => Math.min(c + 1, steps.length - 1));
   const prev = () => setCurrent((c) => Math.max(c - 1, 0));
 
-  const handleSubmit = () => {
-    // For now keep demo behaviour — print payload and show success badge
-    console.log("Student registration submitted", form);
-    alert("Student registered (demo)");
+  const handleSubmit = async () => {
+    if (!schoolId) {
+      toast.error("School ID not found. Please log in again.");
+      return;
+    }
+    if (!form.fullName || !form.classId) {
+      toast.error("Name and Class are required.");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const nameParts = form.fullName.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
+
+      await registerStudent({
+        school_id: schoolId,
+        section_id: form.classId,
+        first_name: firstName,
+        last_name: lastName,
+        category: form.caste || 'General',
+        joined_at: new Date().toISOString().slice(0, 10)
+      });
+      
+      toast.success("Student registered successfully!");
+      setCurrent(0);
+      setForm({
+        fullName: "", dob: "", gender: "", classId: "", schoolName: "", fatherName: "",
+        motherName: "", phone: "", emergencyContact: "", address: "", village: "",
+        mandal: "", district: "", state: "", pincode: "", aadhaar: "", hostelStatus: "no",
+        disabilities: "", motherTongue: "", nationality: "", religion: "", caste: "", photo: null,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to register student");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderStep = (): React.ReactNode => {
@@ -103,7 +152,14 @@ const StudentRegistrationWizard: React.FC = () => {
                   </SelectContent>
                 </Select>
                 <Input placeholder="School name" value={form.schoolName} onChange={(e) => handleChange("schoolName", e.target.value)} className="h-10" />
-                <Input placeholder="Class" value={form.classId} onChange={(e) => handleChange("classId", e.target.value)} className="h-10" />
+                <Select value={form.classId} onValueChange={(v) => handleChange("classId", v)}>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Class/Section" /></SelectTrigger>
+                  <SelectContent>
+                    {sections.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Right Column */}
@@ -253,7 +309,9 @@ const StudentRegistrationWizard: React.FC = () => {
                 {current < steps.length - 1 ? (
                   <Button onClick={next} className="px-8">Next</Button>
                 ) : (
-                  <Button onClick={handleSubmit} className="px-8">Submit</Button>
+                  <Button onClick={handleSubmit} disabled={loading} className="px-8">
+                    {loading ? "Registering..." : "Submit"}
+                  </Button>
                 )}
               </div>
             </div>

@@ -8,7 +8,8 @@ interface AuthContextType {
   userName: string;
   studentId: string | null;
   teacherId: string | null;
-  login: (role: Role, name?: string, studentId?: string, teacherId?: string) => void;
+  schoolId: string | null;
+  login: (role: Role, name?: string, studentId?: string, teacherId?: string, schoolId?: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   userName: "",
   studentId: null,
   teacherId: null,
+  schoolId: null,
   login: () => {},
   logout: () => {},
   isAuthenticated: false,
@@ -34,13 +36,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userName, setUserName] = useState(() => localStorage.getItem("auth.userName") || "");
   const [studentId, setStudentId] = useState<string | null>(() => localStorage.getItem("auth.studentId"));
   const [teacherId, setTeacherId] = useState<string | null>(() => localStorage.getItem("auth.teacherId"));
+  const [schoolId, setSchoolId] = useState<string | null>(() => localStorage.getItem("auth.schoolId"));
 
-  const login = (r: Role, name = "", sId?: string, tId?: string) => {
+  const login = (r: Role, name = "", sId?: string, tId?: string, schId?: string) => {
     setRole(r);
     setUserName(name || (r === "admin" ? "Administrator" : r === "student" ? "Student" : r === "principal" ? "Principal" : "Teacher"));
 
     setStudentId(sId || null);
     setTeacherId(tId || null);
+    setSchoolId(schId || null);
   };
 
   const logout = () => {
@@ -48,6 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserName("");
     setStudentId(null);
     setTeacherId(null);
+    setSchoolId(null);
   };
 
   useEffect(() => {
@@ -67,8 +72,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     else localStorage.removeItem("auth.teacherId");
   }, [teacherId]);
 
+  useEffect(() => {
+    if (schoolId) localStorage.setItem("auth.schoolId", schoolId);
+    else localStorage.removeItem("auth.schoolId");
+  }, [schoolId]);
+
   return (
-    <AuthContext.Provider value={{ role, userName, studentId, teacherId, login, logout, isAuthenticated: !!role }}>
+    <AuthContext.Provider value={{ role, userName, studentId, teacherId, schoolId, login, logout, isAuthenticated: !!role }}>
       {children}
     </AuthContext.Provider>
   );
