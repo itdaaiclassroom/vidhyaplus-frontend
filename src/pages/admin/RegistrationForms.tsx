@@ -4,7 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { registerStudent, registerTeacher } from "@/api/client";
+import { uploadFileToR2 } from "@/services/uploadService";
+import { toast } from "sonner";
 
 type School = { id: string; name: string };
 type ClassItem = { id: string; name: string; schoolId: string; grade: number };
@@ -23,6 +26,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
   const [password, setPassword] = useState("");
   const [schoolId, setSchoolId] = useState("");
   const [classGrade, setClassGrade] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,12 +58,30 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
     }
     setSubmitting(true);
     try {
+      // Upload photo to R2 if selected
+      let photoUrl: string | undefined;
+      if (photo) {
+        toast.info("Uploading photo...");
+        try {
+          photoUrl = await uploadFileToR2(photo, 'student-photos');
+        } catch (uploadErr) {
+          console.error("Photo upload failed:", uploadErr);
+          toast.warning("Photo upload failed, continuing without photo.");
+        }
+      }
+
+      const nameParts = full_name.split(' ');
+      const first_name = nameParts[0] || 'Student';
+      const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
       await registerStudent({
-        full_name,
-        section: section.trim(),
+        first_name,
+        last_name,
+        section_id: section.trim(),
         school_id: schoolId.trim(),
         grade_id: gradeNum,
         password: password.trim(),
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       onSuccess?.();
       onClose?.();
@@ -126,6 +148,23 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>Profile Photo (optional)</Label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+              className="border border-input rounded-md px-2 py-2 h-10 text-xs cursor-pointer file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-primary file:text-primary-foreground file:cursor-pointer file:font-medium hover:file:bg-primary/90 w-full"
+            />
+            {photo && (
+              <div className="flex items-center gap-2 mt-1">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={URL.createObjectURL(photo)} />
+                </Avatar>
+                <span className="text-xs text-muted-foreground">Photo selected</span>
+              </div>
+            )}
+          </div>
           {error && <p className="md:col-span-2 text-sm text-destructive">{error}</p>}
           <div className="md:col-span-2 flex justify-end">
             <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : "Register Student"}</Button>
@@ -148,6 +187,7 @@ export const TeacherForm: React.FC<TeacherFormProps> = ({ onClose, schools, onSu
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [schoolId, setSchoolId] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,11 +214,24 @@ export const TeacherForm: React.FC<TeacherFormProps> = ({ onClose, schools, onSu
     }
     setSubmitting(true);
     try {
+      // Upload photo to R2 if selected
+      let photoUrl: string | undefined;
+      if (photo) {
+        toast.info("Uploading photo...");
+        try {
+          photoUrl = await uploadFileToR2(photo, 'teacher-photos');
+        } catch (uploadErr) {
+          console.error("Photo upload failed:", uploadErr);
+          toast.warning("Photo upload failed, continuing without photo.");
+        }
+      }
+
       await registerTeacher({
         full_name,
         email: email.trim(),
         school_id: schoolId,
         password: password.trim(),
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       onSuccess?.();
       onClose?.();
@@ -220,6 +273,23 @@ export const TeacherForm: React.FC<TeacherFormProps> = ({ onClose, schools, onSu
           <div className="space-y-2">
             <Label>Password (required)</Label>
             <Input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
+          </div>
+          <div className="space-y-2">
+            <Label>Profile Photo (optional)</Label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+              className="border border-input rounded-md px-2 py-2 h-10 text-xs cursor-pointer file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-primary file:text-primary-foreground file:cursor-pointer file:font-medium hover:file:bg-primary/90 w-full"
+            />
+            {photo && (
+              <div className="flex items-center gap-2 mt-1">
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={URL.createObjectURL(photo)} />
+                </Avatar>
+                <span className="text-xs text-muted-foreground">Photo selected</span>
+              </div>
+            )}
           </div>
           {error && <p className="md:col-span-2 text-sm text-destructive">{error}</p>}
           <div className="md:col-span-2 flex justify-end">

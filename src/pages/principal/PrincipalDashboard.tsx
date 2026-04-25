@@ -5,19 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StudentRegistrationWizard from "./StudentRegistrationWizard";
 import TeacherRegistration from "./TeacherRegistration";
+import SectionManagement from "./SectionManagement";
+import BulkUpload from "@/components/BulkUpload";
 import CoCurricularActivityRegistration from "./CoCurricularActivityRegistration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X } from "lucide-react";
+import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchPrincipalStudents, fetchPrincipalTeachers, PrincipalStudent, PrincipalTeacher, getApiBase } from "@/api/client";
+import { fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, PrincipalGrade, PrincipalSection, getApiBase } from "@/api/client";
 
 const PrincipalDashboard: React.FC = () => {
   const { schoolId } = useAuth();
   const [studentFilterId, setStudentFilterId] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("all");
+  const [gradeFilter, setGradeFilter] = useState<string>("all");
+  const [grades, setGrades] = useState<PrincipalGrade[]>([]);
+  const [sectionsForFilter, setSectionsForFilter] = useState<PrincipalSection[]>([]);
   const [realStudents, setRealStudents] = useState<PrincipalStudent[]>([]);
   const [realTeachers, setRealTeachers] = useState<PrincipalTeacher[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,13 +33,26 @@ const PrincipalDashboard: React.FC = () => {
       setLoading(true);
       Promise.all([
         fetchPrincipalStudents(schoolId),
-        fetchPrincipalTeachers(schoolId)
-      ]).then(([sData, tData]) => {
+        fetchPrincipalTeachers(schoolId),
+        fetchPrincipalGrades()
+      ]).then(([sData, tData, gData]) => {
         setRealStudents(sData);
         setRealTeachers(tData);
+        setGrades(gData.grades);
       }).catch(console.error).finally(() => setLoading(false));
     }
   }, [schoolId]);
+
+  useEffect(() => {
+    if (gradeFilter !== "all") {
+      fetchPrincipalSections(Number(gradeFilter))
+        .then(data => setSectionsForFilter(data.sections))
+        .catch(console.error);
+    } else {
+      setSectionsForFilter([]);
+      setClassFilter("all");
+    }
+  }, [gradeFilter]);
 
   const uniqueClasses = Array.from(
     new Set(
@@ -49,10 +67,13 @@ const PrincipalDashboard: React.FC = () => {
       ? s.roll_no.toString().toLowerCase().includes(studentFilterId.toLowerCase()) ||
         `${s.first_name} ${s.last_name}`.toLowerCase().includes(studentFilterId.toLowerCase())
       : true;
+    const matchesGrade = gradeFilter !== "all"
+      ? s.grade_id === Number(gradeFilter)
+      : true;
     const matchesClass = classFilter !== "all"
       ? String(s.section_id) === classFilter
       : true;
-    return matchesId && matchesClass;
+    return matchesId && matchesGrade && matchesClass;
   });
 
   if (loading) {
@@ -79,6 +100,8 @@ const PrincipalDashboard: React.FC = () => {
             <TabsTrigger value="student-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Info</TabsTrigger>
             <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
             <TabsTrigger value="qrcodes" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">QR Codes</TabsTrigger>
+            <TabsTrigger value="sections" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Section Management</TabsTrigger>
+            <TabsTrigger value="bulk-upload" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Bulk Registration</TabsTrigger>
           </TabsList>
         </aside>
 
@@ -148,20 +171,26 @@ const PrincipalDashboard: React.FC = () => {
                   onChange={(e) => setStudentFilterId(e.target.value)}
                   className="h-10 w-64"
                 />
-                <Select value={classFilter} onValueChange={setClassFilter}>
-                  <SelectTrigger className="h-10 w-48">
-                    <SelectValue placeholder="Filter by Class" />
+                <Select value={gradeFilter} onValueChange={(v) => { setGradeFilter(v); setClassFilter("all"); }}>
+                  <SelectTrigger className="h-10 w-40">
+                    <SelectValue placeholder="Grade" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Classes</SelectItem>
-                    {uniqueClasses.map((clsId) => {
-                      const s = realStudents.find(st => st.section_id === clsId);
-                      return (
-                        <SelectItem key={String(clsId)} value={String(clsId)}>
-                          {s ? `Class ${s.grade_id}-${s.section_code}` : clsId}
-                        </SelectItem>
-                      );
-                    })}
+                    <SelectItem value="all">All Grades</SelectItem>
+                    {grades.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.grade_label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={classFilter} onValueChange={setClassFilter} disabled={gradeFilter === "all"}>
+                  <SelectTrigger className="h-10 w-40">
+                    <SelectValue placeholder="Section" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sections</SelectItem>
+                    {sectionsForFilter.map((sec) => (
+                      <SelectItem key={sec.id} value={String(sec.id)}>{sec.section_code}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -247,6 +276,12 @@ const PrincipalDashboard: React.FC = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+          <TabsContent value="sections" className="space-y-4">
+            <SectionManagement />
+          </TabsContent>
+          <TabsContent value="bulk-upload" className="space-y-4">
+            <BulkUpload />
           </TabsContent>
         </section>
       </div>

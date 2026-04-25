@@ -222,37 +222,78 @@ const AdminDashboard = () => {
   const [planFilterMonth, setPlanFilterMonth] = useState("all");
   const [planFilterWeek, setPlanFilterWeek] = useState("all");
   const [planFilterChapter, setPlanFilterChapter] = useState("all");
-  const [schoolForm, setSchoolForm] = useState({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "" });
+  const [schoolForm, setSchoolForm] = useState<{
+    name: string;
+    code: string;
+    district: string;
+    mandal: string;
+    sessionsCompleted: number;
+    activeStatus: boolean;
+    principalName: string;
+    principalEmail: string;
+    principalPassword: string;
+    logo: File | null;
+  }>({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "", logo: null });
   const [schoolSubmitting, setSchoolSubmitting] = useState(false);
   useEffect(() => {
     if (schoolFormOpen && editingSchool) {
-      setSchoolForm({ name: editingSchool.name, code: editingSchool.code, district: editingSchool.district, mandal: editingSchool.mandal ?? "", sessionsCompleted: editingSchool.sessionsCompleted, activeStatus: editingSchool.activeStatus, principalName: "", principalEmail: "", principalPassword: "" });
+      setSchoolForm({ name: editingSchool.name, code: editingSchool.code, district: editingSchool.district, mandal: editingSchool.mandal ?? "", sessionsCompleted: editingSchool.sessionsCompleted, activeStatus: editingSchool.activeStatus, principalName: "", principalEmail: "", principalPassword: "", logo: null });
     } else if (schoolFormOpen && !editingSchool) {
-      setSchoolForm({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "" });
+      setSchoolForm({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "", logo: null });
     }
   }, [schoolFormOpen, editingSchool]);
-  const handleSchoolSubmit = (e: React.FormEvent) => {
+  const handleSchoolSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolForm.name.trim() || !schoolForm.code.trim() || !schoolForm.district.trim()) return;
     setSchoolSubmitting(true);
-    if (editingSchool) {
-      updateSchool(editingSchool.id, { name: schoolForm.name, code: schoolForm.code, district: schoolForm.district, mandal: schoolForm.mandal || undefined, sessions_completed: schoolForm.sessionsCompleted, active_status: schoolForm.activeStatus })
-        .then(() => { refetch(); setSchoolFormOpen(false); setEditingSchool(null); })
-        .finally(() => setSchoolSubmitting(false));
-    } else {
-      createSchool({ 
-        name: schoolForm.name, 
-        code: schoolForm.code, 
-        district: schoolForm.district, 
-        mandal: schoolForm.mandal || undefined, 
-        sessions_completed: schoolForm.sessionsCompleted, 
-        active_status: schoolForm.activeStatus,
-        principalName: schoolForm.principalName,
-        principalEmail: schoolForm.principalEmail,
-        principalPassword: schoolForm.principalPassword
-      })
-        .then(() => { refetch(); setSchoolFormOpen(false); })
-        .finally(() => setSchoolSubmitting(false));
+    
+    try {
+      let logoUrl: string | undefined;
+      if (schoolForm.logo) {
+        toast.info("Uploading logo...");
+        try {
+          logoUrl = await uploadFileToR2(schoolForm.logo, 'school-logos');
+        } catch (uploadErr) {
+          console.error("Logo upload failed:", uploadErr);
+          toast.warning("Logo upload failed, continuing without logo.");
+        }
+      }
+
+      if (editingSchool) {
+        await updateSchool(editingSchool.id, { 
+          name: schoolForm.name, 
+          code: schoolForm.code, 
+          district: schoolForm.district, 
+          mandal: schoolForm.mandal || undefined, 
+          sessions_completed: schoolForm.sessionsCompleted, 
+          active_status: schoolForm.activeStatus,
+          ...(logoUrl ? { logo_url: logoUrl } : {})
+        });
+        toast.success("School updated successfully!");
+        refetch(); 
+        setSchoolFormOpen(false); 
+        setEditingSchool(null);
+      } else {
+        await createSchool({ 
+          name: schoolForm.name, 
+          code: schoolForm.code, 
+          district: schoolForm.district, 
+          mandal: schoolForm.mandal || undefined, 
+          sessions_completed: schoolForm.sessionsCompleted, 
+          active_status: schoolForm.activeStatus,
+          principalName: schoolForm.principalName,
+          principalEmail: schoolForm.principalEmail,
+          principalPassword: schoolForm.principalPassword,
+          ...(logoUrl ? { logo_url: logoUrl } : {})
+        });
+        toast.success("School created successfully!");
+        refetch(); 
+        setSchoolFormOpen(false);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save school");
+    } finally {
+      setSchoolSubmitting(false);
     }
   };
   useEffect(() => {
@@ -2278,6 +2319,19 @@ const AdminDashboard = () => {
             <div>
               <Label>District</Label>
               <Input value={schoolForm.district} onChange={(e) => setSchoolForm(f => ({ ...f, district: e.target.value }))} placeholder="District" required />
+            </div>
+            <div>
+              <Label>School Logo</Label>
+              <div className="flex items-center gap-4 mt-1">
+                <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center overflow-hidden border">
+                  {schoolForm.logo ? (
+                    <img src={URL.createObjectURL(schoolForm.logo)} alt="Logo Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <School className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+                <Input type="file" accept="image/*" onChange={(e) => setSchoolForm(f => ({ ...f, logo: e.target.files?.[0] || null }))} className="flex-1" />
+              </div>
             </div>
             <div>
               <Label>Mandal</Label>

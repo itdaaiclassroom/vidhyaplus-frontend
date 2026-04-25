@@ -220,11 +220,15 @@ export function getApiBase(): string {
 }
 
 function getAuthHeaders() {
+  const token = localStorage.getItem("auth.token");
   const teacherId = localStorage.getItem("auth.teacherId");
   const schoolId = localStorage.getItem("auth.schoolId");
   const headers: Record<string, string> = {
     "Content-Type": "application/json"
   };
+  // Attach JWT token if available
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  // Fallback: legacy header-based auth
   if (teacherId) headers["x-principal-id"] = teacherId;
   if (schoolId) headers["x-school-id"] = schoolId;
   return headers;
@@ -504,6 +508,8 @@ export async function registerStudent(body: {
   last_name: string; 
   category?: string;
   joined_at?: string;
+  photo_url?: string;
+  [key: string]: unknown;
 }): Promise<{ ok: boolean; student_id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/principals/students`, {
@@ -520,7 +526,9 @@ export async function registerTeacher(body: {
   full_name: string; 
   email: string; 
   password?: string; 
-  subjects: string[] 
+  subjects?: string[];
+  photo_url?: string;
+  [key: string]: unknown;
 }): Promise<{ ok: boolean; teacher_id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/principals/teachers`, {
@@ -550,6 +558,74 @@ export async function fetchPrincipalTeachers(schoolId: string): Promise<Principa
   return res.json();
 }
 
+// ─── Principal Grade & Section APIs ────────────────────────────────────
+
+export interface PrincipalGrade {
+  id: number;
+  grade_label: string;
+}
+
+export interface PrincipalSection {
+  id: number;
+  school_id: number;
+  grade_id: number;
+  grade_label: string;
+  section_code: string;
+  display_name: string;
+  student_count: number;
+}
+
+export async function fetchPrincipalGrades(): Promise<{ grades: PrincipalGrade[] }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/grades`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchPrincipalSections(gradeId?: number): Promise<{ sections: PrincipalSection[] }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const q = gradeId != null ? `?grade_id=${gradeId}` : "";
+  const res = await fetch(`${API_BASE}/api/principal/sections${q}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createPrincipalSection(body: { grade_id: number; section_code: string }): Promise<{ ok: boolean; section: PrincipalSection }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/sections`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updatePrincipalSection(id: number, body: { section_code: string }): Promise<{ ok: boolean; id: number; section_code: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/sections/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deletePrincipalSection(id: number): Promise<{ ok: boolean; deleted: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/sections/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 export async function createSchool(body: { 
   name: string; 
   code: string; 
@@ -560,6 +636,7 @@ export async function createSchool(body: {
   principalName?: string;
   principalEmail?: string;
   principalPassword?: string;
+  logo_url?: string;
 }): Promise<{ id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/schools`, { 
@@ -571,7 +648,7 @@ export async function createSchool(body: {
   return res.json();
 }
 
-export async function updateSchool(id: string, body: { name?: string; code?: string; district?: string; mandal?: string; sessions_completed?: number; active_status?: boolean }): Promise<{ id: string; updated: boolean }> {
+export async function updateSchool(id: string, body: { name?: string; code?: string; district?: string; mandal?: string; sessions_completed?: number; active_status?: boolean; logo_url?: string }): Promise<{ id: string; updated: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/schools/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
@@ -636,7 +713,7 @@ export async function updateTeacherAssignments(
   return res.json();
 }
 
-export async function adminLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; role: string }> {
+export async function adminLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: "POST",
@@ -644,10 +721,16 @@ export async function adminLogin(body: { email: string; password: string }): Pro
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
+  const data = await res.json();
+  // Backend returns { token, user: { id, email, full_name, role } }
+  if (data.token && data.user) {
+    return { ...data.user, token: data.token };
+  }
+  // Fallback for old response format
+  return { ...data, token: data.token || '' };
 }
 
-export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string }> {
+export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/auth/login/teacher`, {
     method: "POST",
@@ -655,10 +738,15 @@ export async function teacherLogin(body: { email: string; password: string }): P
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
+  const data = await res.json();
+  // Backend returns { token, user: { id, email, full_name, school_id, role } }
+  if (data.token && data.user) {
+    return { ...data.user, token: data.token };
+  }
+  return { ...data, token: data.token || '' };
 }
 
-export async function studentLogin(body: { student_id: string; password: string }): Promise<{ id: string; full_name: string; school_id: string }> {
+export async function studentLogin(body: { student_id: string; password: string }): Promise<{ id: string; full_name: string; school_id: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/auth/login/student`, {
     method: "POST",
@@ -666,7 +754,12 @@ export async function studentLogin(body: { student_id: string; password: string 
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
+  const data = await res.json();
+  // Backend returns { token, user: { id, full_name, school_id } }
+  if (data.token && data.user) {
+    return { ...data.user, token: data.token };
+  }
+  return { ...data, token: data.token || '' };
 }
 
 export async function createLeaveApplication(body: { teacher_id: string; start_date: string; reason: string }): Promise<{ id: string; teacherId: string; date: string; reason: string; status: string; appliedOn: string }> {

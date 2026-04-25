@@ -32,7 +32,7 @@ const Login = () => {
     if (role === "student") {
       try {
         const data = await studentLogin({ student_id: email.trim(), password });
-        login("student", data.full_name, data.id);
+        login("student", data.full_name, data.id, undefined, undefined, data.token);
         navigate("/student");
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
@@ -40,7 +40,7 @@ const Login = () => {
     } else if (role === "admin") {
       try {
         const data = await adminLogin({ email: email.trim(), password });
-        login("admin", data.full_name);
+        login("admin", data.full_name, undefined, undefined, undefined, data.token);
         navigate("/admin");
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
@@ -60,7 +60,7 @@ const Login = () => {
         }
         try {
           const data = await teacherLogin({ email: storedEmail, password });
-          login("teacher", data.full_name, undefined, data.id);
+          login("teacher", data.full_name, undefined, data.id, undefined, data.token);
           navigate("/teacher/setup");
         } catch (err) {
           alert(err instanceof Error ? err.message : "Login failed");
@@ -71,7 +71,7 @@ const Login = () => {
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
           const actualRole = (data.role as any) || "teacher";
-          login(actualRole, data.full_name, undefined, data.id, data.school_id);
+          login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
           
           if (actualRole === "principal") {
             navigate("/principal");
@@ -86,7 +86,7 @@ const Login = () => {
       try {
         const data = await teacherLogin({ email: email.trim(), password });
         const actualRole = (data.role as any) || "principal";
-        login(actualRole, data.full_name, undefined, data.id, data.school_id);
+        login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
         navigate("/principal");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Login failed";

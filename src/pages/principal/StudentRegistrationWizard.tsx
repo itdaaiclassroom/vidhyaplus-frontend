@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { registerStudent, fetchAll } from "@/api/client";
+import { registerStudent, fetchPrincipalGrades, fetchPrincipalSections, PrincipalGrade, PrincipalSection } from "@/api/client";
+import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 
 type StepKey = "personal" | "family" | "contact" | "summary";
@@ -16,6 +17,7 @@ interface StudentForm {
   fullName: string;
   dob: string;
   gender: string;
+  gradeId: string;
   classId: string;
   schoolName: string;
   fatherName: string;
@@ -49,20 +51,37 @@ const StudentRegistrationWizard: React.FC = () => {
   const { schoolId } = useAuth();
   const [current, setCurrent] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [sections, setSections] = useState<Array<{ id: string, name: string }>>([]);
+  const [grades, setGrades] = useState<PrincipalGrade[]>([]);
+  const [sections, setSections] = useState<PrincipalSection[]>([]);
   
   useEffect(() => {
-    fetchAll().then(data => {
-      if (data.classes && schoolId) {
-        setSections(data.classes.filter(c => c.schoolId === schoolId));
-      }
-    }).catch(console.error);
-  }, [schoolId]);
+    fetchPrincipalGrades()
+      .then(data => setGrades(data.grades))
+      .catch(err => {
+        console.error("Failed to fetch grades:", err);
+        toast.error("Failed to load grades");
+      });
+  }, []);
+
+  const fetchSectionsForGrade = async (gradeId: string) => {
+    if (!gradeId) {
+      setSections([]);
+      return;
+    }
+    try {
+      const data = await fetchPrincipalSections(Number(gradeId));
+      setSections(data.sections);
+    } catch (err) {
+      console.error("Failed to fetch sections:", err);
+      toast.error("Failed to load sections");
+    }
+  };
 
   const [form, setForm] = useState<StudentForm>({
     fullName: "",
     dob: "",
     gender: "",
+    gradeId: "",
     classId: "",
     schoolName: "",
     fatherName: "",
@@ -87,7 +106,13 @@ const StudentRegistrationWizard: React.FC = () => {
 
   const schoolOptions = ["DAV School", "St. Mary's Academy", "Government School", "Public School", "Bharatiya Vidya Bhavan"];
 
-  const handleChange = (k: keyof StudentForm, v: string | File | null) => setForm((s: StudentForm) => ({ ...s, [k]: v }));
+  const handleChange = (k: keyof StudentForm, v: string | File | null) => {
+    setForm((s: StudentForm) => ({ ...s, [k]: v }));
+    if (k === "gradeId") {
+      setForm(s => ({ ...s, classId: "" })); // Reset section when grade changes
+      fetchSectionsForGrade(v as string);
+    }
+  };
 
   const next = () => setCurrent((c) => Math.min(c + 1, steps.length - 1));
   const prev = () => setCurrent((c) => Math.max(c - 1, 0));
@@ -97,13 +122,25 @@ const StudentRegistrationWizard: React.FC = () => {
       toast.error("School ID not found. Please log in again.");
       return;
     }
-    if (!form.fullName || !form.classId) {
-      toast.error("Name and Class are required.");
+    if (!form.fullName || !form.gradeId || !form.classId) {
+      toast.error("Name, Grade, and Section are required.");
       return;
     }
     
     setLoading(true);
     try {
+      // Upload photo to R2 if selected
+      let photoUrl: string | undefined;
+      if (form.photo) {
+        toast.info("Uploading photo...");
+        try {
+          photoUrl = await uploadFileToR2(form.photo, 'student-photos');
+        } catch (uploadErr) {
+          console.error("Photo upload failed:", uploadErr);
+          toast.warning("Photo upload failed, continuing without photo.");
+        }
+      }
+
       const nameParts = form.fullName.split(' ');
       const firstName = nameParts[0];
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
@@ -114,13 +151,33 @@ const StudentRegistrationWizard: React.FC = () => {
         first_name: firstName,
         last_name: lastName,
         category: form.caste || 'General',
-        joined_at: new Date().toISOString().slice(0, 10)
+        joined_at: new Date().toISOString().slice(0, 10),
+        grade_id: Number(form.gradeId),
+        father_name: form.fatherName,
+        mother_name: form.motherName,
+        phone: form.phone,
+        emergency_contact: form.emergencyContact,
+        address: form.address,
+        village: form.village,
+        mandal: form.mandal,
+        district: form.district,
+        state: form.state,
+        pincode: form.pincode,
+        aadhaar: form.aadhaar,
+        hostel_status: form.hostelStatus,
+        disabilities: form.disabilities,
+        mother_tongue: form.motherTongue,
+        nationality: form.nationality,
+        religion: form.religion,
+        dob: form.dob,
+        gender: form.gender,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       
       toast.success("Student registered successfully!");
       setCurrent(0);
       setForm({
-        fullName: "", dob: "", gender: "", classId: "", schoolName: "", fatherName: "",
+        fullName: "", dob: "", gender: "", gradeId: "", classId: "", schoolName: "", fatherName: "",
         motherName: "", phone: "", emergencyContact: "", address: "", village: "",
         mandal: "", district: "", state: "", pincode: "", aadhaar: "", hostelStatus: "no",
         disabilities: "", motherTongue: "", nationality: "", religion: "", caste: "", photo: null,
@@ -152,14 +209,24 @@ const StudentRegistrationWizard: React.FC = () => {
                   </SelectContent>
                 </Select>
                 <Input placeholder="School name" value={form.schoolName} onChange={(e) => handleChange("schoolName", e.target.value)} className="h-10" />
-                <Select value={form.classId} onValueChange={(v) => handleChange("classId", v)}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Class/Section" /></SelectTrigger>
-                  <SelectContent>
-                    {sections.map(s => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <Select value={form.gradeId} onValueChange={(v) => handleChange("gradeId", v)}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Grade" /></SelectTrigger>
+                    <SelectContent>
+                      {grades.map(g => (
+                        <SelectItem key={g.id} value={String(g.id)}>{g.grade_label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={form.classId} onValueChange={(v) => handleChange("classId", v)} disabled={!form.gradeId}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Section" /></SelectTrigger>
+                    <SelectContent>
+                      {sections.map(s => (
+                        <SelectItem key={s.id} value={String(s.id)}>{s.section_code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Right Column */}

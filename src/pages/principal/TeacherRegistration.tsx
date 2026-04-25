@@ -8,7 +8,8 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { registerTeacher, fetchAll } from "@/api/client";
+import { registerTeacher, fetchAll, fetchPrincipalGrades } from "@/api/client";
+import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 
 type StepKey = "personal" | "address" | "teaching" | "contact" | "additional" | "summary";
@@ -58,15 +59,13 @@ const TeacherRegistration: React.FC = () => {
       if (data.subjects) {
         setSubjects(data.subjects);
       }
-      // Assuming chapters/classes give us a sense of grades, or I'll just use the ones from data if available
-      // For now, I'll use static grades if data.classes doesn't have them in a clean format
-      const uniqueGrades = Array.from(new Set((data.classes || []).map(c => c.grade)))
-        .sort((a, b) => a - b)
-        .map(g => ({ id: String(g), label: `Class ${g}` }));
-      
-      if (uniqueGrades.length > 0) {
-        setGrades(uniqueGrades);
+    }).catch(console.error);
+
+    fetchPrincipalGrades().then(data => {
+      if (data.grades && data.grades.length > 0) {
+        setGrades(data.grades.map(g => ({ id: String(g.id), label: g.grade_label })));
       } else {
+        // Fallback static grades
         setGrades([
           { id: "6", label: "Class 6" },
           { id: "7", label: "Class 7" },
@@ -75,7 +74,15 @@ const TeacherRegistration: React.FC = () => {
           { id: "10", label: "Class 10" },
         ]);
       }
-    }).catch(console.error);
+    }).catch(() => {
+      setGrades([
+        { id: "6", label: "Class 6" },
+        { id: "7", label: "Class 7" },
+        { id: "8", label: "Class 8" },
+        { id: "9", label: "Class 9" },
+        { id: "10", label: "Class 10" },
+      ]);
+    });
   }, []);
 
   const [form, setForm] = useState<TeacherForm>({
@@ -138,6 +145,18 @@ const TeacherRegistration: React.FC = () => {
     
     setLoading(true);
     try {
+      // Upload photo to R2 if selected
+      let photoUrl: string | undefined;
+      if (form.photo) {
+        toast.info("Uploading photo...");
+        try {
+          photoUrl = await uploadFileToR2(form.photo, 'teacher-photos');
+        } catch (uploadErr) {
+          console.error("Photo upload failed:", uploadErr);
+          toast.warning("Photo upload failed, continuing without photo.");
+        }
+      }
+
       const selectedSubjectIds = form.subjectsHandled
         .map(name => subjects.find(s => s.name === name)?.id)
         .filter((id): id is string => id !== undefined);
@@ -147,7 +166,24 @@ const TeacherRegistration: React.FC = () => {
         full_name: form.teacherName,
         email: form.email,
         password: "teach123", // Default password for now
-        subjects: selectedSubjectIds
+        subjects: selectedSubjectIds,
+        dob: form.dob,
+        gender: form.gender,
+        caste: form.caste,
+        religion: form.religion,
+        nationality: form.nationality,
+        mother_tongue: form.motherTongue,
+        address: form.address,
+        village: form.village,
+        mandal: form.mandal,
+        district: form.district,
+        state: form.state,
+        pincode: form.pincode,
+        phone_number: form.phoneNumber,
+        emergency_contact: form.emergencyContact,
+        disabilities: form.disabilities,
+        aadhaar_number: form.aadhaarNumber,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       
       toast.success("Teacher registered successfully!");

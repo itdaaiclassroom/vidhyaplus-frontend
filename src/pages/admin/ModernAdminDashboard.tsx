@@ -129,9 +129,11 @@ const ModernAdminDashboard = () => {
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input className="pl-10 w-64 bg-white border-slate-200" placeholder="Search everything..." />
             </div>
-            <Button className="rounded-xl px-6">
-              <Plus className="w-4 h-4 mr-2" /> Add School
-            </Button>
+            {activeTab === "schools" && (
+              <Button className="rounded-xl px-6">
+                <Plus className="w-4 h-4 mr-2" /> Add School
+              </Button>
+            )}
           </div>
         </header>
 
@@ -383,19 +385,21 @@ const ModernAdminDashboard = () => {
       {/* 3. Right Utility Panel */}
       <aside className="w-[340px] bg-white border-l border-slate-200 p-6 flex flex-col shrink-0 overflow-y-auto">
         <section className="space-y-6">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-primary" /> Calendar
-            </h3>
-            <div className="bg-slate-50/50 rounded-2xl p-2 border border-slate-100">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-xl"
-              />
+          {activeTab === "overview" && (
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5 text-primary" /> Calendar
+              </h3>
+              <div className="bg-slate-50/50 rounded-2xl p-2 border border-slate-100">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  className="rounded-xl"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
