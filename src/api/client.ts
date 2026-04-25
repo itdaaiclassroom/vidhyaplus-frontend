@@ -22,7 +22,25 @@ export interface AllDataResponse {
   schools: Array<{ id: string; name: string; code: string; district: string; mandal?: string; teachers: number; students: number; classes: number; sessionsCompleted: number; activeStatus: boolean }>;
   classes: Array<{ id: string; schoolId: string; name: string; section: string; grade: number; studentCount: number }>;
   teachers: Array<{ id: string; name: string; email: string; schoolId: string; classIds: string[]; subjects: string[] }>;
-  students: Array<{ id: string; name: string; rollNo: number; section?: string; classId: string | null; schoolId: string; score: number }>;
+  students: Array<{ 
+    id: string; 
+    name: string; 
+    rollNo: number; 
+    section?: string; 
+    classId: string | null; 
+    schoolId: string; 
+    score: number;
+    profile_image_path?: string | null;
+    profile_image_url?: string | null;
+    village?: string;
+    mandal?: string;
+    district?: string;
+    state?: string;
+    pincode?: string;
+    address?: string;
+    is_hosteller?: boolean;
+    phone_number?: string;
+  }>;
   subjects: Array<{ id: string; name: string; icon: string; grades: number[] }>;
   chapters: Array<{
     id: string;
@@ -133,6 +151,16 @@ export interface PrincipalStudent {
   grade_id: number;
   section_code: string;
   qr_codes: Array<{ type: string; path: string | null }>;
+  profile_image_path?: string | null;
+  profile_image_url?: string | null;
+  village?: string;
+  mandal?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  address?: string;
+  is_hosteller?: number;
+  phone_number?: string;
 }
 
 export interface PrincipalTeacher {
@@ -775,3 +803,69 @@ export async function askAiAssistant(payload: {
 
 
 
+
+export async function fetchAdminOverview(): Promise<{
+  totalSchools: number;
+  totalTeachers: number;
+  totalStudents: number;
+  sessionsCompleted: number;
+  sessionsTotal: number;
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/overview`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchAdminAnalytics(): Promise<{
+  students: Array<{ date: string; active: number }>;
+  teachers: Array<{ date: string; active: number }>;
+  sessions: { completed: number; remaining: number; total: number };
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/analytics`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createAnnouncement(payload: {
+  title: string;
+  message: string;
+  target_role?: string;
+  target_school_id?: string;
+}): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/announcements`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchTeacherLogs(teacherId?: string): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const q = teacherId ? `?teacher_id=${encodeURIComponent(teacherId)}` : "";
+  const res = await fetch(`${API_BASE}/api/admin/logs/teachers${q}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchAdmins(): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/management`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createAdmin(payload: any): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/management`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
