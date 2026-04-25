@@ -222,13 +222,13 @@ const AdminDashboard = () => {
   const [planFilterMonth, setPlanFilterMonth] = useState("all");
   const [planFilterWeek, setPlanFilterWeek] = useState("all");
   const [planFilterChapter, setPlanFilterChapter] = useState("all");
-  const [schoolForm, setSchoolForm] = useState({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true });
+  const [schoolForm, setSchoolForm] = useState({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "" });
   const [schoolSubmitting, setSchoolSubmitting] = useState(false);
   useEffect(() => {
     if (schoolFormOpen && editingSchool) {
-      setSchoolForm({ name: editingSchool.name, code: editingSchool.code, district: editingSchool.district, mandal: editingSchool.mandal ?? "", sessionsCompleted: editingSchool.sessionsCompleted, activeStatus: editingSchool.activeStatus });
+      setSchoolForm({ name: editingSchool.name, code: editingSchool.code, district: editingSchool.district, mandal: editingSchool.mandal ?? "", sessionsCompleted: editingSchool.sessionsCompleted, activeStatus: editingSchool.activeStatus, principalName: "", principalEmail: "", principalPassword: "" });
     } else if (schoolFormOpen && !editingSchool) {
-      setSchoolForm({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true });
+      setSchoolForm({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "" });
     }
   }, [schoolFormOpen, editingSchool]);
   const handleSchoolSubmit = (e: React.FormEvent) => {
@@ -240,7 +240,17 @@ const AdminDashboard = () => {
         .then(() => { refetch(); setSchoolFormOpen(false); setEditingSchool(null); })
         .finally(() => setSchoolSubmitting(false));
     } else {
-      createSchool({ name: schoolForm.name, code: schoolForm.code, district: schoolForm.district, mandal: schoolForm.mandal || undefined, sessions_completed: schoolForm.sessionsCompleted, active_status: schoolForm.activeStatus })
+      createSchool({ 
+        name: schoolForm.name, 
+        code: schoolForm.code, 
+        district: schoolForm.district, 
+        mandal: schoolForm.mandal || undefined, 
+        sessions_completed: schoolForm.sessionsCompleted, 
+        active_status: schoolForm.activeStatus,
+        principalName: schoolForm.principalName,
+        principalEmail: schoolForm.principalEmail,
+        principalPassword: schoolForm.principalPassword
+      })
         .then(() => { refetch(); setSchoolFormOpen(false); })
         .finally(() => setSchoolSubmitting(false));
     }
@@ -2281,7 +2291,26 @@ const AdminDashboard = () => {
               <input type="checkbox" id="school-active" checked={schoolForm.activeStatus} onChange={(e) => setSchoolForm(f => ({ ...f, activeStatus: e.target.checked }))} />
               <Label htmlFor="school-active">Active</Label>
             </div>
-            <div className="flex justify-end gap-2">
+
+            {!editingSchool && (
+              <div className="space-y-3 mt-2 pt-4 border-t border-border">
+                <p className="text-sm font-semibold text-primary">Principal Credentials</p>
+                <div>
+                  <Label>Principal Name</Label>
+                  <Input value={schoolForm.principalName} onChange={(e) => setSchoolForm(f => ({ ...f, principalName: e.target.value }))} placeholder="Dr. Maheshwar Rao" />
+                </div>
+                <div>
+                  <Label>Principal Email</Label>
+                  <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
+                </div>
+                <div>
+                  <Label>Principal Password</Label>
+                  <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4">
               <Button type="button" variant="outline" onClick={() => setSchoolFormOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={schoolSubmitting}>{editingSchool ? "Update" : "Add"} School</Button>
             </div>
