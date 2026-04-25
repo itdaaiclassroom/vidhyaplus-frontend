@@ -89,7 +89,13 @@ const Login = () => {
         login(actualRole, data.full_name, undefined, data.id, data.school_id);
         navigate("/principal");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Login failed");
+        const msg = err instanceof Error ? err.message : "Login failed";
+        const friendlyMsg = msg.toLowerCase().includes("teacher not found")
+          ? "Principal account not found. Please check your email and password."
+          : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
+            ? "Invalid email or password. Please try again."
+            : `Login failed: ${msg}`;
+        alert(friendlyMsg);
       }
     }
   };

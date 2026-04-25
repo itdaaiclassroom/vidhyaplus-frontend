@@ -9,7 +9,8 @@ import CoCurricularActivityRegistration from "./CoCurricularActivityRegistration
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchPrincipalStudents, fetchPrincipalTeachers, PrincipalStudent, PrincipalTeacher, getApiBase } from "@/api/client";
 
@@ -20,6 +21,7 @@ const PrincipalDashboard: React.FC = () => {
   const [realStudents, setRealStudents] = useState<PrincipalStudent[]>([]);
   const [realTeachers, setRealTeachers] = useState<PrincipalTeacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStudent, setSelectedStudent] = useState<PrincipalStudent | null>(null);
 
   useEffect(() => {
     if (schoolId) {
@@ -167,7 +169,7 @@ const PrincipalDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredStudents.map((s) => (
-                <Card key={s.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <Card key={s.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedStudent(s)}>
                   <CardHeader className="bg-secondary/30 pb-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -193,7 +195,7 @@ const PrincipalDashboard: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Identity QR</p>
-                        <p className="font-medium">Generated</p>
+                        <p className="font-medium text-primary">Click to view</p>
                       </div>
                     </div>
                   </CardContent>
@@ -249,6 +251,68 @@ const PrincipalDashboard: React.FC = () => {
         </section>
       </div>
       </Tabs>
+
+      {/* Student QR Code Dialog */}
+      <Dialog open={!!selectedStudent} onOpenChange={(open) => { if (!open) setSelectedStudent(null); }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-primary" />
+              Student Identity & QR
+            </DialogTitle>
+          </DialogHeader>
+          {selectedStudent && (
+            <div className="space-y-4 pt-2">
+              {/* Student Info */}
+              <div className="flex items-center gap-4 p-4 bg-secondary/40 rounded-xl">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                  {selectedStudent.first_name.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-bold text-foreground">{selectedStudent.first_name} {selectedStudent.last_name}</p>
+                  <p className="text-sm text-muted-foreground">Roll No: {selectedStudent.roll_no}</p>
+                  <p className="text-xs text-muted-foreground">Class {selectedStudent.grade_id}-{selectedStudent.section_code} • {selectedStudent.category}</p>
+                </div>
+              </div>
+
+              {/* Student ID */}
+              <div className="text-center p-3 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Student ID</p>
+                <p className="font-mono text-lg font-bold text-primary">{selectedStudent.id}</p>
+              </div>
+
+              {/* QR Codes */}
+              {selectedStudent.qr_codes && selectedStudent.qr_codes.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-foreground">QR Codes</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedStudent.qr_codes.map((qr) => (
+                      <div key={qr.type} className="flex flex-col items-center gap-2 p-3 border rounded-xl bg-white">
+                        <div className="w-28 h-28 flex items-center justify-center bg-gray-50 rounded-lg">
+                          {qr.path ? (
+                            <img
+                              src={`${getApiBase()}${qr.path}`}
+                              alt={`${qr.type} QR`}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <div className="text-xs text-muted-foreground text-center">Generating...</div>
+                          )}
+                        </div>
+                        <Badge variant="secondary" className="text-[10px] uppercase">{qr.type}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No QR codes generated yet for this student.
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

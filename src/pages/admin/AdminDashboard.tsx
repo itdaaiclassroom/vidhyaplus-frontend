@@ -2262,7 +2262,7 @@ const AdminDashboard = () => {
       </Dialog>
 
       <Dialog open={schoolFormOpen} onOpenChange={setSchoolFormOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingSchool ? "Edit School" : "Add School"}</DialogTitle>
           </DialogHeader>
