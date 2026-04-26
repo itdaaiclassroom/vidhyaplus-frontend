@@ -101,112 +101,111 @@ const BulkUpload: React.FC = () => {
     setLogs([]);
 
     try {
-      // For students, we need to map Grade + Section names to section_id
-      let sectionMap: Record<string, number> = {};
       if (type === "students") {
+        // Map data for students
+        let sectionMap: Record<string, number> = {};
         const { sections } = await fetchPrincipalSections();
         sections.forEach(s => {
-          // Key: "10-A" or "6-B"
           const key = `${s.grade_id}-${s.section_code}`.toUpperCase();
           sectionMap[key] = s.id;
         });
-      }
 
-      for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        const rowNum = i + 2; // 1-indexed + header row
-        
-        try {
-          if (type === "students") {
-            const firstName = row["First Name"] || row["first_name"];
-            const lastName = row["Last Name"] || row["last_name"];
-            const grade = row["Grade"] || row["grade"];
-            const sectionCode = row["Section"] || row["section"];
-            const password = String(row["Password"] || row["password"] || "123456");
-            
-            if (!firstName || !grade || !sectionCode) {
-              throw new Error("Missing required fields (First Name, Grade, or Section)");
-            }
+        const studentPayload = parsedData.map((row, i) => {
+          const firstName = row["First Name"] || row["first_name"];
+          const lastName = row["Last Name"] || row["last_name"];
+          const grade = row["Grade"] || row["grade"];
+          const sectionCode = row["Section"] || row["section"];
+          
+          const sectionKey = `${grade}-${sectionCode}`.toUpperCase();
+          const sectionId = sectionMap[sectionKey];
 
-            const sectionKey = `${grade}-${sectionCode}`.toUpperCase();
-            const sectionId = sectionMap[sectionKey];
+          return {
+            school_id: schoolId,
+            section_id: sectionId,
+            grade_id: Number(grade),
+            first_name: firstName,
+            last_name: lastName || "Student",
+            password: String(row["Password"] || row["password"] || "123456"),
+            category: row["Category"] || row["category"] || "General",
+            joined_at: new Date().toISOString().slice(0, 10),
+            father_name: row["Father Name"] || row["father_name"],
+            mother_name: row["Mother Name"] || row["mother_name"],
+            phone: String(row["Phone"] || row["phone"] || ""),
+            aadhaar: String(row["Aadhaar"] || row["aadhaar"] || ""),
+            address: row["Address"] || row["address"],
+            village: row["Village"] || row["village"],
+            mandal: row["Mandal"] || row["mandal"],
+            district: row["District"] || row["district"],
+            state: row["State"] || row["state"],
+            pincode: String(row["Pincode"] || row["pincode"] || ""),
+            hostel_status: row["Hostel Status"] || row["hostel_status"] || "no",
+            disabilities: row["Disabilities"] || row["disabilities"],
+            gender: row["Gender"] || row["gender"],
+            dob: row["Date of Birth"] || row["dob"],
+            _rowNum: i + 2
+          };
+        });
 
-            if (!sectionId) {
-              throw new Error(`Section "${sectionCode}" not found for Grade ${grade}`);
-            }
+        setProgress(30);
+        const res = await import("@/api/client").then(m => m.bulkRegisterStudents({ students: studentPayload }));
+        setProgress(100);
 
-            await registerStudent({
-              school_id: schoolId,
-              section_id: String(sectionId),
-              first_name: firstName,
-              last_name: lastName || "Student",
-              password: password,
-              category: row["Category"] || row["category"] || "General",
-              joined_at: new Date().toISOString().slice(0, 10),
-              grade_id: Number(grade),
-              // Additional fields
-              father_name: row["Father Name"] || row["father_name"],
-              mother_name: row["Mother Name"] || row["mother_name"],
-              phone: String(row["Phone"] || row["phone"] || ""),
-              aadhaar: String(row["Aadhaar"] || row["aadhaar"] || ""),
-              address: row["Address"] || row["address"],
-              village: row["Village"] || row["village"],
-              mandal: row["Mandal"] || row["mandal"],
-              district: row["District"] || row["district"],
-              state: row["State"] || row["state"],
-              pincode: String(row["Pincode"] || row["pincode"] || ""),
-              hostel_status: row["Hostel Status"] || row["hostel_status"] || "no",
-              disabilities: row["Disabilities"] || row["disabilities"],
-              gender: row["Gender"] || row["gender"],
-              dob: row["Date of Birth"] || row["dob"]
-            });
+        const newLogs: LogEntry[] = [];
+        res.successful.forEach((s: any) => {
+          const original = studentPayload.find(p => p.first_name === s.full_name.split(' ')[0]);
+          newLogs.push({ row: original?._rowNum || 0, name: s.full_name, status: "success", message: "Registered successfully" });
+        });
+        res.failed.forEach((f: any) => {
+          newLogs.push({ row: f.student?._rowNum || 0, name: f.student?.first_name || "Unknown", status: "error", message: f.error });
+        });
+        setLogs(newLogs);
+      } else {
+        // Map data for teachers
+        const teacherPayload = parsedData.map((row, i) => {
+          const fullName = row["Full Name"] || row["full_name"];
+          const email = row["Email"] || row["email"];
+          const subjectsStr = row["Subjects"] || row["subjects"] || "";
 
-            setLogs(prev => [...prev, { row: rowNum, name: firstName, status: "success", message: "Registered successfully" }]);
-          } else {
-            // Teachers
-            const fullName = row["Full Name"] || row["full_name"];
-            const email = row["Email"] || row["email"];
-            const password = String(row["Password"] || row["password"] || "123456");
-            const subjectsStr = row["Subjects"] || row["subjects"] || "";
+          return {
+            school_id: schoolId,
+            full_name: fullName,
+            email: email,
+            password: String(row["Password"] || row["password"] || "123456"),
+            subjects: subjectsStr.split(",").map((s: string) => s.trim()).filter(Boolean),
+            role: row["Role"] || row["role"] || "teacher",
+            dob: row["Date of Birth"] || row["dob"],
+            gender: row["Gender"] || row["gender"],
+            caste: row["Caste"] || row["caste"],
+            religion: row["Religion"] || row["religion"],
+            nationality: row["Nationality"] || row["nationality"],
+            mother_tongue: row["Mother Tongue"] || row["mother_tongue"],
+            phone_number: String(row["Phone Number"] || row["phone_number"] || ""),
+            emergency_contact: String(row["Emergency Contact"] || row["emergency_contact"] || ""),
+            address: row["Address"] || row["address"],
+            village: row["Village"] || row["village"],
+            mandal: row["Mandal"] || row["mandal"],
+            district: row["District"] || row["district"],
+            state: row["State"] || row["state"],
+            pincode: String(row["Pincode"] || row["pincode"] || ""),
+            aadhaar_number: String(row["Aadhaar Number"] || row["aadhaar_number"] || ""),
+            disabilities: row["Disabilities"] || row["disabilities"],
+            _rowNum: i + 2
+          };
+        });
 
-            if (!fullName || !email) {
-              throw new Error("Missing required fields (Full Name or Email)");
-            }
+        setProgress(30);
+        const res = await import("@/api/client").then(m => m.bulkRegisterTeachers({ teachers: teacherPayload }));
+        setProgress(100);
 
-            await registerTeacher({
-              school_id: schoolId,
-              full_name: fullName,
-              email: email,
-              password: password,
-              subjects: subjectsStr.split(",").map((s: string) => s.trim()).filter(Boolean),
-              role: row["Role"] || row["role"] || "teacher",
-              // Additional fields
-              dob: row["Date of Birth"] || row["dob"],
-              gender: row["Gender"] || row["gender"],
-              caste: row["Caste"] || row["caste"],
-              religion: row["Religion"] || row["religion"],
-              nationality: row["Nationality"] || row["nationality"],
-              mother_tongue: row["Mother Tongue"] || row["mother_tongue"],
-              phone_number: String(row["Phone Number"] || row["phone_number"] || ""),
-              emergency_contact: String(row["Emergency Contact"] || row["emergency_contact"] || ""),
-              address: row["Address"] || row["address"],
-              village: row["Village"] || row["village"],
-              mandal: row["Mandal"] || row["mandal"],
-              district: row["District"] || row["district"],
-              state: row["State"] || row["state"],
-              pincode: String(row["Pincode"] || row["pincode"] || ""),
-              aadhaar_number: String(row["Aadhaar Number"] || row["aadhaar_number"] || ""),
-              disabilities: row["Disabilities"] || row["disabilities"]
-            });
-
-            setLogs(prev => [...prev, { row: rowNum, name: fullName, status: "success", message: "Registered successfully" }]);
-          }
-        } catch (err) {
-          const name = row["First Name"] || row["Full Name"] || "Unknown";
-          setLogs(prev => [...prev, { row: rowNum, name, status: "error", message: err instanceof Error ? err.message : "Registration failed" }]);
-        }
-
-        setProgress(Math.round(((i + 1) / parsedData.length) * 100));
+        const newLogs: LogEntry[] = [];
+        res.successful.forEach((s: any) => {
+          const original = teacherPayload.find(p => p.email === s.email);
+          newLogs.push({ row: original?._rowNum || 0, name: s.full_name, status: "success", message: "Registered successfully" });
+        });
+        res.failed.forEach((f: any) => {
+          newLogs.push({ row: f.teacher?._rowNum || 0, name: f.teacher?.full_name || "Unknown", status: "error", message: f.error });
+        });
+        setLogs(newLogs);
       }
 
       toast.success("Bulk processing completed.");

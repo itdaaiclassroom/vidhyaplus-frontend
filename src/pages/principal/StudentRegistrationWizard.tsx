@@ -47,6 +47,9 @@ const steps: { key: StepKey; title: string; desc?: string }[] = [
   { key: "summary", title: "Summary" },
 ];
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BulkUpload from "@/components/BulkUpload";
+
 const StudentRegistrationWizard: React.FC = () => {
   const { schoolId } = useAuth();
   const [current, setCurrent] = useState<number>(0);
@@ -344,48 +347,64 @@ const StudentRegistrationWizard: React.FC = () => {
   };
 
   return (
-    <Card className="w-full border-0 shadow-lg">
-      <CardContent className="p-0">
-        <div className="flex min-h-[600px]">
-          {/* Left sidebar with steps */}
-          <nav className="w-1/4 bg-gray-50 px-6
-           py-12 space-y-8 border-r">
-            <h3 className="font-bold text-lg text-foreground mb-8">Student Registration</h3>
-            <div className="space-y-2">
-              {steps.map((s, i) => (
-                <div key={s.key} className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all ${i === current ? "bg-white border-l-4 border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setCurrent(i)}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${i === current ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>{i + 1}</div>
-                  <div className="whitespace-nowrap font-medium text-sm">{s.title}</div>
-                </div>
-              ))}
-            </div>
-          </nav>
+    <div className="container mx-auto py-6">
+      <Tabs defaultValue="manual" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md mx-auto">
+          <TabsTrigger value="manual">Manual Registration</TabsTrigger>
+          <TabsTrigger value="bulk">Bulk Upload</TabsTrigger>
+        </TabsList>
 
-          {/* Right content area */}
-          <main className="flex-1 px-12 py-16 flex flex-col justify-between">
-            <div className="pb-6">{renderStep()}</div>
+        <TabsContent value="manual">
+          <Card className="w-full border-0 shadow-lg overflow-hidden">
+            <CardContent className="p-0">
+              <div className="flex min-h-[600px]">
+                {/* Left sidebar with steps */}
+                <nav className="w-1/4 bg-gray-50 px-6 py-12 space-y-8 border-r">
+                  <h3 className="font-bold text-lg text-foreground mb-8">Student Registration</h3>
+                  <div className="space-y-2">
+                    {steps.map((s, i) => (
+                      <div key={s.key} className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all ${i === current ? "bg-white border-l-4 border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`} onClick={() => setCurrent(i)}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${i === current ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>{i + 1}</div>
+                        <div className="whitespace-nowrap font-medium text-sm">{s.title}</div>
+                      </div>
+                    ))}
+                  </div>
+                </nav>
 
-            <div className="flex justify-between items-center pt-8 border-t">
-              <div>
-                {current > 0 && <Button variant="outline" onClick={prev}>Back</Button>}
+                {/* Right content area */}
+                <main className="flex-1 px-12 py-16 flex flex-col justify-between">
+                  <div className="pb-6">{renderStep()}</div>
+
+                  <div className="flex justify-between items-center pt-8 border-t">
+                    <div>
+                      {current > 0 && <Button variant="outline" onClick={prev}>Back</Button>}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Step {current + 1} of {steps.length}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {current < steps.length - 1 ? (
+                        <Button onClick={next} className="px-8">Next</Button>
+                      ) : (
+                        <Button onClick={handleSubmit} disabled={loading} className="px-8">
+                          {loading ? "Registering..." : "Submit"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </main>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Step {current + 1} of {steps.length}
-              </div>
-              <div className="flex items-center gap-3">
-                {current < steps.length - 1 ? (
-                  <Button onClick={next} className="px-8">Next</Button>
-                ) : (
-                  <Button onClick={handleSubmit} disabled={loading} className="px-8">
-                    {loading ? "Registering..." : "Submit"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </main>
-        </div>
-      </CardContent>
-    </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bulk">
+          <Card className="w-full border-0 shadow-lg p-6">
+            <BulkUpload />
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GraduationCap, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
-import { adminLogin, teacherLogin, studentLogin } from "@/api/client";
+import { adminLogin, teacherLogin, studentLogin, principalLogin } from "@/api/client";
 import { toast } from "sonner";
 
 const Login = () => {
@@ -67,7 +67,7 @@ const Login = () => {
         }
       } else {
         try {
-          const data = await teacherLogin({ email: email.trim(), password });
+          const data = await principalLogin({ email: email.trim(), password });
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
           const actualRole = (data.role as any) || "teacher";
@@ -84,7 +84,7 @@ const Login = () => {
       }
     } else if (role === "principal") {
       try {
-        const data = await teacherLogin({ email: email.trim(), password });
+        const data = await principalLogin({ email: email.trim(), password });
         const actualRole = (data.role as any) || "principal";
         login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
         navigate("/principal");

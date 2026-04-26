@@ -746,6 +746,22 @@ export async function teacherLogin(body: { email: string; password: string }): P
   return { ...data, token: data.token || '' };
 }
 
+export async function principalLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  const data = await res.json();
+  // Backend returns { token, user: { id, email, full_name, school_id, role } }
+  if (data.token && data.user) {
+    return { ...data.user, token: data.token };
+  }
+  return { ...data, token: data.token || '' };
+}
+
 export async function studentLogin(body: { student_id: string; password: string }): Promise<{ id: string; full_name: string; school_id: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/auth/login/student`, {
@@ -952,12 +968,23 @@ export async function fetchAdmins(): Promise<any[]> {
   return res.json();
 }
 
-export async function createAdmin(payload: any): Promise<{ ok: boolean }> {
+export async function bulkRegisterStudents(body: { students: any[] }): Promise<{ successful: any[]; failed: any[] }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/admin/management`, {
+  const res = await fetch(`${API_BASE}/api/students/bulk`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function bulkRegisterTeachers(body: { teachers: any[] }): Promise<{ successful: any[]; failed: any[] }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/bulk`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
