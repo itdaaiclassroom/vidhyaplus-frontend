@@ -8,7 +8,9 @@ interface AuthContextType {
   userName: string;
   studentId: string | null;
   teacherId: string | null;
-  login: (role: Role, name?: string, studentId?: string, teacherId?: string) => void;
+  schoolId: string | null;
+  token: string | null;
+  login: (role: Role, name?: string, studentId?: string, teacherId?: string, schoolId?: string, token?: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -18,12 +20,19 @@ const AuthContext = createContext<AuthContextType>({
   userName: "",
   studentId: null,
   teacherId: null,
+  schoolId: null,
+  token: null,
   login: () => {},
   logout: () => {},
   isAuthenticated: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
+
+/** Static helper to get token outside of React components (e.g. in API client) */
+export function getStoredToken(): string | null {
+  return localStorage.getItem("auth.token");
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<Role>(() => {
@@ -34,13 +43,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userName, setUserName] = useState(() => localStorage.getItem("auth.userName") || "");
   const [studentId, setStudentId] = useState<string | null>(() => localStorage.getItem("auth.studentId"));
   const [teacherId, setTeacherId] = useState<string | null>(() => localStorage.getItem("auth.teacherId"));
+  const [schoolId, setSchoolId] = useState<string | null>(() => localStorage.getItem("auth.schoolId"));
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("auth.token"));
 
-  const login = (r: Role, name = "", sId?: string, tId?: string) => {
+  const login = (r: Role, name = "", sId?: string, tId?: string, schId?: string, tkn?: string) => {
     setRole(r);
     setUserName(name || (r === "admin" ? "Administrator" : r === "student" ? "Student" : r === "principal" ? "Principal" : "Teacher"));
 
     setStudentId(sId || null);
     setTeacherId(tId || null);
+    setSchoolId(schId || null);
+    setToken(tkn || null);
   };
 
   const logout = () => {
@@ -48,6 +61,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUserName("");
     setStudentId(null);
     setTeacherId(null);
+    setSchoolId(null);
+    setToken(null);
   };
 
   useEffect(() => {
@@ -67,8 +82,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     else localStorage.removeItem("auth.teacherId");
   }, [teacherId]);
 
+  useEffect(() => {
+    if (schoolId) localStorage.setItem("auth.schoolId", schoolId);
+    else localStorage.removeItem("auth.schoolId");
+  }, [schoolId]);
+
+  useEffect(() => {
+    if (token) localStorage.setItem("auth.token", token);
+    else localStorage.removeItem("auth.token");
+  }, [token]);
+
   return (
-    <AuthContext.Provider value={{ role, userName, studentId, teacherId, login, logout, isAuthenticated: !!role }}>
+    <AuthContext.Provider value={{ role, userName, studentId, teacherId, schoolId, token, login, logout, isAuthenticated: !!role }}>
       {children}
     </AuthContext.Provider>
   );

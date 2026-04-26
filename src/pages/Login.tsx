@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GraduationCap, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
-import { adminLogin, teacherLogin, studentLogin } from "@/api/client";
+import { adminLogin, teacherLogin, studentLogin, principalLogin } from "@/api/client";
 import { toast } from "sonner";
 
 const Login = () => {
@@ -32,7 +32,7 @@ const Login = () => {
     if (role === "student") {
       try {
         const data = await studentLogin({ student_id: email.trim(), password });
-        login("student", data.full_name, data.id);
+        login("student", data.full_name, data.id, undefined, undefined, data.token);
         navigate("/student");
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
@@ -40,7 +40,7 @@ const Login = () => {
     } else if (role === "admin") {
       try {
         const data = await adminLogin({ email: email.trim(), password });
-        login("admin", data.full_name);
+        login("admin", data.full_name, undefined, undefined, undefined, data.token);
         navigate("/admin");
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
@@ -60,26 +60,43 @@ const Login = () => {
         }
         try {
           const data = await teacherLogin({ email: storedEmail, password });
-          login("teacher", data.full_name, undefined, data.id);
+          login("teacher", data.full_name, undefined, data.id, undefined, data.token);
           navigate("/teacher/setup");
         } catch (err) {
           alert(err instanceof Error ? err.message : "Login failed");
         }
       } else {
         try {
-          const data = await teacherLogin({ email: email.trim(), password });
+          const data = await principalLogin({ email: email.trim(), password });
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
-          login("teacher", data.full_name, undefined, data.id);
-          navigate("/teacher/setup");
+          const actualRole = (data.role as any) || "teacher";
+          login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
+          
+          if (actualRole === "principal") {
+            navigate("/principal");
+          } else {
+            navigate("/teacher/setup");
+          }
         } catch (err) {
           alert(err instanceof Error ? err.message : "Login failed");
         }
       }
     } else if (role === "principal") {
-      // Demo login for principal
-      login("principal", "Principal");
-      navigate("/principal");
+      try {
+        const data = await principalLogin({ email: email.trim(), password });
+        const actualRole = (data.role as any) || "principal";
+        login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
+        navigate("/principal");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Login failed";
+        const friendlyMsg = msg.toLowerCase().includes("teacher not found")
+          ? "Principal account not found. Please check your email and password."
+          : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
+            ? "Invalid email or password. Please try again."
+            : `Login failed: ${msg}`;
+        alert(friendlyMsg);
+      }
     }
   };
 

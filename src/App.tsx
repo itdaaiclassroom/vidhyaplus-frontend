@@ -14,7 +14,7 @@ import TeacherSetup from "./pages/teacher/TeacherSetup";
 import LessonScreen from "./pages/teacher/LessonScreen";
 import QuizScreen from "./pages/teacher/QuizScreen";
 import LiveQuizScan from "./pages/teacher/LiveQuizScan";
-import AdminDashboard from "./pages/admin/AdminDashboard";
+import ModernAdminDashboard from "./pages/admin/ModernAdminDashboard";
 import SchoolsAnalytics from "./pages/admin/SchoolsAnalytics";
 import StudentsFilter from "./pages/admin/StudentsFilter";
 import StudentsAnalytics from "./pages/admin/StudentsAnalytics";
@@ -52,7 +52,7 @@ const App = () => (
             <Route path="/teacher/lesson" element={<LessonScreen />} />
             <Route path="/teacher/quiz" element={<QuizScreen />} />
             <Route path="/teacher/live-quiz-scan" element={<LiveQuizScan />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin" element={<ModernAdminDashboard />} />
             <Route path="/admin/schools-analytics" element={<SchoolsAnalytics />} />
             <Route path="/admin/students-filter" element={<StudentsFilter />} />
             <Route path="/admin/students-analytics" element={<StudentsAnalytics />} />

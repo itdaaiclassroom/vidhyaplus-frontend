@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/contexts/AuthContext";
+import { registerTeacher, fetchAll, fetchPrincipalGrades } from "@/api/client";
+import { uploadFileToR2 } from "@/services/uploadService";
+import { toast } from "sonner";
 
 type StepKey = "personal" | "address" | "teaching" | "contact" | "additional" | "summary";
 
@@ -43,27 +47,47 @@ const steps: { key: StepKey; title: string; desc?: string }[] = [
   { key: "summary", title: "Summary" },
 ];
 
-const availableSubjects = [
-  "Mathematics",
-  "Science",
-  "English",
-  "Social Studies",
-  "Computer Science",
-  "Hindi",
-  "Physical Education",
-  "Art",
-];
-
-const availableClasses = [
-  "Class 6",
-  "Class 7",
-  "Class 8",
-  "Class 9",
-  "Class 10",
-];
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BulkUpload from "@/components/BulkUpload";
 
 const TeacherRegistration: React.FC = () => {
+  const { schoolId } = useAuth();
   const [current, setCurrent] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [subjects, setSubjects] = useState<Array<{ id: string, name: string }>>([]);
+  const [grades, setGrades] = useState<Array<{ id: string, label: string }>>([]);
+  
+  useEffect(() => {
+    fetchAll().then(data => {
+      if (data.subjects) {
+        setSubjects(data.subjects);
+      }
+    }).catch(console.error);
+
+    fetchPrincipalGrades().then(data => {
+      if (data.grades && data.grades.length > 0) {
+        setGrades(data.grades.map(g => ({ id: String(g.id), label: g.grade_label })));
+      } else {
+        // Fallback static grades
+        setGrades([
+          { id: "6", label: "Class 6" },
+          { id: "7", label: "Class 7" },
+          { id: "8", label: "Class 8" },
+          { id: "9", label: "Class 9" },
+          { id: "10", label: "Class 10" },
+        ]);
+      }
+    }).catch(() => {
+      setGrades([
+        { id: "6", label: "Class 6" },
+        { id: "7", label: "Class 7" },
+        { id: "8", label: "Class 8" },
+        { id: "9", label: "Class 9" },
+        { id: "10", label: "Class 10" },
+      ]);
+    });
+  }, []);
+
   const [form, setForm] = useState<TeacherForm>({
     teacherName: "",
     dob: "",
@@ -112,9 +136,72 @@ const TeacherRegistration: React.FC = () => {
   const next = () => setCurrent((c) => Math.min(c + 1, steps.length - 1));
   const prev = () => setCurrent((c) => Math.max(c - 1, 0));
 
-  const handleSubmit = () => {
-    console.log("Teacher registration submitted", form);
-    alert("Teacher registered (demo)");
+  const handleSubmit = async () => {
+    if (!schoolId) {
+      toast.error("School ID not found. Please log in again.");
+      return;
+    }
+    if (!form.teacherName || !form.email) {
+      toast.error("Name and Email are required.");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Upload photo to R2 if selected
+      let photoUrl: string | undefined;
+      if (form.photo) {
+        toast.info("Uploading photo...");
+        try {
+          photoUrl = await uploadFileToR2(form.photo, 'teacher-photos');
+        } catch (uploadErr) {
+          console.error("Photo upload failed:", uploadErr);
+          toast.warning("Photo upload failed, continuing without photo.");
+        }
+      }
+
+      const selectedSubjectIds = form.subjectsHandled
+        .map(name => subjects.find(s => s.name === name)?.id)
+        .filter((id): id is string => id !== undefined);
+
+      await registerTeacher({
+        school_id: schoolId,
+        full_name: form.teacherName,
+        email: form.email,
+        password: "teach123", // Default password for now
+        subjects: selectedSubjectIds,
+        dob: form.dob,
+        gender: form.gender,
+        caste: form.caste,
+        religion: form.religion,
+        nationality: form.nationality,
+        mother_tongue: form.motherTongue,
+        address: form.address,
+        village: form.village,
+        mandal: form.mandal,
+        district: form.district,
+        state: form.state,
+        pincode: form.pincode,
+        phone_number: form.phoneNumber,
+        emergency_contact: form.emergencyContact,
+        disabilities: form.disabilities,
+        aadhaar_number: form.aadhaarNumber,
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
+      });
+      
+      toast.success("Teacher registered successfully!");
+      setCurrent(0);
+      setForm({
+        teacherName: "", dob: "", gender: "", caste: "", religion: "", nationality: "",
+        motherTongue: "", address: "", village: "", mandal: "", district: "", state: "",
+        pincode: "", subjectsHandled: [], classesCanHandle: [], phoneNumber: "",
+        emergencyContact: "", email: "", disabilities: "", aadhaarNumber: "", photo: null,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to register teacher");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderStep = (): React.ReactNode => {
@@ -259,18 +346,18 @@ const TeacherRegistration: React.FC = () => {
             <div>
               <h4 className="font-semibold text-sm mb-4">Subjects Can Teach</h4>
               <div className="grid grid-cols-2 gap-4">
-                {availableSubjects.map((subject) => (
-                  <div key={subject} className="flex items-center space-x-2">
+                {subjects.map((s) => (
+                  <div key={s.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={subject}
-                      checked={form.subjectsHandled.includes(subject)}
-                      onCheckedChange={() => toggleSubject(subject)}
+                      id={`subj-${s.id}`}
+                      checked={form.subjectsHandled.includes(s.name)}
+                      onCheckedChange={() => toggleSubject(s.name)}
                     />
                     <label
-                      htmlFor={subject}
+                      htmlFor={`subj-${s.id}`}
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
-                      {subject}
+                      {s.name}
                     </label>
                   </div>
                 ))}
@@ -280,18 +367,18 @@ const TeacherRegistration: React.FC = () => {
             <div>
               <h4 className="font-semibold text-sm mb-4">Classes Can Handle</h4>
               <div className="grid grid-cols-2 gap-4">
-                {availableClasses.map((cls) => (
-                  <div key={cls} className="flex items-center space-x-2">
+                {grades.map((g) => (
+                  <div key={g.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={cls}
-                      checked={form.classesCanHandle.includes(cls)}
-                      onCheckedChange={() => toggleClass(cls)}
+                      id={`grade-${g.id}`}
+                      checked={form.classesCanHandle.includes(g.label)}
+                      onCheckedChange={() => toggleClass(g.label)}
                     />
                     <label
-                      htmlFor={cls}
+                      htmlFor={`grade-${g.id}`}
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
-                      {cls}
+                      {g.label}
                     </label>
                   </div>
                 ))}
@@ -458,57 +545,76 @@ const TeacherRegistration: React.FC = () => {
   };
 
   return (
-    <Card className="w-full border-0 shadow-lg">
-      <CardContent className="p-0">
-        <div className="flex min-h-[600px]">
-          {/* Left sidebar with steps */}
-          <nav className="w-1/4 bg-gray-50 px-6 py-12 space-y-8 border-r">
-            <h3 className="font-bold text-lg text-foreground mb-8">Teacher Registration</h3>
-            <div className="space-y-2">
-              {steps.map((s, i) => (
-                <div
-                  key={s.key}
-                  className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all ${
-                    i === current
-                      ? "bg-white border-l-4 border-primary text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setCurrent(i)}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                      i === current ? "bg-primary text-white" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {i + 1}
+    <div className="container mx-auto py-6">
+      <Tabs defaultValue="manual" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md mx-auto">
+          <TabsTrigger value="manual">Manual Registration</TabsTrigger>
+          <TabsTrigger value="bulk">Bulk Upload</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="manual">
+          <Card className="w-full border-0 shadow-lg overflow-hidden">
+            <CardContent className="p-0">
+              <div className="flex min-h-[600px]">
+                {/* Left sidebar with steps */}
+                <nav className="w-1/4 bg-gray-50 px-6 py-12 space-y-8 border-r">
+                  <h3 className="font-bold text-lg text-foreground mb-8">Teacher Registration</h3>
+                  <div className="space-y-2">
+                    {steps.map((s, i) => (
+                      <div
+                        key={s.key}
+                        className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all ${
+                          i === current
+                            ? "bg-white border-l-4 border-primary text-primary"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                        onClick={() => setCurrent(i)}
+                      >
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                            i === current ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {i + 1}
+                        </div>
+                        <div className="whitespace-nowrap font-medium text-sm">{s.title}</div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="whitespace-nowrap font-medium text-sm">{s.title}</div>
-                </div>
-              ))}
-            </div>
-          </nav>
+                </nav>
 
-          {/* Right content area */}
-          <main className="flex-1 px-12 py-16 flex flex-col justify-between">
-            <div className="pb-6">{renderStep()}</div>
+                {/* Right content area */}
+                <main className="flex-1 px-12 py-16 flex flex-col justify-between">
+                  <div className="pb-6">{renderStep()}</div>
 
-            <div className="flex justify-between items-center pt-8 border-t">
-              <div>{current > 0 && <Button variant="outline" onClick={prev}>Back</Button>}</div>
-              <div className="text-sm text-muted-foreground">
-                Step {current + 1} of {steps.length}
+                  <div className="flex justify-between items-center pt-8 border-t">
+                    <div>{current > 0 && <Button variant="outline" onClick={prev}>Back</Button>}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Step {current + 1} of {steps.length}
+                    </div>
+                    <div>
+                      {current < steps.length - 1 ? (
+                        <Button onClick={next}>Next</Button>
+                      ) : (
+                        <Button onClick={handleSubmit} disabled={loading}>
+                          {loading ? "Registering..." : "Submit"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </main>
               </div>
-              <div>
-                {current < steps.length - 1 ? (
-                  <Button onClick={next}>Next</Button>
-                ) : (
-                  <Button onClick={handleSubmit}>Submit</Button>
-                )}
-              </div>
-            </div>
-          </main>
-        </div>
-      </CardContent>
-    </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bulk">
+          <Card className="w-full border-0 shadow-lg p-6">
+            <BulkUpload />
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
