@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet } from "lucide-react";
+import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
@@ -22,6 +22,21 @@ import {
 } from "@/api/client";
 import { toast } from "sonner";
 import { Edit2, Save, XCircle } from "lucide-react";
+import { 
+  StudentMainCard, 
+  StudentOptionCard, 
+  OptionLetter,
+  StudentData 
+} from "@/components/IdCardSystem";
+import IdCardGenerator from "../admin/IdCardGenerator";
+import { cn } from "@/lib/utils";
+
+const InfoItem = ({ label, value, isCapitalize }: { label: string, value: string, isCapitalize?: boolean }) => (
+  <div>
+    <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">{label}</span>
+    <p className={cn("font-semibold text-slate-700 text-[15px] mt-1.5", isCapitalize && "capitalize")}>{value}</p>
+  </div>
+);
 
 const PrincipalDashboard: React.FC = () => {
   const { schoolId } = useAuth();
@@ -149,6 +164,7 @@ const PrincipalDashboard: React.FC = () => {
             <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
             <TabsTrigger value="qrcodes" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">QR Codes</TabsTrigger>
             <TabsTrigger value="sections" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Section Management</TabsTrigger>
+            <TabsTrigger value="id-cards" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">ID Cards Bulk</TabsTrigger>
             <TabsTrigger value="bulk-upload" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Bulk Registration</TabsTrigger>
           </TabsList>
         </aside>
@@ -384,6 +400,9 @@ const PrincipalDashboard: React.FC = () => {
           <TabsContent value="bulk-upload" className="space-y-4">
             <BulkUpload />
           </TabsContent>
+          <TabsContent value="id-cards" className="space-y-4">
+             <IdCardGenerator />
+          </TabsContent>
         </section>
       </div>
       </Tabs>
@@ -455,50 +474,122 @@ const PrincipalDashboard: React.FC = () => {
           setSelectedStudentDetails(null);
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex justify-between items-center border-b pb-4 pr-6">
-              <DialogTitle className="flex items-center gap-2 text-xl">
-                <User className="w-5 h-5 text-primary" />
-                Student Full Details
-              </DialogTitle>
-
-            </div>
-          </DialogHeader>
-          {selectedStudentDetails && (
-            <div className="space-y-6 pt-2">
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">First Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.first_name}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Last Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.last_name}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Roll No</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.roll_no}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Class & Section</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.grade_id} - {selectedStudentDetails.section_code}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Category</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.category || 'General'}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Gender</span><p className="font-medium text-sm capitalize mt-1">{selectedStudentDetails.gender || 'N/A'}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Date of Birth</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.dob ? new Date(selectedStudentDetails.dob).toLocaleDateString() : 'N/A'}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Aadhaar</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.aadhaar || 'N/A'}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Phone</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.phone || selectedStudentDetails.phone_number || 'N/A'}</p></div>
-                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Joined At</span><p className="font-medium text-sm mt-1">{new Date(selectedStudentDetails.joined_at).toLocaleDateString()}</p></div>
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] overflow-y-auto p-0">
+          <div className="sticky top-0 z-50 bg-white border-b px-8 py-4 flex justify-between items-center">
+            <DialogHeader className="p-0">
+              <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-slate-800">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary" />
                 </div>
+                Student Profile & Identity Cards
+              </DialogTitle>
+            </DialogHeader>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedStudentDetails(null)} className="rounded-full">
+              <X className="w-6 h-6" />
+            </Button>
+          </div>
 
-                <div className="border-t pt-5">
-                  <h4 className="font-semibold text-primary mb-4 text-sm flex items-center gap-2"><div className="w-1.5 h-4 bg-primary rounded-full"></div>Family Information</h4>
-                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Father's Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.father_name || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Mother's Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.mother_name || 'N/A'}</p></div>
+          {selectedStudentDetails && (
+            <div className="p-8 space-y-10">
+                {/* ID Card Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-display text-xl font-bold text-foreground flex items-center gap-2">
+                      <QrCode className="w-6 h-6 text-primary" />
+                      Digital Identity Cards
+                    </h4>
+                    <Button onClick={() => window.print()} variant="outline" className="gap-2">
+                      <Printer className="w-4 h-4" /> Print Cards
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                    {/* Main Card */}
+                    <div className="lg:col-span-5 flex flex-col items-center gap-4">
+                      <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Main Identity Card</p>
+                      <StudentMainCard data={{
+                        id: String(selectedStudentDetails.id),
+                        name: `${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`,
+                        schoolName: "Government High School",
+                        grade: selectedStudentDetails.grade_id,
+                        section: selectedStudentDetails.section_code,
+                        rollNo: String(selectedStudentDetails.roll_no),
+                        validUpto: "31-03-2026",
+                        photoUrl: selectedStudentDetails.profile_image_url
+                      }} />
+                    </div>
+                    
+                    {/* Option Cards */}
+                    <div className="lg:col-span-7 flex flex-col items-center gap-4">
+                      <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Option Selection QR Cards</p>
+                      <div className="grid grid-cols-2 gap-6 w-full">
+                        {(["A", "B", "C", "D"] as OptionLetter[]).map(opt => (
+                          <div key={opt} className="scale-[0.8] origin-top">
+                            <StudentOptionCard 
+                              option={opt}
+                              data={{
+                                id: String(selectedStudentDetails.id),
+                                name: `${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`,
+                                schoolName: "Government High School",
+                                grade: selectedStudentDetails.grade_id,
+                                section: selectedStudentDetails.section_code,
+                                rollNo: String(selectedStudentDetails.roll_no),
+                                validUpto: "31-03-2026",
+                                photoUrl: selectedStudentDetails.profile_image_url
+                              }} 
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="border-t pt-5">
-                  <h4 className="font-semibold text-primary mb-4 text-sm flex items-center gap-2"><div className="w-1.5 h-4 bg-primary rounded-full"></div>Address & Additional Info</h4>
-                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                    <div className="col-span-2"><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Address</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.address || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Village</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.village || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Mandal</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.mandal || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">District</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.district || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">State</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.state || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Pincode</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.pincode || 'N/A'}</p></div>
-                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Hosteller</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.is_hosteller ? 'Yes' : 'No'}</p></div>
-                    <div className="col-span-2"><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Disabilities</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.disabilities || 'None'}</p></div>
+                {/* Information Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t">
+                  <div className="space-y-8">
+                    <h4 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                      Basic Information
+                    </h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <InfoItem label="Full Name" value={`${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`} />
+                      <InfoItem label="Roll Number" value={String(selectedStudentDetails.roll_no)} />
+                      <InfoItem label="Class & Section" value={`${selectedStudentDetails.grade_id} - ${selectedStudentDetails.section_code}`} />
+                      <InfoItem label="Category" value={selectedStudentDetails.category || 'General'} />
+                      <InfoItem label="Gender" value={selectedStudentDetails.gender || 'N/A'} isCapitalize />
+                      <InfoItem label="Date of Birth" value={selectedStudentDetails.dob ? new Date(selectedStudentDetails.dob).toLocaleDateString() : 'N/A'} />
+                      <InfoItem label="Aadhaar Number" value={selectedStudentDetails.aadhaar || 'N/A'} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <h4 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                      Family & Contact
+                    </h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <InfoItem label="Father's Name" value={selectedStudentDetails.father_name || 'N/A'} />
+                      <InfoItem label="Mother's Name" value={selectedStudentDetails.mother_name || 'N/A'} />
+                      <InfoItem label="Phone Number" value={selectedStudentDetails.phone || selectedStudentDetails.phone_number || 'N/A'} />
+                      <InfoItem label="Hosteller Status" value={selectedStudentDetails.is_hosteller ? 'Yes' : 'No'} />
+                      <InfoItem label="Joined Date" value={new Date(selectedStudentDetails.joined_at).toLocaleDateString()} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <h4 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                      Location & Other
+                    </h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <InfoItem label="Address" value={selectedStudentDetails.address || 'N/A'} />
+                      <InfoItem label="Village" value={selectedStudentDetails.village || 'N/A'} />
+                      <InfoItem label="Mandal" value={selectedStudentDetails.mandal || 'N/A'} />
+                      <InfoItem label="District" value={selectedStudentDetails.district || 'N/A'} />
+                      <InfoItem label="State" value={selectedStudentDetails.state || 'N/A'} />
+                      <InfoItem label="Disabilities" value={selectedStudentDetails.disabilities || 'None'} />
+                    </div>
                   </div>
                 </div>
             </div>
