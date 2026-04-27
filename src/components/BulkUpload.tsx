@@ -34,6 +34,41 @@ interface LogEntry {
   message: string;
 }
 
+/** Convert Excel serial date number to YYYY-MM-DD string */
+function excelDateToString(value: any): string | null {
+  if (value == null || value === "") return null;
+  // If it's already a valid date string like "2010-05-15" or "15/05/2010", return as-is or parse it
+  if (typeof value === "string") {
+    // Try YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    // Try DD/MM/YYYY or DD-MM-YYYY
+    const dmy = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (dmy) {
+      const [, d, m, y] = dmy;
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+    // Try MM/DD/YYYY
+    const mdy = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mdy) {
+      const [, m, d, y] = mdy;
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+    return value; // return as-is and let backend handle
+  }
+  // If it's a number, it's an Excel serial date
+  if (typeof value === "number" && value > 0) {
+    // Excel epoch: Jan 1, 1900. But Excel has a leap year bug (treats 1900 as leap year)
+    // JS Date epoch: Jan 1, 1970 = Excel serial 25569
+    const utcDays = Math.floor(value - 25569);
+    const date = new Date(utcDays * 86400 * 1000);
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(date.getUTCDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return null;
+}
+
 const BulkUpload: React.FC = () => {
   const { schoolId } = useAuth();
   const [type, setType] = useState<UploadType>("students");
@@ -45,11 +80,17 @@ const BulkUpload: React.FC = () => {
   const [parsedData, setParsedData] = useState<any[]>([]);
 
   const downloadSample = () => {
-    const headers = type === "students" 
-      ? [["First Name", "Last Name", "Grade", "Section", "Password", "Gender", "Category", "Date of Birth", "Father Name", "Mother Name", "Phone", "Aadhaar", "Address", "Village", "Mandal", "District", "State", "Pincode", "Hostel Status", "Disabilities"]]
-      : [["Full Name", "Email", "Password", "Subjects", "Role", "Date of Birth", "Gender", "Caste", "Religion", "Nationality", "Mother Tongue", "Phone Number", "Emergency Contact", "Address", "Village", "Mandal", "District", "State", "Pincode", "Aadhaar Number", "Disabilities"]];
+    const data = type === "students" 
+      ? [
+          ["Roll No", "First Name", "Last Name", "Grade", "Section", "Password", "Gender", "Category", "Date of Birth", "Father Name", "Mother Name", "Phone", "Aadhaar", "Address", "Village", "Mandal", "District", "State", "Pincode", "Hostel Status", "Disabilities"],
+          ["2024001", "Rahul", "Kumar", 10, "A", "123456", "Male", "General", "2010-05-15", "Suresh Kumar", "Lakshmi Devi", "9876543210", "123456789012", "H.No 1-2-3, Main Road", "Rampur", "Keesara", "Medchal", "Telangana", "500101", "No", "None"],
+        ]
+      : [
+          ["Full Name", "Email", "Password", "Subjects", "Role", "Date of Birth", "Gender", "Caste", "Religion", "Nationality", "Mother Tongue", "Phone Number", "Emergency Contact", "Address", "Village", "Mandal", "District", "State", "Pincode", "Aadhaar Number", "Disabilities"],
+          ["Priya Sharma", "priya.sharma@school.com", "123456", "Mathematics, Science", "teacher", "1990-08-20", "Female", "OC", "Hindu", "Indian", "Telugu", "9876543210", "9123456780", "H.No 4-5-6, School Street", "Rampur", "Keesara", "Medchal", "Telangana", "500101", "987654321098", "None"],
+        ];
     
-    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, `${type}_bulk_template.xlsx`);
@@ -63,27 +104,24 @@ const BulkUpload: React.FC = () => {
     }
   };
 
-  const parseFile = (file: File) => {
+  const parseFile = async (fileToRead: File) => {
     setParsing(true);
     setLogs([]);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet);
-        setParsedData(json);
-        toast.success(`Parsed ${json.length} rows successfully.`);
-      } catch (err) {
-        toast.error("Failed to parse Excel file.");
-        console.error(err);
-      } finally {
-        setParsing(false);
-      }
-    };
-    reader.readAsBinaryString(file);
+    setParsedData([]);
+    try {
+      const buffer = await fileToRead.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(worksheet);
+      setParsedData(json);
+      toast.success(`Parsed ${json.length} rows successfully.`);
+    } catch (err) {
+      toast.error("Failed to parse Excel file. Check the file format.");
+      console.error("Excel parse error:", err);
+    } finally {
+      setParsing(false);
+    }
   };
 
   const processBulk = async () => {
@@ -101,6 +139,7 @@ const BulkUpload: React.FC = () => {
     setLogs([]);
 
     try {
+      let newLogs: LogEntry[] = [];
       if (type === "students") {
         // Map data for students
         let sectionMap: Record<string, number> = {};
@@ -123,6 +162,7 @@ const BulkUpload: React.FC = () => {
             school_id: schoolId,
             section_id: sectionId,
             grade_id: Number(grade),
+            roll_no: row["Roll No"] || row["roll_no"],
             first_name: firstName,
             last_name: lastName || "Student",
             password: String(row["Password"] || row["password"] || "123456"),
@@ -141,7 +181,7 @@ const BulkUpload: React.FC = () => {
             hostel_status: row["Hostel Status"] || row["hostel_status"] || "no",
             disabilities: row["Disabilities"] || row["disabilities"],
             gender: row["Gender"] || row["gender"],
-            dob: row["Date of Birth"] || row["dob"],
+            dob: excelDateToString(row["Date of Birth"] || row["dob"]),
             _rowNum: i + 2
           };
         });
@@ -150,7 +190,7 @@ const BulkUpload: React.FC = () => {
         const res = await import("@/api/client").then(m => m.bulkRegisterStudents({ students: studentPayload }));
         setProgress(100);
 
-        const newLogs: LogEntry[] = [];
+        newLogs = [];
         res.successful.forEach((s: any) => {
           const original = studentPayload.find(p => p.first_name === s.full_name.split(' ')[0]);
           newLogs.push({ row: original?._rowNum || 0, name: s.full_name, status: "success", message: "Registered successfully" });
@@ -173,7 +213,7 @@ const BulkUpload: React.FC = () => {
             password: String(row["Password"] || row["password"] || "123456"),
             subjects: subjectsStr.split(",").map((s: string) => s.trim()).filter(Boolean),
             role: row["Role"] || row["role"] || "teacher",
-            dob: row["Date of Birth"] || row["dob"],
+            dob: excelDateToString(row["Date of Birth"] || row["dob"]),
             gender: row["Gender"] || row["gender"],
             caste: row["Caste"] || row["caste"],
             religion: row["Religion"] || row["religion"],
@@ -197,7 +237,7 @@ const BulkUpload: React.FC = () => {
         const res = await import("@/api/client").then(m => m.bulkRegisterTeachers({ teachers: teacherPayload }));
         setProgress(100);
 
-        const newLogs: LogEntry[] = [];
+        newLogs = [];
         res.successful.forEach((s: any) => {
           const original = teacherPayload.find(p => p.email === s.email);
           newLogs.push({ row: original?._rowNum || 0, name: s.full_name, status: "success", message: "Registered successfully" });
@@ -208,7 +248,13 @@ const BulkUpload: React.FC = () => {
         setLogs(newLogs);
       }
 
-      toast.success("Bulk processing completed.");
+      const successCount = newLogs.filter(l => l.status === "success").length;
+      const failCount = newLogs.filter(l => l.status === "error").length;
+      toast.success(`Bulk processing completed: ${successCount} succeeded, ${failCount} failed.`);
+
+      // Clear parsed data so the Register button disappears (prevents re-registration)
+      setParsedData([]);
+      setFile(null);
     } catch (err) {
       toast.error("Critical error during bulk processing.");
       console.error(err);

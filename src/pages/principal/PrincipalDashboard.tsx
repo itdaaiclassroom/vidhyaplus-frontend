@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,13 +13,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet } from "lucide-react";
+import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, PrincipalGrade, PrincipalSection, getApiBase } from "@/api/client";
+import { 
+  fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
+  fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, 
+  PrincipalGrade, PrincipalSection, getApiBase, updateStudent 
+} from "@/api/client";
+import { toast } from "sonner";
+import { Edit2, Save, XCircle } from "lucide-react";
+import { 
+  StudentMainCard, 
+  StudentOptionCard, 
+  OptionLetter,
+  StudentData 
+} from "@/components/IdCardSystem";
+import IdCardGenerator from "../admin/IdCardGenerator";
+import { cn } from "@/lib/utils";
+
+const InfoItem = ({ label, value, isCapitalize }: { label: string, value: string, isCapitalize?: boolean }) => (
+  <div>
+    <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">{label}</span>
+    <p className={cn("font-semibold text-slate-700 text-[15px] mt-1.5", isCapitalize && "capitalize")}>{value}</p>
+  </div>
+);
 
 const PrincipalDashboard: React.FC = () => {
   const { schoolId } = useAuth();
   const [studentFilterId, setStudentFilterId] = useState<string>("");
+  const [teacherFilter, setTeacherFilter] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [grades, setGrades] = useState<PrincipalGrade[]>([]);
@@ -27,6 +50,10 @@ const PrincipalDashboard: React.FC = () => {
   const [realTeachers, setRealTeachers] = useState<PrincipalTeacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<PrincipalStudent | null>(null);
+  const [selectedStudentDetails, setSelectedStudentDetails] = useState<PrincipalStudent | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<PrincipalTeacher | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [pendingClassFilter, setPendingClassFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (schoolId) {
@@ -46,13 +73,29 @@ const PrincipalDashboard: React.FC = () => {
   useEffect(() => {
     if (gradeFilter !== "all") {
       fetchPrincipalSections(Number(gradeFilter))
-        .then(data => setSectionsForFilter(data.sections))
+        .then(data => {
+          setSectionsForFilter(data.sections);
+          if (pendingClassFilter) {
+            setClassFilter(pendingClassFilter);
+            setPendingClassFilter(null);
+          } else if (classFilter !== "all" && !data.sections.find(s => String(s.id) === classFilter)) {
+             setClassFilter("all");
+          }
+        })
         .catch(console.error);
     } else {
       setSectionsForFilter([]);
       setClassFilter("all");
     }
-  }, [gradeFilter]);
+  }, [gradeFilter, pendingClassFilter]);
+
+  const handleViewStudents = (gradeId: number, sectionId: number) => {
+    setActiveTab("student-info");
+    setGradeFilter(String(gradeId));
+    setPendingClassFilter(String(sectionId));
+  };
+
+
 
   const uniqueClasses = Array.from(
     new Set(
@@ -74,6 +117,25 @@ const PrincipalDashboard: React.FC = () => {
       ? String(s.section_id) === classFilter
       : true;
     return matchesId && matchesGrade && matchesClass;
+  }).sort((a, b) => {
+    // 1. Sort by Grade (ascending)
+    if (a.grade_id !== b.grade_id) return a.grade_id - b.grade_id;
+    // 2. Sort by Section (ascending, alphabetical)
+    const sectionA = a.section_code || "";
+    const sectionB = b.section_code || "";
+    if (sectionA !== sectionB) return sectionA.localeCompare(sectionB);
+    // 3. Sort by Name (alphabetical)
+    const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+    const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  const filteredTeachers = realTeachers.filter((t) => {
+    return teacherFilter.trim()
+      ? t.full_name.toLowerCase().includes(teacherFilter.toLowerCase()) ||
+        t.email.toLowerCase().includes(teacherFilter.toLowerCase()) ||
+        ((t as any).subjects && (t as any).subjects.join(", ").toLowerCase().includes(teacherFilter.toLowerCase()))
+      : true;
   });
 
   if (loading) {
@@ -89,18 +151,20 @@ const PrincipalDashboard: React.FC = () => {
 
   return (
     <DashboardLayout title="Principal Dashboard">
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="grid md:grid-cols-4 gap-6">
         <aside className="w-[200px] flex-shrink-0">
           <TabsList className="flex-col h-auto gap-2 w-full bg-transparent p-0">
             <TabsTrigger value="overview" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Overview</TabsTrigger>
             <TabsTrigger value="register" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Registration</TabsTrigger>
             <TabsTrigger value="teacher-registration" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Registration</TabsTrigger>
+            <TabsTrigger value="teacher-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Info</TabsTrigger>
             <TabsTrigger value="teacher-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Attendance</TabsTrigger>
             <TabsTrigger value="student-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Info</TabsTrigger>
             <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
             <TabsTrigger value="qrcodes" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">QR Codes</TabsTrigger>
             <TabsTrigger value="sections" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Section Management</TabsTrigger>
+            <TabsTrigger value="id-cards" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">ID Cards Bulk</TabsTrigger>
             <TabsTrigger value="bulk-upload" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Bulk Registration</TabsTrigger>
           </TabsList>
         </aside>
@@ -111,7 +175,7 @@ const PrincipalDashboard: React.FC = () => {
               <BarChart3 className="w-5 h-5 text-primary" /> Overview
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="gradient-primary text-white border-0">
+              <Card className="gradient-primary text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("student-info")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase opacity-80">Total Students</CardTitle>
                 </CardHeader>
@@ -119,7 +183,7 @@ const PrincipalDashboard: React.FC = () => {
                   <div className="text-3xl font-bold">{realStudents.length}</div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border shadow-sm">
+              <Card className="bg-white border shadow-sm cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("teacher-info")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Total Teachers</CardTitle>
                 </CardHeader>
@@ -127,7 +191,7 @@ const PrincipalDashboard: React.FC = () => {
                   <div className="text-3xl font-bold">{realTeachers.length}</div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border shadow-sm">
+              <Card className="bg-white border shadow-sm cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("sections")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Classes/Sections</CardTitle>
                 </CardHeader>
@@ -159,6 +223,54 @@ const PrincipalDashboard: React.FC = () => {
                 {/* Teacher Attendance content */}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="teacher-info" className="space-y-4">
+            <div className="flex justify-between items-center gap-4 mb-6">
+              <div></div>
+              <div className="flex gap-4">
+                <Input
+                  placeholder="Filter by Name, Email or Subject"
+                  value={teacherFilter}
+                  onChange={(e) => setTeacherFilter(e.target.value)}
+                  className="h-10 w-80"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTeachers.map((t) => (
+                <Card key={t.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedTeacher(t)}>
+                  <CardHeader className="bg-secondary/30 pb-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base font-bold">{t.full_name}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">{t.email}</p>
+                      </div>
+                      <Badge variant="outline" className="bg-white capitalize">{t.role || 'Teacher'}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Subjects</p>
+                        <p className="font-medium truncate max-w-[150px]" title={(t as any).subjects?.join(", ") || "None"}>
+                          {(t as any).subjects && (t as any).subjects.length > 0 ? (t as any).subjects.join(", ") : "None assigned"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {filteredTeachers.length === 0 && (
+                <div className="col-span-full py-20 text-center text-muted-foreground">
+                  No teachers found matching your filter.
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="student-info" className="space-y-4">
@@ -227,6 +339,11 @@ const PrincipalDashboard: React.FC = () => {
                         <p className="font-medium text-primary">Click to view</p>
                       </div>
                     </div>
+                    <div className="mt-4 pt-2 border-t flex justify-end">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedStudentDetails(s); }}>
+                        View Full Details
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -278,10 +395,13 @@ const PrincipalDashboard: React.FC = () => {
             </div>
           </TabsContent>
           <TabsContent value="sections" className="space-y-4">
-            <SectionManagement />
+            <SectionManagement onViewStudents={handleViewStudents} />
           </TabsContent>
           <TabsContent value="bulk-upload" className="space-y-4">
             <BulkUpload />
+          </TabsContent>
+          <TabsContent value="id-cards" className="space-y-4">
+             <IdCardGenerator />
           </TabsContent>
         </section>
       </div>
@@ -344,6 +464,134 @@ const PrincipalDashboard: React.FC = () => {
                   No QR codes generated yet for this student.
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedStudentDetails} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedStudentDetails(null);
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] overflow-y-auto p-0">
+          <div className="sticky top-0 z-50 bg-white border-b px-8 py-4 flex justify-between items-center">
+            <DialogHeader className="p-0">
+              <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-slate-800">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary" />
+                </div>
+                Student Profile & Identity Cards
+              </DialogTitle>
+            </DialogHeader>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedStudentDetails(null)} className="rounded-full">
+              <X className="w-6 h-6" />
+            </Button>
+          </div>
+
+          {selectedStudentDetails && (
+            <div className="p-8 space-y-10">
+                {/* ID Card Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-display text-xl font-bold text-foreground flex items-center gap-2">
+                      <QrCode className="w-6 h-6 text-primary" />
+                      Digital Identity Cards
+                    </h4>
+                    <Button onClick={() => window.print()} variant="outline" className="gap-2">
+                      <Printer className="w-4 h-4" /> Print Cards
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                    {/* Main Card */}
+                    <div className="lg:col-span-5 flex flex-col items-center gap-4">
+                      <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Main Identity Card</p>
+                      <StudentMainCard data={{
+                        id: String(selectedStudentDetails.id),
+                        name: `${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`,
+                        schoolName: "Government High School",
+                        grade: selectedStudentDetails.grade_id,
+                        section: selectedStudentDetails.section_code,
+                        rollNo: String(selectedStudentDetails.roll_no),
+                        validUpto: "31-03-2026",
+                        photoUrl: selectedStudentDetails.profile_image_url
+                      }} />
+                    </div>
+                    
+                    {/* Option Cards */}
+                    <div className="lg:col-span-7 flex flex-col items-center gap-4">
+                      <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Option Selection QR Cards</p>
+                      <div className="grid grid-cols-2 gap-6 w-full">
+                        {(["A", "B", "C", "D"] as OptionLetter[]).map(opt => (
+                          <div key={opt} className="scale-[0.8] origin-top">
+                            <StudentOptionCard 
+                              option={opt}
+                              data={{
+                                id: String(selectedStudentDetails.id),
+                                name: `${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`,
+                                schoolName: "Government High School",
+                                grade: selectedStudentDetails.grade_id,
+                                section: selectedStudentDetails.section_code,
+                                rollNo: String(selectedStudentDetails.roll_no),
+                                validUpto: "31-03-2026",
+                                photoUrl: selectedStudentDetails.profile_image_url
+                              }} 
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Information Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 pt-10 border-t">
+                  <div className="space-y-8">
+                    <h4 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                      Basic Information
+                    </h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <InfoItem label="Full Name" value={`${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`} />
+                      <InfoItem label="Roll Number" value={String(selectedStudentDetails.roll_no)} />
+                      <InfoItem label="Class & Section" value={`${selectedStudentDetails.grade_id} - ${selectedStudentDetails.section_code}`} />
+                      <InfoItem label="Category" value={selectedStudentDetails.category || 'General'} />
+                      <InfoItem label="Gender" value={selectedStudentDetails.gender || 'N/A'} isCapitalize />
+                      <InfoItem label="Date of Birth" value={selectedStudentDetails.dob ? new Date(selectedStudentDetails.dob).toLocaleDateString() : 'N/A'} />
+                      <InfoItem label="Aadhaar Number" value={selectedStudentDetails.aadhaar || 'N/A'} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <h4 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                      Family & Contact
+                    </h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <InfoItem label="Father's Name" value={selectedStudentDetails.father_name || 'N/A'} />
+                      <InfoItem label="Mother's Name" value={selectedStudentDetails.mother_name || 'N/A'} />
+                      <InfoItem label="Phone Number" value={selectedStudentDetails.phone || selectedStudentDetails.phone_number || 'N/A'} />
+                      <InfoItem label="Hosteller Status" value={selectedStudentDetails.is_hosteller ? 'Yes' : 'No'} />
+                      <InfoItem label="Joined Date" value={new Date(selectedStudentDetails.joined_at).toLocaleDateString()} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <h4 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-primary rounded-full"></div>
+                      Location & Other
+                    </h4>
+                    <div className="grid grid-cols-1 gap-6">
+                      <InfoItem label="Address" value={selectedStudentDetails.address || 'N/A'} />
+                      <InfoItem label="Village" value={selectedStudentDetails.village || 'N/A'} />
+                      <InfoItem label="Mandal" value={selectedStudentDetails.mandal || 'N/A'} />
+                      <InfoItem label="District" value={selectedStudentDetails.district || 'N/A'} />
+                      <InfoItem label="State" value={selectedStudentDetails.state || 'N/A'} />
+                      <InfoItem label="Disabilities" value={selectedStudentDetails.disabilities || 'None'} />
+                    </div>
+                  </div>
+                </div>
             </div>
           )}
         </DialogContent>

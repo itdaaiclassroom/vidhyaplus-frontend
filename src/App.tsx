@@ -29,6 +29,7 @@ import StudentRegistration from "./pages/admin/StudentRegistration";
 import TeacherRegistration from "./pages/admin/TeacherRegistration";
 import MvpSubmissionHub from "./pages/MvpSubmissionHub";
 import PrincipalDashboard from "./pages/principal/PrincipalDashboard";
+import IdCardGenerator from "./pages/admin/IdCardGenerator";
 
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/teacher/quiz" element={<QuizScreen />} />
             <Route path="/teacher/live-quiz-scan" element={<LiveQuizScan />} />
             <Route path="/admin" element={<ModernAdminDashboard />} />
+            <Route path="/admin/id-cards" element={<IdCardGenerator />} />
             <Route path="/admin/schools-analytics" element={<SchoolsAnalytics />} />
             <Route path="/admin/students-filter" element={<StudentsFilter />} />
             <Route path="/admin/students-analytics" element={<StudentsAnalytics />} />
