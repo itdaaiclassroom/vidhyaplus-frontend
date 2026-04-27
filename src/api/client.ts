@@ -161,6 +161,13 @@ export interface PrincipalStudent {
   address?: string;
   is_hosteller?: number;
   phone_number?: string;
+  phone?: string;
+  aadhaar?: string;
+  father_name?: string;
+  mother_name?: string;
+  dob?: string;
+  gender?: string;
+  disabilities?: string;
 }
 
 export interface PrincipalTeacher {
@@ -542,7 +549,7 @@ export async function registerTeacher(body: {
 
 export async function fetchPrincipalStudents(schoolId: string): Promise<PrincipalStudent[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/principals/schools/${schoolId}/students`, {
+  const res = await fetch(`${API_BASE}/api/principal/schools/${schoolId}/students`, {
     headers: getAuthHeaders()
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -551,7 +558,7 @@ export async function fetchPrincipalStudents(schoolId: string): Promise<Principa
 
 export async function fetchPrincipalTeachers(schoolId: string): Promise<PrincipalTeacher[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/principals/schools/${schoolId}/teachers`, {
+  const res = await fetch(`${API_BASE}/api/principal/schools/${schoolId}/teachers`, {
     headers: getAuthHeaders()
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -662,10 +669,14 @@ export async function deleteSchool(id: string): Promise<{ deleted: boolean }> {
   return res.json();
 }
 
-export async function updateStudent(id: string, body: { full_name?: string; roll_no?: number; section?: string; school_id?: string; password?: string }): Promise<{ id: string; updated: boolean }> {
+export async function updateStudent(id: number, data: Partial<PrincipalStudent>): Promise<{ ok: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/students/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+  const res = await fetch(`${API_BASE}/api/students/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
@@ -989,3 +1000,6 @@ export async function bulkRegisterTeachers(body: { teachers: any[] }): Promise<{
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
+
+
+

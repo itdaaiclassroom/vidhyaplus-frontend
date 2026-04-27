@@ -67,17 +67,11 @@ const Login = () => {
         }
       } else {
         try {
-          const data = await principalLogin({ email: email.trim(), password });
+          const data = await teacherLogin({ email: email.trim(), password });
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
-          const actualRole = (data.role as any) || "teacher";
-          login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
-          
-          if (actualRole === "principal") {
-            navigate("/principal");
-          } else {
-            navigate("/teacher/setup");
-          }
+          login("teacher", data.full_name, undefined, data.id, data.school_id, data.token);
+          navigate("/teacher/setup");
         } catch (err) {
           alert(err instanceof Error ? err.message : "Login failed");
         }

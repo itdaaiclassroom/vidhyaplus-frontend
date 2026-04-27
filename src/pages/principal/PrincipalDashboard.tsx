@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,11 +15,18 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, PrincipalGrade, PrincipalSection, getApiBase } from "@/api/client";
+import { 
+  fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
+  fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, 
+  PrincipalGrade, PrincipalSection, getApiBase, updateStudent 
+} from "@/api/client";
+import { toast } from "sonner";
+import { Edit2, Save, XCircle } from "lucide-react";
 
 const PrincipalDashboard: React.FC = () => {
   const { schoolId } = useAuth();
   const [studentFilterId, setStudentFilterId] = useState<string>("");
+  const [teacherFilter, setTeacherFilter] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
   const [grades, setGrades] = useState<PrincipalGrade[]>([]);
@@ -27,6 +35,10 @@ const PrincipalDashboard: React.FC = () => {
   const [realTeachers, setRealTeachers] = useState<PrincipalTeacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<PrincipalStudent | null>(null);
+  const [selectedStudentDetails, setSelectedStudentDetails] = useState<PrincipalStudent | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<PrincipalTeacher | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [pendingClassFilter, setPendingClassFilter] = useState<string | null>(null);
 
   useEffect(() => {
     if (schoolId) {
@@ -46,13 +58,29 @@ const PrincipalDashboard: React.FC = () => {
   useEffect(() => {
     if (gradeFilter !== "all") {
       fetchPrincipalSections(Number(gradeFilter))
-        .then(data => setSectionsForFilter(data.sections))
+        .then(data => {
+          setSectionsForFilter(data.sections);
+          if (pendingClassFilter) {
+            setClassFilter(pendingClassFilter);
+            setPendingClassFilter(null);
+          } else if (classFilter !== "all" && !data.sections.find(s => String(s.id) === classFilter)) {
+             setClassFilter("all");
+          }
+        })
         .catch(console.error);
     } else {
       setSectionsForFilter([]);
       setClassFilter("all");
     }
-  }, [gradeFilter]);
+  }, [gradeFilter, pendingClassFilter]);
+
+  const handleViewStudents = (gradeId: number, sectionId: number) => {
+    setActiveTab("student-info");
+    setGradeFilter(String(gradeId));
+    setPendingClassFilter(String(sectionId));
+  };
+
+
 
   const uniqueClasses = Array.from(
     new Set(
@@ -74,6 +102,25 @@ const PrincipalDashboard: React.FC = () => {
       ? String(s.section_id) === classFilter
       : true;
     return matchesId && matchesGrade && matchesClass;
+  }).sort((a, b) => {
+    // 1. Sort by Grade (ascending)
+    if (a.grade_id !== b.grade_id) return a.grade_id - b.grade_id;
+    // 2. Sort by Section (ascending, alphabetical)
+    const sectionA = a.section_code || "";
+    const sectionB = b.section_code || "";
+    if (sectionA !== sectionB) return sectionA.localeCompare(sectionB);
+    // 3. Sort by Name (alphabetical)
+    const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
+    const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  const filteredTeachers = realTeachers.filter((t) => {
+    return teacherFilter.trim()
+      ? t.full_name.toLowerCase().includes(teacherFilter.toLowerCase()) ||
+        t.email.toLowerCase().includes(teacherFilter.toLowerCase()) ||
+        ((t as any).subjects && (t as any).subjects.join(", ").toLowerCase().includes(teacherFilter.toLowerCase()))
+      : true;
   });
 
   if (loading) {
@@ -89,13 +136,14 @@ const PrincipalDashboard: React.FC = () => {
 
   return (
     <DashboardLayout title="Principal Dashboard">
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="grid md:grid-cols-4 gap-6">
         <aside className="w-[200px] flex-shrink-0">
           <TabsList className="flex-col h-auto gap-2 w-full bg-transparent p-0">
             <TabsTrigger value="overview" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Overview</TabsTrigger>
             <TabsTrigger value="register" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Registration</TabsTrigger>
             <TabsTrigger value="teacher-registration" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Registration</TabsTrigger>
+            <TabsTrigger value="teacher-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Info</TabsTrigger>
             <TabsTrigger value="teacher-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Attendance</TabsTrigger>
             <TabsTrigger value="student-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Info</TabsTrigger>
             <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
@@ -111,7 +159,7 @@ const PrincipalDashboard: React.FC = () => {
               <BarChart3 className="w-5 h-5 text-primary" /> Overview
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="gradient-primary text-white border-0">
+              <Card className="gradient-primary text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("student-info")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase opacity-80">Total Students</CardTitle>
                 </CardHeader>
@@ -119,7 +167,7 @@ const PrincipalDashboard: React.FC = () => {
                   <div className="text-3xl font-bold">{realStudents.length}</div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border shadow-sm">
+              <Card className="bg-white border shadow-sm cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("teacher-info")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Total Teachers</CardTitle>
                 </CardHeader>
@@ -127,7 +175,7 @@ const PrincipalDashboard: React.FC = () => {
                   <div className="text-3xl font-bold">{realTeachers.length}</div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border shadow-sm">
+              <Card className="bg-white border shadow-sm cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("sections")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Classes/Sections</CardTitle>
                 </CardHeader>
@@ -159,6 +207,54 @@ const PrincipalDashboard: React.FC = () => {
                 {/* Teacher Attendance content */}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="teacher-info" className="space-y-4">
+            <div className="flex justify-between items-center gap-4 mb-6">
+              <div></div>
+              <div className="flex gap-4">
+                <Input
+                  placeholder="Filter by Name, Email or Subject"
+                  value={teacherFilter}
+                  onChange={(e) => setTeacherFilter(e.target.value)}
+                  className="h-10 w-80"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTeachers.map((t) => (
+                <Card key={t.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedTeacher(t)}>
+                  <CardHeader className="bg-secondary/30 pb-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-base font-bold">{t.full_name}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">{t.email}</p>
+                      </div>
+                      <Badge variant="outline" className="bg-white capitalize">{t.role || 'Teacher'}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Subjects</p>
+                        <p className="font-medium truncate max-w-[150px]" title={(t as any).subjects?.join(", ") || "None"}>
+                          {(t as any).subjects && (t as any).subjects.length > 0 ? (t as any).subjects.join(", ") : "None assigned"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {filteredTeachers.length === 0 && (
+                <div className="col-span-full py-20 text-center text-muted-foreground">
+                  No teachers found matching your filter.
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="student-info" className="space-y-4">
@@ -227,6 +323,11 @@ const PrincipalDashboard: React.FC = () => {
                         <p className="font-medium text-primary">Click to view</p>
                       </div>
                     </div>
+                    <div className="mt-4 pt-2 border-t flex justify-end">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedStudentDetails(s); }}>
+                        View Full Details
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -278,7 +379,7 @@ const PrincipalDashboard: React.FC = () => {
             </div>
           </TabsContent>
           <TabsContent value="sections" className="space-y-4">
-            <SectionManagement />
+            <SectionManagement onViewStudents={handleViewStudents} />
           </TabsContent>
           <TabsContent value="bulk-upload" className="space-y-4">
             <BulkUpload />
@@ -344,6 +445,62 @@ const PrincipalDashboard: React.FC = () => {
                   No QR codes generated yet for this student.
                 </div>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedStudentDetails} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedStudentDetails(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex justify-between items-center border-b pb-4 pr-6">
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <User className="w-5 h-5 text-primary" />
+                Student Full Details
+              </DialogTitle>
+
+            </div>
+          </DialogHeader>
+          {selectedStudentDetails && (
+            <div className="space-y-6 pt-2">
+                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">First Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.first_name}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Last Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.last_name}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Roll No</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.roll_no}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Class & Section</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.grade_id} - {selectedStudentDetails.section_code}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Category</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.category || 'General'}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Gender</span><p className="font-medium text-sm capitalize mt-1">{selectedStudentDetails.gender || 'N/A'}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Date of Birth</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.dob ? new Date(selectedStudentDetails.dob).toLocaleDateString() : 'N/A'}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Aadhaar</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.aadhaar || 'N/A'}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Phone</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.phone || selectedStudentDetails.phone_number || 'N/A'}</p></div>
+                  <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Joined At</span><p className="font-medium text-sm mt-1">{new Date(selectedStudentDetails.joined_at).toLocaleDateString()}</p></div>
+                </div>
+
+                <div className="border-t pt-5">
+                  <h4 className="font-semibold text-primary mb-4 text-sm flex items-center gap-2"><div className="w-1.5 h-4 bg-primary rounded-full"></div>Family Information</h4>
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Father's Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.father_name || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Mother's Name</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.mother_name || 'N/A'}</p></div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-5">
+                  <h4 className="font-semibold text-primary mb-4 text-sm flex items-center gap-2"><div className="w-1.5 h-4 bg-primary rounded-full"></div>Address & Additional Info</h4>
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                    <div className="col-span-2"><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Address</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.address || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Village</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.village || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Mandal</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.mandal || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">District</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.district || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">State</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.state || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Pincode</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.pincode || 'N/A'}</p></div>
+                    <div><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Hosteller</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.is_hosteller ? 'Yes' : 'No'}</p></div>
+                    <div className="col-span-2"><span className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Disabilities</span><p className="font-medium text-sm mt-1">{selectedStudentDetails.disabilities || 'None'}</p></div>
+                  </div>
+                </div>
             </div>
           )}
         </DialogContent>

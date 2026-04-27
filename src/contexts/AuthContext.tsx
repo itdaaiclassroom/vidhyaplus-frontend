@@ -43,7 +43,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userName, setUserName] = useState(() => localStorage.getItem("auth.userName") || "");
   const [studentId, setStudentId] = useState<string | null>(() => localStorage.getItem("auth.studentId"));
   const [teacherId, setTeacherId] = useState<string | null>(() => localStorage.getItem("auth.teacherId"));
-  const [schoolId, setSchoolId] = useState<string | null>(() => localStorage.getItem("auth.schoolId"));
+  const [schoolId, setSchoolId] = useState<string | null>(() => {
+    const s = localStorage.getItem("auth.schoolId");
+    return s === "undefined" || s === "null" ? null : s;
+  });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("auth.token"));
 
   const login = (r: Role, name = "", sId?: string, tId?: string, schId?: string, tkn?: string) => {

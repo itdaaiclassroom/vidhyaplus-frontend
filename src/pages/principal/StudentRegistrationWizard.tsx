@@ -38,6 +38,7 @@ interface StudentForm {
   religion?: string;
   caste?: string;
   photo: File | null;
+  rollNo: string;
 }
 
 const steps: { key: StepKey; title: string; desc?: string }[] = [
@@ -105,6 +106,7 @@ const StudentRegistrationWizard: React.FC = () => {
     religion: "",
     caste: "",
     photo: null,
+    rollNo: "",
   });
 
   const schoolOptions = ["DAV School", "St. Mary's Academy", "Government School", "Public School", "Bharatiya Vidya Bhavan"];
@@ -151,6 +153,7 @@ const StudentRegistrationWizard: React.FC = () => {
       await registerStudent({
         school_id: schoolId,
         section_id: form.classId,
+        roll_no: form.rollNo,
         first_name: firstName,
         last_name: lastName,
         category: form.caste || 'General',
@@ -184,6 +187,7 @@ const StudentRegistrationWizard: React.FC = () => {
         motherName: "", phone: "", emergencyContact: "", address: "", village: "",
         mandal: "", district: "", state: "", pincode: "", aadhaar: "", hostelStatus: "no",
         disabilities: "", motherTongue: "", nationality: "", religion: "", caste: "", photo: null,
+        rollNo: "",
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to register student");
@@ -201,6 +205,7 @@ const StudentRegistrationWizard: React.FC = () => {
             <div className="grid grid-cols-2 gap-8">
               {/* Left Column */}
               <div className="space-y-4">
+                <Input placeholder="Roll No" value={form.rollNo} onChange={(e) => handleChange("rollNo", e.target.value)} className="h-10 border-primary/30 focus:border-primary" />
                 <Input placeholder="Student name" value={form.fullName} onChange={(e) => handleChange("fullName", e.target.value)} className="h-10" />
                 <Input type="date" placeholder="Date of Birth" value={form.dob} onChange={(e) => handleChange("dob", e.target.value)} className="h-10" />
                 <Select value={form.gender} onValueChange={(v) => handleChange("gender", v)}>

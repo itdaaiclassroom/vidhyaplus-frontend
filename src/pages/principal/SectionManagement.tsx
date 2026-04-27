@@ -9,7 +9,11 @@ import { fetchPrincipalGrades, fetchPrincipalSections, createPrincipalSection, u
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, LayoutGrid, Users } from "lucide-react";
 
-const SectionManagement: React.FC = () => {
+interface SectionManagementProps {
+  onViewStudents?: (gradeId: number, sectionId: number) => void;
+}
+
+const SectionManagement: React.FC<SectionManagementProps> = ({ onViewStudents }) => {
   const [grades, setGrades] = useState<PrincipalGrade[]>([]);
   const [sections, setSections] = useState<PrincipalSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,13 +175,20 @@ const SectionManagement: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(section)} className="h-8 w-8 text-muted-foreground hover:text-primary">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(section)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      <div className="flex items-center gap-4">
+                        {onViewStudents && (
+                          <Button variant="outline" size="sm" onClick={() => onViewStudents(section.grade_id, section.id)}>
+                            View Students
+                          </Button>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => openEditModal(section)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openDeleteModal(section)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))
