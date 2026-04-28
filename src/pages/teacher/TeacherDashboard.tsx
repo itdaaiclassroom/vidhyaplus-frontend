@@ -15,7 +15,7 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant } from "@/api/client";
+import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, fetchSchoolStudentsDynamic, fetchTeacherStudents } from "@/api/client";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -417,7 +417,40 @@ const TeacherDashboard = () => {
     setActivities(filtered);
   }, [coCurricularActivities, selectedClass]);
 
-  const classStudents = useMemo(() => students.filter((s) => s.classId === selectedClass), [students, selectedClass]);
+  const [dynamicStudents, setDynamicStudents] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      const schoolId = localStorage.getItem("auth.schoolId");
+      if (!schoolId) return;
+      try {
+        const data = await fetchTeacherStudents(schoolId);
+        setDynamicStudents(data.map(s => ({
+          ...s,
+          id: String(s.id),
+          // Full display name from first_name + last_name
+          name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.name || 'Unknown',
+          // roll_no from backend (e.g. "2601070022")
+          rollNo: s.roll_no || s.rollNo,
+          // section_id is the class identifier used for filtering against selectedClass
+          classId: String(s.section_id),
+          // grade from section join
+          grade: s.grade_id,
+          section: s.section_code,
+          score: s.score ?? 0,
+          // keep qr_codes array and profile image as-is from backend
+        })));
+      } catch (err) {
+        console.error("Failed to fetch teacher students:", err);
+      }
+    };
+    loadStudents();
+  }, []);
+
+  const classStudents = useMemo(() => {
+    const sourceStudents = dynamicStudents !== null ? dynamicStudents : students;
+    return sourceStudents.filter((s) => String(s.classId) === String(selectedClass));
+  }, [students, dynamicStudents, selectedClass]);
 
   const downloadClassCsv = useCallback(() => {
     if (!classStudents.length || !currentClass) return;
