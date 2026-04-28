@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
   MessageSquare, Calendar as CalendarIcon, LogOut, 
@@ -30,6 +31,7 @@ import { toast } from "sonner";
 const ModernAdminDashboard = () => {
   const { data, loading, refetch } = useAppData();
   const { userName, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [announcement, setAnnouncement] = useState("");
@@ -59,6 +61,11 @@ const ModernAdminDashboard = () => {
     } catch (err) {
       toast.error("Failed to send announcement");
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
   };
 
   const navItems = [
@@ -108,7 +115,7 @@ const ModernAdminDashboard = () => {
 
         <div className="p-4 border-t border-slate-100">
           <button 
-            onClick={logout}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-destructive hover:bg-destructive/5 rounded-xl transition-colors"
           >
             <LogOut className="w-5 h-5" />
@@ -383,9 +390,9 @@ const ModernAdminDashboard = () => {
       </main>
 
       {/* 3. Right Utility Panel */}
-      <aside className="w-[340px] bg-white border-l border-slate-200 p-6 flex flex-col shrink-0 overflow-y-auto">
-        <section className="space-y-6">
-          {activeTab === "overview" && (
+      {activeTab === "overview" && (
+        <aside className="w-[340px] bg-white border-l border-slate-200 p-6 flex flex-col shrink-0 overflow-y-auto">
+          <section className="space-y-6">
             <div>
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-primary" /> Calendar
@@ -399,34 +406,34 @@ const ModernAdminDashboard = () => {
                 />
               </div>
             </div>
-          )}
 
-          <div>
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" /> Announcements
-            </h3>
-            <div className="space-y-4">
-              <textarea 
-                className="w-full h-32 p-4 bg-slate-50 border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
-                placeholder="Broadcast a message to all teachers..."
-                value={announcement}
-                onChange={(e) => setAnnouncement(e.target.value)}
-              />
-              <Button className="w-full rounded-xl py-6 font-bold" onClick={handleSendAnnouncement}>
-                Send Message
-              </Button>
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" /> Announcements
+              </h3>
+              <div className="space-y-4">
+                <textarea 
+                  className="w-full h-32 p-4 bg-slate-50 border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                  placeholder="Broadcast a message to all teachers..."
+                  value={announcement}
+                  onChange={(e) => setAnnouncement(e.target.value)}
+                />
+                <Button className="w-full rounded-xl py-6 font-bold" onClick={handleSendAnnouncement}>
+                  Send Message
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <div className="pt-4">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Quick Insights</h3>
-            <div className="space-y-4">
-               <InsightItem icon={Clock} label="Avg. Session Time" value="42 min" />
-               <InsightItem icon={MonitorPlay} label="Active Classes" value={activeSessions.length} />
+            <div className="pt-4">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Quick Insights</h3>
+              <div className="space-y-4">
+                 <InsightItem icon={Clock} label="Avg. Session Time" value="42 min" />
+                 <InsightItem icon={MonitorPlay} label="Active Classes" value={activeSessions.length} />
+              </div>
             </div>
-          </div>
-        </section>
-      </aside>
+          </section>
+        </aside>
+      )}
 
       {/* Live Sessions Monitor Toggle Button (Floating) */}
       <div className="fixed bottom-8 right-[360px] z-50">
