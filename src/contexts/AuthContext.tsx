@@ -52,11 +52,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = (r: Role, name = "", sId?: string, tId?: string, schId?: string, tkn?: string) => {
     setRole(r);
     setUserName(name || (r === "admin" ? "Administrator" : r === "student" ? "Student" : r === "principal" ? "Principal" : "Teacher"));
-
     setStudentId(sId || null);
     setTeacherId(tId || null);
     setSchoolId(schId || null);
     setToken(tkn || null);
+
+    // Sync to localStorage immediately so API client sees it before navigate()
+    if (r) localStorage.setItem("auth.role", r);
+    if (name) localStorage.setItem("auth.userName", name);
+    if (sId) localStorage.setItem("auth.studentId", sId);
+    if (tId) localStorage.setItem("auth.teacherId", tId);
+    if (schId) localStorage.setItem("auth.schoolId", schId);
+    if (tkn) localStorage.setItem("auth.token", tkn);
   };
 
   const logout = () => {
@@ -66,6 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setTeacherId(null);
     setSchoolId(null);
     setToken(null);
+    localStorage.clear();
   };
 
   useEffect(() => {

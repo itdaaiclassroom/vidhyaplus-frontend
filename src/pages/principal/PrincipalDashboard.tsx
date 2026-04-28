@@ -9,16 +9,19 @@ import TeacherRegistration from "./TeacherRegistration";
 import SectionManagement from "./SectionManagement";
 import BulkUpload from "@/components/BulkUpload";
 import CoCurricularActivityRegistration from "./CoCurricularActivityRegistration";
+import { TeacherAssignmentDialog } from "@/components/TeacherAssignmentDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer } from "lucide-react";
+import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
   fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, 
-  PrincipalGrade, PrincipalSection, getApiBase, updateStudent 
+  PrincipalGrade, PrincipalSection, getApiBase, updateStudent,
+  fetchTeacherAttendanceSummary, fetchStudentAttendanceSummary,
+  fetchPrincipalSubjects
 } from "@/api/client";
 import { toast } from "sonner";
 import { Edit2, Save, XCircle } from "lucide-react";
@@ -54,21 +57,38 @@ const PrincipalDashboard: React.FC = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<PrincipalTeacher | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [pendingClassFilter, setPendingClassFilter] = useState<string | null>(null);
+  const [assignTeacher, setAssignTeacher] = useState<PrincipalTeacher | null>(null);
+  const [subjectsList, setSubjectsList] = useState<any[]>([]);
+
+  const loadSchoolData = () => {
+    if (!schoolId) return;
+    setLoading(true);
+    Promise.all([
+      fetchPrincipalStudents(schoolId),
+      fetchPrincipalTeachers(schoolId),
+      fetchPrincipalGrades(),
+      fetchPrincipalSubjects().catch(() => [])
+    ]).then(([sData, tData, gData, subData]) => {
+      setRealStudents(sData);
+      setRealTeachers(tData);
+      setGrades(gData.grades);
+      setSubjectsList(Array.isArray(subData) ? subData : []);
+    }).catch(console.error).finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    if (schoolId) {
-      setLoading(true);
-      Promise.all([
-        fetchPrincipalStudents(schoolId),
-        fetchPrincipalTeachers(schoolId),
-        fetchPrincipalGrades()
-      ]).then(([sData, tData, gData]) => {
-        setRealStudents(sData);
-        setRealTeachers(tData);
-        setGrades(gData.grades);
-      }).catch(console.error).finally(() => setLoading(false));
-    }
+    loadSchoolData();
   }, [schoolId]);
+
+  const refreshTeachers = () => {
+    if (!schoolId) return;
+    fetchPrincipalTeachers(schoolId)
+      .then(tData => {
+        console.log("REFRESHED TEACHERS:", tData);
+        setRealTeachers(tData);
+      })
+      .catch(console.error);
+  };
 
   useEffect(() => {
     if (gradeFilter !== "all") {
@@ -258,9 +278,17 @@ const PrincipalDashboard: React.FC = () => {
                       <div>
                         <p className="text-xs text-muted-foreground">Subjects</p>
                         <p className="font-medium truncate max-w-[150px]" title={(t as any).subjects?.join(", ") || "None"}>
-                          {(t as any).subjects && (t as any).subjects.length > 0 ? (t as any).subjects.join(", ") : "None assigned"}
+                          {(t as any).subjects && (t as any).subjects.length > 0 ? (t as any).subjects.join(", ") : "No subjects"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[150px]" title={(t as any).class_names?.join(", ") || "None"}>
+                          {(t as any).class_names && (t as any).class_names.length > 0 ? (t as any).class_names.join(", ") : "No classes assigned"}
                         </p>
                       </div>
+                    </div>
+                    <div className="mt-3 pt-2 border-t flex justify-end">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setAssignTeacher(t); }}>
+                        Assign Subjects/Classes
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -596,6 +624,18 @@ const PrincipalDashboard: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Teacher Assignment Dialog */}
+      {assignTeacher && schoolId && (
+        <TeacherAssignmentDialog
+          teacher={assignTeacher}
+          schoolId={schoolId}
+          open={!!assignTeacher}
+          onOpenChange={(open) => { if (!open) setAssignTeacher(null); }}
+          subjects={subjectsList}
+          onSaved={refreshTeachers}
+        />
+      )}
     </DashboardLayout>
   );
 };

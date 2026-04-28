@@ -15,7 +15,7 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant } from "@/api/client";
+import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, markTeacherSelfAttendance, fetchTeacherAssignments } from "@/api/client";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -1911,6 +1911,8 @@ const TeacherDashboard = () => {
               <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
               {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
               <TabsTrigger value="timetable" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Timetable</TabsTrigger>
+              <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
+              <TabsTrigger value="my-assignments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assignments</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
               <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
             </TabsList>
@@ -2313,6 +2315,112 @@ const TeacherDashboard = () => {
                       </tbody>
                     </table>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* SELF ATTENDANCE TAB */}
+            <TabsContent value="self-attendance" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <CalendarCheck className="w-5 h-5 text-primary" /> My Attendance
+              </h3>
+              <Card className="shadow-card border-border max-w-md">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Mark Today's Attendance</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Date: <span className="font-semibold text-foreground">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+                  </p>
+                  <div className="flex gap-3">
+                    {(["present", "absent", "leave"] as const).map((s) => (
+                      <Button
+                        key={s}
+                        variant={s === "present" ? "default" : "outline"}
+                        className={`capitalize flex-1 ${s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50"}`}
+                        onClick={async () => {
+                          if (!teacherId) return;
+                          try {
+                            await markTeacherSelfAttendance(teacherId, s);
+                            toast.success(`Attendance marked as "${s}" for today.`);
+                          } catch (e: any) {
+                            toast.error(e.message || "Failed to mark attendance");
+                          }
+                        }}
+                      >
+                        {s === "present" ? <CheckCircle2 className="w-4 h-4 mr-1" /> : s === "absent" ? <XCircle className="w-4 h-4 mr-1" /> : <CalendarOff className="w-4 h-4 mr-1" />}
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* MY ASSIGNMENTS TAB */}
+            <TabsContent value="my-assignments" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" /> My Assignments
+              </h3>
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Assigned Subjects, Classes & Sections</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const [assignData, setAssignData] = useState<{ assigned_subject_ids: number[]; assigned_class_ids: number[]; assigned_section_ids: number[] } | null>(null);
+                    const [loadingAssign, setLoadingAssign] = useState(true);
+                    useEffect(() => {
+                      if (teacherId) {
+                        setLoadingAssign(true);
+                        fetchTeacherAssignments(teacherId)
+                          .then(setAssignData)
+                          .catch(() => setAssignData(null))
+                          .finally(() => setLoadingAssign(false));
+                      }
+                    }, [teacherId]);
+
+                    if (loadingAssign) return <p className="text-sm text-muted-foreground py-4">Loading assignments...</p>;
+                    if (!assignData) return <p className="text-sm text-muted-foreground py-4">No assignments found.</p>;
+
+                    return (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subjects</p>
+                          <div className="flex flex-wrap gap-2">
+                            {assignData.assigned_subject_ids.length > 0
+                              ? assignData.assigned_subject_ids.map((id) => (
+                                  <Badge key={id} variant="secondary" className="px-3 py-1">Subject ID: {id}</Badge>
+                                ))
+                              : <span className="text-sm text-muted-foreground">None assigned</span>
+                            }
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Classes (Grade IDs)</p>
+                          <div className="flex flex-wrap gap-2">
+                            {assignData.assigned_class_ids.length > 0
+                              ? assignData.assigned_class_ids.map((id) => (
+                                  <Badge key={id} variant="secondary" className="px-3 py-1">Grade ID: {id}</Badge>
+                                ))
+                              : <span className="text-sm text-muted-foreground">None assigned</span>
+                            }
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sections</p>
+                          <div className="flex flex-wrap gap-2">
+                            {assignData.assigned_section_ids.length > 0
+                              ? assignData.assigned_section_ids.map((id) => (
+                                  <Badge key={id} variant="secondary" className="px-3 py-1">Section ID: {id}</Badge>
+                                ))
+                              : <span className="text-sm text-muted-foreground">None assigned</span>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
