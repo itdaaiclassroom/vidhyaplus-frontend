@@ -8,7 +8,8 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { registerTeacher, fetchAll, fetchPrincipalGrades } from "@/api/client";
+import { usePrincipal } from "@/contexts/PrincipalContext";
+import { registerTeacher, fetchAll } from "@/api/client";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 
@@ -52,40 +53,30 @@ import BulkUpload from "@/components/BulkUpload";
 
 const TeacherRegistration: React.FC = () => {
   const { schoolId } = useAuth();
+  const { grades: principalGrades, refetchTeachers } = usePrincipal();
   const [current, setCurrent] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState<Array<{ id: string, name: string }>>([]);
-  const [grades, setGrades] = useState<Array<{ id: string, label: string }>>([]);
   
+  const grades = React.useMemo(() => {
+    if (principalGrades && principalGrades.length > 0) {
+      return principalGrades.map(g => ({ id: String(g.id), label: g.grade_label }));
+    }
+    return [
+      { id: "6", label: "Class 6" },
+      { id: "7", label: "Class 7" },
+      { id: "8", label: "Class 8" },
+      { id: "9", label: "Class 9" },
+      { id: "10", label: "Class 10" },
+    ];
+  }, [principalGrades]);
+
   useEffect(() => {
     fetchAll().then(data => {
       if (data.subjects) {
         setSubjects(data.subjects);
       }
     }).catch(console.error);
-
-    fetchPrincipalGrades().then(data => {
-      if (data.grades && data.grades.length > 0) {
-        setGrades(data.grades.map(g => ({ id: String(g.id), label: g.grade_label })));
-      } else {
-        // Fallback static grades
-        setGrades([
-          { id: "6", label: "Class 6" },
-          { id: "7", label: "Class 7" },
-          { id: "8", label: "Class 8" },
-          { id: "9", label: "Class 9" },
-          { id: "10", label: "Class 10" },
-        ]);
-      }
-    }).catch(() => {
-      setGrades([
-        { id: "6", label: "Class 6" },
-        { id: "7", label: "Class 7" },
-        { id: "8", label: "Class 8" },
-        { id: "9", label: "Class 9" },
-        { id: "10", label: "Class 10" },
-      ]);
-    });
   }, []);
 
   const [form, setForm] = useState<TeacherForm>({
@@ -189,6 +180,7 @@ const TeacherRegistration: React.FC = () => {
         ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       
+      refetchTeachers();
       toast.success("Teacher registered successfully!");
       setCurrent(0);
       setForm({
