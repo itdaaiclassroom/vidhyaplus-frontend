@@ -15,7 +15,7 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, markTeacherSelfAttendance, fetchTeacherAssignments } from "@/api/client";
+import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, markTeacherSelfAttendance, fetchTeacherAssignments, fetchTodayTeacherAttendance } from "@/api/client";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -253,6 +253,16 @@ const TeacherDashboard = () => {
   const [recoLoading, setRecoLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
+  const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; status?: string } | null>(null);
+
+  useEffect(() => {
+    if (teacherId) {
+      fetchTodayTeacherAttendance(teacherId)
+        .then(setTodayAttendance)
+        .catch(console.error);
+    }
+  }, [teacherId]);
+
 
 
   // --- New UI state ---
@@ -2333,25 +2343,37 @@ const TeacherDashboard = () => {
                     Date: <span className="font-semibold text-foreground">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
                   </p>
                   <div className="flex gap-3">
-                    {(["present", "absent", "leave"] as const).map((s) => (
-                      <Button
-                        key={s}
-                        variant={s === "present" ? "default" : "outline"}
-                        className={`capitalize flex-1 ${s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50"}`}
-                        onClick={async () => {
-                          if (!teacherId) return;
-                          try {
-                            await markTeacherSelfAttendance(teacherId, s);
-                            toast.success(`Attendance marked as "${s}" for today.`);
-                          } catch (e: any) {
-                            toast.error(e.message || "Failed to mark attendance");
-                          }
-                        }}
-                      >
-                        {s === "present" ? <CheckCircle2 className="w-4 h-4 mr-1" /> : s === "absent" ? <XCircle className="w-4 h-4 mr-1" /> : <CalendarOff className="w-4 h-4 mr-1" />}
-                        {s}
-                      </Button>
-                    ))}
+                    {(["present", "absent", "leave"] as const).map((s) => {
+                      const isSelected = todayAttendance?.marked && todayAttendance.status === s;
+                      const isDisabled = todayAttendance?.marked;
+                      
+                      return (
+                        <Button
+                          key={s}
+                          variant={isSelected || (s === "present" && !todayAttendance?.marked) ? "default" : "outline"}
+                          disabled={isDisabled}
+                          className={`capitalize flex-1 transition-all ${
+                            isSelected 
+                              ? (s === "present" ? "bg-green-600 opacity-100 shadow-md" : s === "absent" ? "bg-red-600 text-white opacity-100 shadow-md" : "bg-amber-500 text-white opacity-100 shadow-md")
+                              : (s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50")
+                          } ${isDisabled && !isSelected ? "opacity-40 grayscale-[0.5]" : ""}`}
+                          onClick={async () => {
+                            if (!teacherId || isDisabled) return;
+                            try {
+                              await markTeacherSelfAttendance(teacherId, s);
+                              setTodayAttendance({ marked: true, status: s });
+                              toast.success(`Attendance marked as "${s}" for today.`);
+                            } catch (e: any) {
+                              toast.error(e.message || "Failed to mark attendance");
+                            }
+                          }}
+                        >
+                          {s === "present" ? <CheckCircle2 className="w-4 h-4 mr-1" /> : s === "absent" ? <XCircle className="w-4 h-4 mr-1" /> : <CalendarOff className="w-4 h-4 mr-1" />}
+                          {s}
+                          {isSelected && <Badge variant="outline" className="ml-1.5 bg-white/20 border-white/40 text-white text-[9px] uppercase">Marked</Badge>}
+                        </Button>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

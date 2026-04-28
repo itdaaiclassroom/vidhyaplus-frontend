@@ -1056,6 +1056,15 @@ export async function markTeacherSelfAttendance(teacherId: string, status: "pres
   return res.json();
 }
 
+export async function fetchTodayTeacherAttendance(teacherId: string): Promise<{ marked: boolean; status?: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/attendance/today`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 export async function updateStudentAttendanceRecord(attendanceId: string, status: "present" | "absent"): Promise<{ ok: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/students/attendance/${attendanceId}`, {
