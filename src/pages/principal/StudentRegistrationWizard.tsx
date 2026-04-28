@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { registerStudent, fetchPrincipalGrades, fetchPrincipalSections, PrincipalGrade, PrincipalSection } from "@/api/client";
+import { usePrincipal } from "@/contexts/PrincipalContext";
+import { registerStudent } from "@/api/client";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 
@@ -53,32 +54,18 @@ import BulkUpload from "@/components/BulkUpload";
 
 const StudentRegistrationWizard: React.FC = () => {
   const { schoolId } = useAuth();
+  const { grades, sections: allSections, refetchStudents } = usePrincipal();
   const [current, setCurrent] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [grades, setGrades] = useState<PrincipalGrade[]>([]);
   const [sections, setSections] = useState<PrincipalSection[]>([]);
   
-  useEffect(() => {
-    fetchPrincipalGrades()
-      .then(data => setGrades(data.grades))
-      .catch(err => {
-        console.error("Failed to fetch grades:", err);
-        toast.error("Failed to load grades");
-      });
-  }, []);
-
-  const fetchSectionsForGrade = async (gradeId: string) => {
+  const fetchSectionsForGrade = (gradeId: string) => {
     if (!gradeId) {
       setSections([]);
       return;
     }
-    try {
-      const data = await fetchPrincipalSections(Number(gradeId));
-      setSections(data.sections);
-    } catch (err) {
-      console.error("Failed to fetch sections:", err);
-      toast.error("Failed to load sections");
-    }
+    const filtered = allSections.filter(s => s.grade_id === Number(gradeId));
+    setSections(filtered);
   };
 
   const [form, setForm] = useState<StudentForm>({
@@ -180,6 +167,7 @@ const StudentRegistrationWizard: React.FC = () => {
         ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       
+      refetchStudents();
       toast.success("Student registered successfully!");
       setCurrent(0);
       setForm({

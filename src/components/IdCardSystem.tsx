@@ -86,8 +86,9 @@ export const StudentMainCard = ({ data }: { data: StudentData }) => {
       
       {/* Header */}
       <div className="px-6 pt-5 pb-3 flex justify-between items-start relative z-10">
-        <ItdaLogo />
-        <div className="flex flex-col items-end gap-2">
+        {/* <ItdaLogo /> */}
+        <div />
+        <div className="flex flex-col items-end gap-2 ml-auto">
           <VidhyaPlusLogo />
           <div className="bg-teal-600 text-white text-[9px] font-black px-3 py-1 rounded-full tracking-wider uppercase">
             Student ID Card
@@ -157,43 +158,46 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
   const qrValue = `stu${data.rollNo}_${option}`;
 
   return (
-    <div className="w-[280px] h-[450px] bg-white rounded-[24px] shadow-xl overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl">
+    <div className="w-[280px] h-[450px] print:w-[85mm] print:h-[120mm] bg-white rounded-[24px] print:rounded-xl shadow-xl print:shadow-none overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl">
       {/* Background decoration */}
       <div className={cn("absolute top-24 right-[-40px] w-32 h-32 rounded-full opacity-20 group-hover:scale-125 transition-transform duration-700", config.light)} />
       
       {/* Header */}
-      <div className="px-5 pt-6 pb-4 flex justify-between items-start relative z-10">
-        <ItdaLogo />
-        <VidhyaPlusLogo />
+      <div className="px-5 pt-6 pb-4 print:pt-3 print:pb-2 flex justify-between items-start relative z-10">
+        {/* <ItdaLogo /> */}
+        <div />
+        <VidhyaPlusLogo className="ml-auto" />
       </div>
 
       {/* Option Badge */}
-      <div className="flex flex-col items-center py-2 relative z-10">
+      <div className="flex flex-col items-center py-2 print:py-3 relative z-10">
          <span className={cn("text-[9px] font-black tracking-[0.3em] uppercase opacity-60 mb-1", config.text)}>Option</span>
-         <div className={cn("w-16 h-16 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-lg ring-4 ring-offset-2 ring-transparent transition-all group-hover:ring-slate-100", config.theme)}>
+         <div className={cn("w-16 h-16 print:w-16 print:h-16 rounded-full flex items-center justify-center text-white text-3xl print:text-3xl font-black shadow-lg ring-4 ring-offset-2 ring-transparent transition-all group-hover:ring-slate-100", config.theme)}>
            {option}
          </div>
       </div>
 
       {/* QR Code */}
-      <div className="flex justify-center py-4 relative z-10">
-        <div className={cn("p-3 bg-white border rounded-[28px] shadow-inner transition-transform group-hover:scale-105", config.border)}>
-          <QRCodeSVG value={qrValue} size={110} level="H" />
+      <div className="flex justify-center py-4 print:py-4 relative z-10">
+        <div className={cn("p-3 print:p-2 bg-white border rounded-[28px] print:rounded-2xl shadow-inner transition-transform group-hover:scale-105", config.border)}>
+          <QRCodeSVG value={qrValue} size={110} className="print:w-[120px] print:h-[120px]" level="H" />
         </div>
       </div>
 
       {/* Details */}
-      <div className="px-6 py-2 space-y-0.5 relative z-10">
-        <InfoRow icon={User} label="Name" value={data.name} colorClass={config.text} />
-        <InfoRow icon={School} label="School" value={data.schoolName} />
-        <InfoRow icon={Layers} label="Class" value={`${data.grade}th ${data.section ? ` - ${data.section}` : ""}`} />
-        <InfoRow icon={IdCard} label="ID No." value={`${data.rollNo}-${option}`} />
+      <div className="px-6 py-2 print:px-6 print:py-2 print:space-y-1 space-y-0.5 relative z-10">
+        <div>
+          <InfoRow icon={User} label="Name" value={data.name} colorClass={config.text} />
+          <InfoRow icon={School} label="School" value={data.schoolName} />
+          <InfoRow icon={Layers} label="Class" value={`${data.grade}th ${data.section ? ` - ${data.section}` : ""}`} />
+          <InfoRow icon={IdCard} label="ID No." value={`${data.rollNo}-${option}`} />
+        </div>
       </div>
 
       {/* Footer */}
-      <div className={cn("h-12 flex items-center justify-center gap-2 mt-auto", config.theme)}>
-        <Scan className="w-4 h-4 text-white opacity-80" />
-        <span className="text-white text-[9px] font-bold tracking-widest uppercase opacity-90">Scan to Select Option {option}</span>
+      <div className={cn("h-12 print:h-10 flex items-center justify-center gap-2 mt-auto", config.theme)}>
+        <Scan className="w-4 h-4 print:w-3 print:h-3 text-white opacity-80" />
+        <span className="text-white text-[9px] print:text-[9px] font-bold tracking-widest uppercase opacity-90">Scan to Select Option {option}</span>
       </div>
     </div>
   );
@@ -208,8 +212,9 @@ export const TeacherMainCard = ({ data }: { data: TeacherData }) => {
       
       {/* Header */}
       <div className="px-6 pt-5 pb-3 flex justify-between items-start relative z-10">
-        <ItdaLogo />
-        <div className="flex flex-col items-end gap-2">
+        {/* <ItdaLogo /> */}
+        <div />
+        <div className="flex flex-col items-end gap-2 ml-auto">
           <VidhyaPlusLogo />
           <div className="bg-blue-900 text-white text-[9px] font-black px-3 py-1 rounded-full tracking-wider uppercase">
             Teacher ID Card
