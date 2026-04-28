@@ -22,13 +22,13 @@ export interface AllDataResponse {
   schools: Array<{ id: string; name: string; code: string; district: string; mandal?: string; teachers: number; students: number; classes: number; sessionsCompleted: number; activeStatus: boolean }>;
   classes: Array<{ id: string; schoolId: string; name: string; section: string; grade: number; studentCount: number }>;
   teachers: Array<{ id: string; name: string; email: string; schoolId: string; classIds: string[]; subjects: string[] }>;
-  students: Array<{ 
-    id: string; 
-    name: string; 
-    rollNo: number; 
-    section?: string; 
-    classId: string | null; 
-    schoolId: string; 
+  students: Array<{
+    id: string;
+    name: string;
+    rollNo: number;
+    section?: string;
+    classId: string | null;
+    schoolId: string;
     score: number;
     profile_image_path?: string | null;
     profile_image_url?: string | null;
@@ -508,11 +508,11 @@ async function parseErrorResponse(res: Response): Promise<string> {
   return text || res.statusText;
 }
 
-export async function registerStudent(body: { 
-  school_id: string; 
-  section_id: string; 
-  first_name: string; 
-  last_name: string; 
+export async function registerStudent(body: {
+  school_id: string;
+  section_id: string;
+  first_name: string;
+  last_name: string;
   category?: string;
   joined_at?: string;
   photo_url?: string;
@@ -528,11 +528,11 @@ export async function registerStudent(body: {
   return res.json();
 }
 
-export async function registerTeacher(body: { 
-  school_id: string; 
-  full_name: string; 
-  email: string; 
-  password?: string; 
+export async function registerTeacher(body: {
+  school_id: string;
+  full_name: string;
+  email: string;
+  password?: string;
   subjects?: string[];
   photo_url?: string;
   [key: string]: unknown;
@@ -633,12 +633,12 @@ export async function deletePrincipalSection(id: number): Promise<{ ok: boolean;
   return res.json();
 }
 
-export async function createSchool(body: { 
-  name: string; 
-  code: string; 
-  district: string; 
-  mandal?: string; 
-  sessions_completed?: number; 
+export async function createSchool(body: {
+  name: string;
+  code: string;
+  district: string;
+  mandal?: string;
+  sessions_completed?: number;
   active_status?: boolean;
   principalName?: string;
   principalEmail?: string;
@@ -646,10 +646,10 @@ export async function createSchool(body: {
   logo_url?: string;
 }): Promise<{ id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/schools`, { 
-    method: "POST", 
-    headers: { "Content-Type": "application/json" }, 
-    body: JSON.stringify(body) 
+  const res = await fetch(`${API_BASE}/api/schools`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
   });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
@@ -743,7 +743,7 @@ export async function adminLogin(body: { email: string; password: string }): Pro
 
 export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/auth/login/teacher`, {
+  const res = await fetch(`${API_BASE}/api/login/teacher`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
