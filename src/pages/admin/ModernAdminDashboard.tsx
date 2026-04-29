@@ -4,7 +4,8 @@ import {
   School, Users, GraduationCap, BarChart3, Activity, 
   MessageSquare, Calendar as CalendarIcon, LogOut, 
   Settings, Search, Eye, Plus, Shield, Clock,
-  BookOpen, ClipboardList, Radio, MonitorPlay, ChevronRight
+  BookOpen, ClipboardList, Radio, MonitorPlay, ChevronRight,
+  Trash2, Edit
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,18 @@ import {
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 import { 
   fetchAdminOverview, 
   fetchAdminAnalytics, 
   createAnnouncement, 
   fetchTeacherLogs,
-  getApiBase 
+  getApiBase,
+  createSchool,
+  updateSchool,
+  deleteSchool
 } from "@/api/client";
+import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 import MaterialManagement from "./MaterialManagement";
 
@@ -41,6 +47,29 @@ const ModernAdminDashboard = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showLiveMonitor, setShowLiveMonitor] = useState(false);
+  const [schoolFormOpen, setSchoolFormOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<{ id: string; name: string; code: string; district: string; mandal?: string; sessionsCompleted: number; activeStatus: boolean } | null>(null);
+  const [schoolForm, setSchoolForm] = useState<{
+    name: string;
+    code: string;
+    district: string;
+    mandal: string;
+    sessionsCompleted: number;
+    activeStatus: boolean;
+    principalName: string;
+    principalEmail: string;
+    principalPassword: string;
+    logo: File | null;
+  }>({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "", logo: null });
+  const [schoolSubmitting, setSchoolSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (schoolFormOpen && editingSchool) {
+      setSchoolForm({ name: editingSchool.name, code: editingSchool.code, district: editingSchool.district, mandal: editingSchool.mandal ?? "", sessionsCompleted: editingSchool.sessionsCompleted, activeStatus: editingSchool.activeStatus, principalName: "", principalEmail: "", principalPassword: "", logo: null });
+    } else if (schoolFormOpen && !editingSchool) {
+      setSchoolForm({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "", logo: null });
+    }
+  }, [schoolFormOpen, editingSchool]);
 
   // Load Admin specific data
   useEffect(() => {
@@ -61,6 +90,61 @@ const ModernAdminDashboard = () => {
       setAnnouncement("");
     } catch (err) {
       toast.error("Failed to send announcement");
+    }
+  };
+
+  const handleSchoolSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schoolForm.name.trim() || !schoolForm.code.trim() || !schoolForm.district.trim()) return;
+    setSchoolSubmitting(true);
+    
+    try {
+      let logoUrl: string | undefined;
+      if (schoolForm.logo) {
+        toast.info("Uploading logo...");
+        try {
+          logoUrl = await uploadFileToR2(schoolForm.logo, 'school-logos');
+        } catch (uploadErr) {
+          console.error("Logo upload failed:", uploadErr);
+          toast.warning("Logo upload failed, continuing without logo.");
+        }
+      }
+
+      if (editingSchool) {
+        await updateSchool(editingSchool.id, { 
+          name: schoolForm.name, 
+          code: schoolForm.code, 
+          district: schoolForm.district, 
+          mandal: schoolForm.mandal || undefined, 
+          sessions_completed: schoolForm.sessionsCompleted, 
+          active_status: schoolForm.activeStatus,
+          ...(logoUrl ? { logo_url: logoUrl } : {})
+        });
+        toast.success("School updated successfully!");
+        refetch(); 
+        setSchoolFormOpen(false); 
+        setEditingSchool(null);
+      } else {
+        await createSchool({ 
+          name: schoolForm.name, 
+          code: schoolForm.code, 
+          district: schoolForm.district, 
+          mandal: schoolForm.mandal || undefined, 
+          sessions_completed: schoolForm.sessionsCompleted, 
+          active_status: schoolForm.activeStatus,
+          principalName: schoolForm.principalName,
+          principalEmail: schoolForm.principalEmail,
+          principalPassword: schoolForm.principalPassword,
+          ...(logoUrl ? { logo_url: logoUrl } : {})
+        });
+        toast.success("School created successfully!");
+        refetch(); 
+        setSchoolFormOpen(false);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save school");
+    } finally {
+      setSchoolSubmitting(false);
     }
   };
 
@@ -138,7 +222,7 @@ const ModernAdminDashboard = () => {
               <Input className="pl-10 w-64 bg-white border-slate-200" placeholder="Search everything..." />
             </div>
             {activeTab === "schools" && (
-              <Button className="rounded-xl px-6">
+              <Button className="rounded-xl px-6" onClick={() => { setEditingSchool(null); setSchoolFormOpen(true); }}>
                 <Plus className="w-4 h-4 mr-2" /> Add School
               </Button>
             )}
@@ -360,10 +444,32 @@ const ModernAdminDashboard = () => {
               {schools.map(school => (
                 <Card key={school.id} className="border-0 shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
                   <CardHeader className="bg-white border-b border-slate-50 flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg font-bold text-slate-800">{school.name}</CardTitle>
-                    <Badge className={school.activeStatus ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"}>
-                      {school.activeStatus ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <div className="flex flex-col">
+                      <CardTitle className="text-lg font-bold text-slate-800">{school.name}</CardTitle>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{school.code}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={school.activeStatus ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"}>
+                        {school.activeStatus ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => { 
+                        setEditingSchool({ 
+                          id: school.id, 
+                          name: school.name, 
+                          code: school.code, 
+                          district: school.district, 
+                          mandal: (school as any).mandal, 
+                          sessionsCompleted: school.sessionsCompleted, 
+                          activeStatus: school.activeStatus 
+                        }); 
+                        setSchoolFormOpen(true); 
+                      }}>
+                        <Edit className="w-4 h-4 text-slate-400" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => { if (window.confirm("Delete this school?")) deleteSchool(school.id).then(() => refetch()); }}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-6 space-y-4">
                     <div className="flex justify-between text-sm">
@@ -522,6 +628,77 @@ const ModernAdminDashboard = () => {
               <DetailItem label="Address" value={selectedStudent?.address || 'N/A'} />
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* School Form Dialog */}
+      <Dialog open={schoolFormOpen} onOpenChange={setSchoolFormOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingSchool ? "Edit School" : "Add School"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSchoolSubmit} className="grid gap-4 pt-2">
+            <div>
+              <Label>Name</Label>
+              <Input value={schoolForm.name} onChange={(e) => setSchoolForm(f => ({ ...f, name: e.target.value }))} placeholder="School name" required />
+            </div>
+            <div>
+              <Label>Code</Label>
+              <Input value={schoolForm.code} onChange={(e) => setSchoolForm(f => ({ ...f, code: e.target.value }))} placeholder="School code" required />
+            </div>
+            <div>
+              <Label>District</Label>
+              <Input value={schoolForm.district} onChange={(e) => setSchoolForm(f => ({ ...f, district: e.target.value }))} placeholder="District" required />
+            </div>
+            <div>
+              <Label>School Logo</Label>
+              <div className="flex items-center gap-4 mt-1">
+                <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center overflow-hidden border">
+                  {schoolForm.logo ? (
+                    <img src={URL.createObjectURL(schoolForm.logo)} alt="Logo Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <School className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+                <Input type="file" accept="image/*" onChange={(e) => setSchoolForm(f => ({ ...f, logo: e.target.files?.[0] || null }))} className="flex-1" />
+              </div>
+            </div>
+            <div>
+              <Label>Mandal</Label>
+              <Input value={schoolForm.mandal} onChange={(e) => setSchoolForm(f => ({ ...f, mandal: e.target.value }))} placeholder="Mandal (optional)" />
+            </div>
+            <div>
+              <Label>Sessions completed</Label>
+              <Input type="number" min={0} value={schoolForm.sessionsCompleted} onChange={(e) => setSchoolForm(f => ({ ...f, sessionsCompleted: parseInt(e.target.value, 10) || 0 }))} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="school-active" checked={schoolForm.activeStatus} onChange={(e) => setSchoolForm(f => ({ ...f, activeStatus: e.target.checked }))} />
+              <Label htmlFor="school-active" className="cursor-pointer">Active</Label>
+            </div>
+
+            {!editingSchool && (
+              <div className="space-y-3 mt-2 pt-4 border-t border-border">
+                <p className="text-sm font-semibold text-primary">Principal Credentials</p>
+                <div>
+                  <Label>Principal Name</Label>
+                  <Input value={schoolForm.principalName} onChange={(e) => setSchoolForm(f => ({ ...f, principalName: e.target.value }))} placeholder="Dr. Maheshwar Rao" />
+                </div>
+                <div>
+                  <Label>Principal Email</Label>
+                  <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
+                </div>
+                <div>
+                  <Label>Principal Password</Label>
+                  <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <Button type="button" variant="outline" onClick={() => setSchoolFormOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={schoolSubmitting}>{editingSchool ? "Update" : "Add"} School</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
