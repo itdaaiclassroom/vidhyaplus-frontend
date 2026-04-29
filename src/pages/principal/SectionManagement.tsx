@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { fetchPrincipalGrades, fetchPrincipalSections, createPrincipalSection, updatePrincipalSection, deletePrincipalSection, PrincipalGrade, PrincipalSection } from "@/api/client";
+import { createPrincipalSection, updatePrincipalSection, deletePrincipalSection, PrincipalGrade, PrincipalSection } from "@/api/client";
+import { usePrincipal } from "@/contexts/PrincipalContext";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, LayoutGrid, Users } from "lucide-react";
 
@@ -14,40 +15,9 @@ interface SectionManagementProps {
 }
 
 const SectionManagement: React.FC<SectionManagementProps> = ({ onViewStudents }) => {
-  const [grades, setGrades] = useState<PrincipalGrade[]>([]);
-  const [sections, setSections] = useState<PrincipalSection[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { grades, sections, loading, refetchSections } = usePrincipal();
   
   // Modal state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  
-  const [selectedGrade, setSelectedGrade] = useState<string>("");
-  const [newSectionCode, setNewSectionCode] = useState<string>("");
-  const [editingSection, setEditingSection] = useState<PrincipalSection | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [gData, sData] = await Promise.all([
-        fetchPrincipalGrades(),
-        fetchPrincipalSections()
-      ]);
-      setGrades(gData.grades);
-      setSections(sData.sections);
-    } catch (err) {
-      console.error("Failed to load section data:", err);
-      toast.error("Failed to load sections and grades");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const handleAddSection = async () => {
     if (!selectedGrade || !newSectionCode.trim()) {
@@ -64,7 +34,7 @@ const SectionManagement: React.FC<SectionManagementProps> = ({ onViewStudents })
       setIsAddModalOpen(false);
       setSelectedGrade("");
       setNewSectionCode("");
-      loadData();
+      refetchSections();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create section");
     } finally {
@@ -83,7 +53,7 @@ const SectionManagement: React.FC<SectionManagementProps> = ({ onViewStudents })
       setIsEditModalOpen(false);
       setEditingSection(null);
       setNewSectionCode("");
-      loadData();
+      refetchSections();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update section");
     } finally {
@@ -99,7 +69,7 @@ const SectionManagement: React.FC<SectionManagementProps> = ({ onViewStudents })
       toast.success("Section deleted successfully");
       setIsDeleteModalOpen(false);
       setEditingSection(null);
-      loadData();
+      refetchSections();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to delete section");
     } finally {

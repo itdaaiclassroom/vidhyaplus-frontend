@@ -27,6 +27,7 @@ import {
   getApiBase 
 } from "@/api/client";
 import { toast } from "sonner";
+import MaterialManagement from "./MaterialManagement";
 
 const ModernAdminDashboard = () => {
   const { data, loading, refetch } = useAppData();
@@ -274,6 +275,11 @@ const ModernAdminDashboard = () => {
                  </table>
                </CardContent>
              </Card>
+          </TabsContent>
+
+          {/* Materials Content */}
+          <TabsContent value="materials" className="space-y-6">
+            <MaterialManagement />
           </TabsContent>
 
           {/* User Management Content */}

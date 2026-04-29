@@ -565,28 +565,7 @@ export async function fetchPrincipalTeachers(schoolId: string): Promise<Principa
   return res.json();
 }
 
-export async function fetchSchoolStudentsDynamic(schoolId: string): Promise<any[]> {
-  if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/schools/${schoolId}/students`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
-}
-
-/** Fetch all students for a school via the teacher-accessible route.
- *  Returns students with section_id, grade_id, section_code, and qr_codes.
- *  Use schoolId from localStorage ("auth.schoolId"). */
-export async function fetchTeacherStudents(schoolId: string): Promise<any[]> {
-  if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/teachers/${schoolId}/students`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
-}
-
-// ─── Principal Grade & Section APIs ────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Principal Grade & Section APIs ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export interface PrincipalGrade {
   id: number;
@@ -942,6 +921,26 @@ export async function askAiAssistant(payload: {
   return res.json();
 }
 
+export async function fetchSubjectMaterials(subjectId: string): Promise<Array<{ id: string; subject_id: string; title: string; file_path: string; uploaded_by: string; created_at: string }>> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/materials`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function uploadSubjectMaterial(subjectId: string, payload: { title: string; file: string; contentType?: string }): Promise<{ id: string; file_path: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/materials`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 
 
 
@@ -1022,5 +1021,86 @@ export async function bulkRegisterTeachers(body: { teachers: any[] }): Promise<{
   return res.json();
 }
 
+// --- Core School Operations (Assignments & Attendance) ---
 
+export async function assignTeacherSubjectsAndClasses(teacherId: string, payload: { assigned_subject_ids?: number[]; assigned_class_ids?: number[]; assigned_section_ids?: number[] }): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/teachers/${teacherId}/assignments`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
 
+export async function fetchTeacherAssignments(teacherId: string): Promise<{ assigned_subject_ids: number[]; assigned_class_ids: number[]; assigned_section_ids: number[] }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/assignments`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function markTeacherSelfAttendance(teacherId: string, status: "present" | "absent" | "leave"): Promise<{ ok: boolean; status: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/attendance`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchTodayTeacherAttendance(teacherId: string): Promise<{ marked: boolean; status?: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/attendance/today`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateStudentAttendanceRecord(attendanceId: string, status: "present" | "absent"): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/students/attendance/${attendanceId}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchTeacherAttendanceSummary(schoolId?: string, date?: string): Promise<any> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  let url = `${API_BASE}/api/principal/dashboard/teacher-attendance-summary`;
+  const params = new URLSearchParams();
+  if (schoolId) params.append("schoolId", schoolId);
+  if (date) params.append("date", date);
+  if (params.toString()) url += `?${params.toString()}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchStudentAttendanceSummary(schoolId?: string, date?: string): Promise<any> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  let url = `${API_BASE}/api/principal/dashboard/student-attendance-summary`;
+  const params = new URLSearchParams();
+  if (schoolId) params.append("schoolId", schoolId);
+  if (date) params.append("date", date);
+  if (params.toString()) url += `?${params.toString()}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchPrincipalSubjects(): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/subjects`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}

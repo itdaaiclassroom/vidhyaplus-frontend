@@ -498,9 +498,9 @@ export const classRecordings = [
 ];
 
 export const homework = [
-  { id: "hw1", classId: "c1", subject: "Science", chapter: "Light - Reflection and Refraction", title: "Draw ray diagrams for plane mirror", dueDate: "2026-02-25", assignedDate: "2026-02-23", submissions: 7, totalStudents: 10 },
-  { id: "hw2", classId: "c1", subject: "Mathematics", chapter: "Algebra Basics", title: "Solve linear equations (Ex 3.1)", dueDate: "2026-02-26", assignedDate: "2026-02-24", submissions: 3, totalStudents: 10 },
-  { id: "hw3", classId: "c2", subject: "Science", chapter: "Electricity and Circuits", title: "Circuit diagram worksheet", dueDate: "2026-02-26", assignedDate: "2026-02-24", submissions: 5, totalStudents: 10 },
+  { id: "hw1", classId: "c1", subjectName: "Science", chapterName: "Light - Reflection and Refraction", title: "Draw ray diagrams for plane mirror", dueDate: "2026-02-25", assignedDate: "2026-02-23", submissions: 7, totalStudents: 10 },
+  { id: "hw2", classId: "c1", subjectName: "Mathematics", chapterName: "Algebra Basics", title: "Solve linear equations (Ex 3.1)", dueDate: "2026-02-26", assignedDate: "2026-02-24", submissions: 3, totalStudents: 10 },
+  { id: "hw3", classId: "c2", subjectName: "Science", chapterName: "Electricity and Circuits", title: "Circuit diagram worksheet", dueDate: "2026-02-26", assignedDate: "2026-02-24", submissions: 5, totalStudents: 10 },
 ];
 
 export const studentAttendance = [

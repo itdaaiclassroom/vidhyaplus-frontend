@@ -253,6 +253,16 @@ const TeacherDashboard = () => {
   const [recoLoading, setRecoLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
+  const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; status?: string } | null>(null);
+
+  useEffect(() => {
+    if (teacherId) {
+      fetchTodayTeacherAttendance(teacherId)
+        .then(setTodayAttendance)
+        .catch(console.error);
+    }
+  }, [teacherId]);
+
 
 
   // --- New UI state ---
@@ -1944,6 +1954,8 @@ const TeacherDashboard = () => {
               <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
               {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
               <TabsTrigger value="timetable" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Timetable</TabsTrigger>
+              <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
+              <TabsTrigger value="my-assignments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assignments</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
               <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
             </TabsList>
@@ -2346,6 +2358,124 @@ const TeacherDashboard = () => {
                       </tbody>
                     </table>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* SELF ATTENDANCE TAB */}
+            <TabsContent value="self-attendance" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <CalendarCheck className="w-5 h-5 text-primary" /> My Attendance
+              </h3>
+              <Card className="shadow-card border-border max-w-md">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Mark Today's Attendance</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Date: <span className="font-semibold text-foreground">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+                  </p>
+                  <div className="flex gap-3">
+                    {(["present", "absent", "leave"] as const).map((s) => {
+                      const isSelected = todayAttendance?.marked && todayAttendance.status === s;
+                      const isDisabled = todayAttendance?.marked;
+                      
+                      return (
+                        <Button
+                          key={s}
+                          variant={isSelected || (s === "present" && !todayAttendance?.marked) ? "default" : "outline"}
+                          disabled={isDisabled}
+                          className={`capitalize flex-1 transition-all ${
+                            isSelected 
+                              ? (s === "present" ? "bg-green-600 opacity-100 shadow-md" : s === "absent" ? "bg-red-600 text-white opacity-100 shadow-md" : "bg-amber-500 text-white opacity-100 shadow-md")
+                              : (s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50")
+                          } ${isDisabled && !isSelected ? "opacity-40 grayscale-[0.5]" : ""}`}
+                          onClick={async () => {
+                            if (!teacherId || isDisabled) return;
+                            try {
+                              await markTeacherSelfAttendance(teacherId, s);
+                              setTodayAttendance({ marked: true, status: s });
+                              toast.success(`Attendance marked as "${s}" for today.`);
+                            } catch (e: any) {
+                              toast.error(e.message || "Failed to mark attendance");
+                            }
+                          }}
+                        >
+                          {s === "present" ? <CheckCircle2 className="w-4 h-4 mr-1" /> : s === "absent" ? <XCircle className="w-4 h-4 mr-1" /> : <CalendarOff className="w-4 h-4 mr-1" />}
+                          {s}
+                          {isSelected && <Badge variant="outline" className="ml-1.5 bg-white/20 border-white/40 text-white text-[9px] uppercase">Marked</Badge>}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* MY ASSIGNMENTS TAB */}
+            <TabsContent value="my-assignments" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-primary" /> My Assignments
+              </h3>
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Assigned Subjects, Classes & Sections</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const [assignData, setAssignData] = useState<{ assigned_subject_ids: number[]; assigned_class_ids: number[]; assigned_section_ids: number[] } | null>(null);
+                    const [loadingAssign, setLoadingAssign] = useState(true);
+                    useEffect(() => {
+                      if (teacherId) {
+                        setLoadingAssign(true);
+                        fetchTeacherAssignments(teacherId)
+                          .then(setAssignData)
+                          .catch(() => setAssignData(null))
+                          .finally(() => setLoadingAssign(false));
+                      }
+                    }, [teacherId]);
+
+                    if (loadingAssign) return <p className="text-sm text-muted-foreground py-4">Loading assignments...</p>;
+                    if (!assignData) return <p className="text-sm text-muted-foreground py-4">No assignments found.</p>;
+
+                    return (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subjects</p>
+                          <div className="flex flex-wrap gap-2">
+                            {assignData.assigned_subject_ids.length > 0
+                              ? assignData.assigned_subject_ids.map((id) => (
+                                  <Badge key={id} variant="secondary" className="px-3 py-1">Subject ID: {id}</Badge>
+                                ))
+                              : <span className="text-sm text-muted-foreground">None assigned</span>
+                            }
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Classes (Grade IDs)</p>
+                          <div className="flex flex-wrap gap-2">
+                            {assignData.assigned_class_ids.length > 0
+                              ? assignData.assigned_class_ids.map((id) => (
+                                  <Badge key={id} variant="secondary" className="px-3 py-1">Grade ID: {id}</Badge>
+                                ))
+                              : <span className="text-sm text-muted-foreground">None assigned</span>
+                            }
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sections</p>
+                          <div className="flex flex-wrap gap-2">
+                            {assignData.assigned_section_ids.length > 0
+                              ? assignData.assigned_section_ids.map((id) => (
+                                  <Badge key={id} variant="secondary" className="px-3 py-1">Section ID: {id}</Badge>
+                                ))
+                              : <span className="text-sm text-muted-foreground">None assigned</span>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
