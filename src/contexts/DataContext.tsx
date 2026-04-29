@@ -29,7 +29,7 @@ import {
 const SUBJECT_ORDER = ["Telugu", "Hindi", "English", "Mathematics", "Physics", "Biology", "Social Studies"] as const;
 
 function sortSubjects<T extends { name?: string | null }>(subjects: T[]): T[] {
-  const rank = new Map(SUBJECT_ORDER.map((name, index) => [name, index]));
+  const rank = new Map<string, number>(SUBJECT_ORDER.map((name, index) => [name, index]));
   return [...subjects].sort((a, b) => {
     const aName = (a.name || "").trim();
     const bName = (b.name || "").trim();

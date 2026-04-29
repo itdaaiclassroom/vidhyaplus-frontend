@@ -23,6 +23,7 @@ const TeacherSetup = () => {
     }
     getTeacherAssignments(teacherId)
       .then((res) => {
+        console.log("TEACHER ASSIGNMENTS RECEIVED:", res);
         setAssignments(res.assignments || []);
         if (res.assignments?.length) {
           const first = res.assignments[0];

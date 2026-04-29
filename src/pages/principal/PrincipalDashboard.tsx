@@ -9,19 +9,21 @@ import TeacherRegistration from "./TeacherRegistration";
 import SectionManagement from "./SectionManagement";
 import BulkUpload from "@/components/BulkUpload";
 import CoCurricularActivityRegistration from "./CoCurricularActivityRegistration";
+import { TeacherAssignmentDialog } from "@/components/TeacherAssignmentDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer, Users, UserPlus, FileUp, Contact, CalendarCheck, PanelLeftClose, PanelLeftOpen, Menu, Layers } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrincipal, PrincipalProvider } from "@/contexts/PrincipalContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { 
-  PrincipalStudent, PrincipalTeacher, 
-  PrincipalGrade, PrincipalSection, getApiBase, updateStudent 
+  fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
+  fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, 
+  PrincipalGrade, PrincipalSection, getApiBase, updateStudent,
+  fetchTeacherAttendanceSummary, fetchStudentAttendanceSummary,
+  fetchPrincipalSubjects
 } from "@/api/client";
 import { toast } from "sonner";
 import { Edit2, Save, XCircle } from "lucide-react";
@@ -98,15 +100,73 @@ const PrincipalDashboardInner: React.FC = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<PrincipalTeacher | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [pendingClassFilter, setPendingClassFilter] = useState<string | null>(null);
+  const [assignTeacher, setAssignTeacher] = useState<PrincipalTeacher | null>(null);
+  const [subjectsList, setSubjectsList] = useState<any[]>([]);
+  const [teacherStats, setTeacherStats] = useState<{ total_teachers: number, present_today: number, absent_today: number, leave_today: number, present_list: any[], absent_list: any[], leave_list: any[] } | null>(null);
+  const [studentStats, setStudentStats] = useState<{ total_students: number, present_today: number, absent_today: number, class_breakdown: any } | null>(null);
+
+  // Drill-down state
+  const [drillDownType, setDrillDownType] = useState<"teacher" | "student" | null>(null);
+  const [drillDownStatus, setDrillDownStatus] = useState<string | null>(null);
+  const [drillDownClass, setDrillDownClass] = useState<string | null>(null);
+
+
+
+  const loadSchoolData = () => {
+    if (!schoolId) return;
+    setLoading(true);
+    Promise.all([
+      fetchPrincipalStudents(schoolId),
+      fetchPrincipalTeachers(schoolId),
+      fetchPrincipalGrades(),
+      fetchPrincipalSubjects().catch(() => []),
+      fetchTeacherAttendanceSummary(schoolId).catch(() => null),
+      fetchStudentAttendanceSummary(schoolId).catch(() => null)
+    ]).then(([sData, tData, gData, subData, tStats, sStats]) => {
+      setRealStudents(sData);
+      setRealTeachers(tData);
+      setGrades(gData.grades);
+      setSubjectsList(Array.isArray(subData) ? subData : []);
+      setTeacherStats(tStats);
+      setStudentStats(sStats);
+      console.log("PRINCIPAL DASHBOARD DATA LOADED:", { tStats, sStats, teacherCount: tData.length, studentCount: sData.length });
+    }).catch(console.error).finally(() => setLoading(false));
+
+
+  };
 
   useEffect(() => {
-    if (pendingClassFilter && sectionsForFilter.find(s => String(s.id) === pendingClassFilter)) {
-      setClassFilter(pendingClassFilter);
-      setPendingClassFilter(null);
-    } else if (classFilter !== "all" && !sectionsForFilter.find(s => String(s.id) === classFilter)) {
-       setClassFilter("all");
+    loadSchoolData();
+  }, [schoolId]);
+
+  const refreshTeachers = () => {
+    if (!schoolId) return;
+    fetchPrincipalTeachers(schoolId)
+      .then(tData => {
+        console.log("REFRESHED TEACHERS:", tData);
+        setRealTeachers(tData);
+      })
+      .catch(console.error);
+  };
+
+  useEffect(() => {
+    if (gradeFilter !== "all") {
+      fetchPrincipalSections(Number(gradeFilter))
+        .then(data => {
+          setSectionsForFilter(data.sections);
+          if (pendingClassFilter) {
+            setClassFilter(pendingClassFilter);
+            setPendingClassFilter(null);
+          } else if (classFilter !== "all" && !data.sections.find(s => String(s.id) === classFilter)) {
+             setClassFilter("all");
+          }
+        })
+        .catch(console.error);
+    } else {
+      setSectionsForFilter([]);
+      setClassFilter("all");
     }
-  }, [sectionsForFilter, pendingClassFilter]);
+  }, [gradeFilter, pendingClassFilter]);
 
   const handleViewStudents = (gradeId: number, sectionId: number) => {
     setActiveTab("student-info");
@@ -316,34 +376,227 @@ const PrincipalDashboardInner: React.FC = () => {
               </Card>
             </div>
 
-            {/* Class-wise Distribution Chart */}
-            <Card className="mt-6 border shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold text-slate-700">Class-wise Student Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={
-                      grades.map(g => ({
-                        name: g.grade_label,
-                        students: realStudents.filter(s => s.grade_id === g.id).length
-                      })).filter(g => g.students > 0)
-                    }>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                      <RechartsTooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                      <Bar dataKey="students" fill="#0d9488" radius={[4, 4, 0, 0]}>
-                        {grades.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#0d9488' : '#0ea5e9'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              {/* Teacher Attendance Summary Card */}
+              <Card className="shadow-sm border border-border">
+                <CardHeader className="pb-3 border-b border-secondary/50">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" /> Teacher Attendance (Today)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  {teacherStats ? (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-4xl font-bold text-foreground">{teacherStats.present_today}</p>
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Teachers Present</p>
+                        </div>
+                        <div className="text-right">
+                          <Badge className="bg-success-light text-success border-success/20 mb-1">
+                            {Math.round((teacherStats.present_today / (teacherStats.total_teachers || 1)) * 100)}% Present
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground uppercase">Out of {teacherStats.total_teachers}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2 h-3 w-full rounded-full overflow-hidden bg-secondary">
+                        <div 
+                          className="bg-success h-full transition-all duration-1000" 
+                          style={{ width: `${(teacherStats.present_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                        />
+                        <div 
+                          className="bg-amber h-full transition-all duration-1000" 
+                          style={{ width: `${(teacherStats.leave_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                        />
+                        <div 
+                          className="bg-destructive h-full transition-all duration-1000" 
+                          style={{ width: `${(teacherStats.absent_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div 
+                          className="p-2 rounded-lg bg-success-light/30 border border-success/10 cursor-pointer hover:bg-success-light/50 transition-colors"
+                          onClick={() => { setDrillDownType("teacher"); setDrillDownStatus("present"); }}
+                        >
+                          <p className="text-xs font-bold text-success">{teacherStats.present_today}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">Present</p>
+                        </div>
+                        <div 
+                          className="p-2 rounded-lg bg-amber-light/30 border border-amber/10 cursor-pointer hover:bg-amber-light/50 transition-colors"
+                          onClick={() => { setDrillDownType("teacher"); setDrillDownStatus("leave"); }}
+                        >
+                          <p className="text-xs font-bold text-amber">{teacherStats.leave_today}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">On Leave</p>
+                        </div>
+                        <div 
+                          className="p-2 rounded-lg bg-red-50 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors"
+                          onClick={() => { setDrillDownType("teacher"); setDrillDownStatus("absent"); }}
+                        >
+                          <p className="text-xs font-bold text-destructive">{teacherStats.absent_today}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">Absent</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center text-muted-foreground text-sm italic">
+                      No teacher attendance records for today.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Student Attendance Summary Card */}
+              <Card className="shadow-sm border border-border">
+                <CardHeader className="pb-3 border-b border-secondary/50">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <CalendarCheck className="w-4 h-4 text-info" /> Student Attendance (Today)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  {studentStats ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <p className="text-3xl font-bold text-foreground">{studentStats.present_today}</p>
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Students Present</p>
+                        </div>
+                        <div className="w-16 h-16 relative">
+                          <svg className="w-full h-full" viewBox="0 0 36 36">
+                            <path className="text-secondary stroke-current" strokeWidth="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path className="text-info stroke-current" strokeWidth="3" strokeDasharray={`${(studentStats.present_today / (studentStats.total_students || 1)) * 100}, 100`} strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-[10px] font-bold">{Math.round((studentStats.present_today / (studentStats.total_students || 1)) * 100)}%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="max-h-[140px] overflow-y-auto pr-2 custom-scrollbar">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 bg-white">
+                            <tr className="text-muted-foreground border-b border-border">
+                              <th className="text-left py-1 font-medium">Class</th>
+                              <th className="text-right py-1 font-medium">Present</th>
+                              <th className="text-right py-1 font-medium">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {Object.entries(studentStats.class_breakdown || {}).map(([className, stats]: [string, any]) => {
+                              const total = stats.present + stats.absent;
+                              const pct = total > 0 ? Math.round((stats.present / total) * 100) : 0;
+                              return (
+                                <tr 
+                                  key={className} 
+                                  className="hover:bg-secondary/20 transition-colors cursor-pointer"
+                                  onClick={() => { setDrillDownType("student"); setDrillDownClass(className); }}
+                                >
+                                  <td className="py-2 font-medium">{className}</td>
+                                  <td className="py-2 text-right">{stats.present}/{total}</td>
+                                  <td className="py-2 text-right">
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${pct > 80 ? 'bg-success-light text-success' : 'bg-amber-light text-amber'}`}>
+                                      {pct}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {(!studentStats.class_breakdown || Object.keys(studentStats.class_breakdown).length === 0) && (
+                          <p className="text-[10px] text-center py-4 text-muted-foreground italic">No class-wise data available for today.</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center text-muted-foreground text-sm italic">
+                      No student attendance records for today.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Drill-down Dialog */}
+            <Dialog open={!!drillDownType} onOpenChange={() => setDrillDownType(null)}>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 capitalize">
+                    {drillDownType === "teacher" ? (
+                      <><Users className="w-5 h-5 text-primary" /> {drillDownStatus} Teachers</>
+                    ) : (
+                      <><CalendarCheck className="w-5 h-5 text-info" /> {drillDownClass} Attendance</>
+                    )}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="overflow-y-auto pr-2 mt-4 custom-scrollbar flex-1">
+                  {drillDownType === "teacher" && teacherStats && (
+                    <div className="grid grid-cols-1 gap-3">
+                      {(drillDownStatus === "present" ? (teacherStats.present_list || []) : 
+                        drillDownStatus === "absent" ? (teacherStats.absent_list || []) : 
+                        (teacherStats.leave_list || [])).map((t: any) => (
+                        <div key={t.id} className="p-3 rounded-lg border bg-secondary/10 flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-sm">{t.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{t.email}</p>
+                          </div>
+                          <Badge variant="outline" className={
+                            drillDownStatus === "present" ? "bg-success-light text-success border-success/20" :
+                            drillDownStatus === "absent" ? "bg-red-50 text-destructive border-red-100" :
+                            "bg-amber-light text-amber border-amber/20"
+                          }>
+                            {drillDownStatus}
+                          </Badge>
+                        </div>
+                      ))}
+                      {((drillDownStatus === "present" ? (teacherStats.present_list || []) : 
+                         drillDownStatus === "absent" ? (teacherStats.absent_list || []) : 
+                         (teacherStats.leave_list || [])).length === 0) && (
+                        <p className="text-center py-10 text-muted-foreground italic">No teachers found in this category.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {drillDownType === "student" && studentStats && drillDownClass && studentStats.class_breakdown[drillDownClass] && (
+                    <div className="grid grid-cols-1 gap-2">
+                      <div className="bg-secondary/20 p-3 rounded-lg mb-4 flex justify-between items-center">
+                        <div className="text-sm">
+                          <span className="font-bold text-success">{(studentStats.class_breakdown[drillDownClass].present || 0)}</span> Present
+                          <span className="mx-2 text-muted-foreground">|</span>
+                          <span className="font-bold text-destructive">{(studentStats.class_breakdown[drillDownClass].absent || 0)}</span> Absent
+                        </div>
+                        <Badge className="bg-primary text-white">Total: {(studentStats.class_breakdown[drillDownClass].students || []).length}</Badge>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead className="bg-secondary/30">
+                          <tr className="text-left text-xs uppercase text-muted-foreground">
+                            <th className="p-2 font-bold">Roll No</th>
+                            <th className="p-2 font-bold">Name</th>
+                            <th className="p-2 font-bold text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {(studentStats.class_breakdown[drillDownClass].students || []).map((s: any) => (
+                            <tr key={s.id} className="hover:bg-secondary/10 transition-colors">
+                              <td className="p-2 font-medium">{s.roll_no || 'N/A'}</td>
+                              <td className="p-2">{s.name}</td>
+                              <td className="p-2 text-right">
+                                <Badge className={s.status === 'present' ? 'bg-success text-white' : 'bg-destructive text-white'}>
+                                  {s.status}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              </DialogContent>
+            </Dialog>
+
+
           </TabsContent>
 
           <TabsContent value="register" className="space-y-4">
@@ -402,9 +655,17 @@ const PrincipalDashboardInner: React.FC = () => {
                       <div>
                         <p className="text-xs text-muted-foreground">Subjects</p>
                         <p className="font-medium truncate max-w-[150px]" title={(t as any).subjects?.join(", ") || "None"}>
-                          {(t as any).subjects && (t as any).subjects.length > 0 ? (t as any).subjects.join(", ") : "None assigned"}
+                          {(t as any).subjects && (t as any).subjects.length > 0 ? (t as any).subjects.join(", ") : "No subjects"}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[150px]" title={(t as any).class_names?.join(", ") || "None"}>
+                          {(t as any).class_names && (t as any).class_names.length > 0 ? (t as any).class_names.join(", ") : "No classes assigned"}
                         </p>
                       </div>
+                    </div>
+                    <div className="mt-3 pt-2 border-t flex justify-end">
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setAssignTeacher(t); }}>
+                        Assign Subjects/Classes
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -633,6 +894,18 @@ const PrincipalDashboardInner: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Teacher Assignment Dialog */}
+      {assignTeacher && schoolId && (
+        <TeacherAssignmentDialog
+          teacher={assignTeacher}
+          schoolId={schoolId}
+          open={!!assignTeacher}
+          onOpenChange={(open) => { if (!open) setAssignTeacher(null); }}
+          subjects={subjectsList}
+          onSaved={refreshTeachers}
+        />
+      )}
     </DashboardLayout>
   );
 };
