@@ -1,78 +1,619 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { lessonContent, curriculum } from "@/data/demo-data";
-import { ArrowLeft, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAppData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
+import PptxViewer from "@/components/PptxViewer";
+import { toast } from "sonner";
+import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
+import { 
+  endLiveSession, 
+  getAiRecommendations, 
+  askAiAssistant, 
+  submitAttendance,
+  fetchSubjectMaterials,
+  getApiBase
+} from "@/api/client";
+
+import {
+  BookOpen, Play, CheckCircle2, Clock, ArrowLeft, Maximize, Minimize,
+  Pause, Send, MessageCircle, Monitor, X, Video, Users, Radio, Sparkles,
+  Bot, Lightbulb, FileText, MonitorPlay, Youtube, ExternalLink, RotateCcw, XCircle,
+  QrCode, Book, Info
+} from "lucide-react";
+
+type LiveSessionLike = { 
+  id: string; 
+  teacherId: string; 
+  classId: string; 
+  subjectId: string; 
+  chapterId: string; 
+  topicId: string; 
+  topicName: string; 
+  teacherName: string; 
+  className: string; 
+  subjectName: string; 
+  startTime: string; 
+  status: string; 
+  attendanceMarked: boolean; 
+  quizSubmitted: boolean 
+};
+
+function sameId(a: unknown, b: unknown): boolean {
+  return String(a ?? "") === String(b ?? "");
+}
 
 const LessonScreen = () => {
-  const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
-  const slides = lessonContent.slideOutline;
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const { data, refetch } = useAppData();
+  const { teacherId } = useAuth();
 
-  const slideContents: Record<number, string> = {
-    0: "Light is a form of energy that enables us to see objects. It travels in straight lines, which we call rectilinear propagation of light.",
-    1: "Light always travels in a straight path. This can be demonstrated using a torch in a dark room — the beam of light goes straight!",
-    2: "When a ray of light falls on a smooth, polished surface, it bounces back. This phenomenon is called reflection of light.",
-    3: "Law 1: The angle of incidence (∠i) is always equal to the angle of reflection (∠r).\n\nLaw 2: The incident ray, the reflected ray, and the normal at the point of incidence — all lie in the same plane.",
-    4: "Regular Reflection: Occurs on smooth surfaces like mirrors — parallel rays remain parallel.\n\nDiffuse Reflection: Occurs on rough surfaces — parallel rays scatter in different directions.",
-    5: "Mirrors in homes, periscopes in submarines, kaleidoscopes, dental mirrors, and rear-view mirrors in vehicles all work on the principle of reflection.",
-    6: "Let's review what we learned and test your knowledge with a quick quiz!",
+  const sessionIdFromUrl = searchParams.get("sessionId");
+  const initialSession = location.state?.session as LiveSessionLike | undefined;
+
+  const [activeSession, setActiveSession] = useState<LiveSessionLike | null>(initialSession || null);
+  const [sessionTime, setSessionTime] = useState(0);
+  const [sessionViewMode, setSessionViewMode] = useState<"tools" | "attendance" | "ai_chat" | "recommendations" | "lesson_plan">("tools");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pdfPage, setPdfPage] = useState(1);
+  const [sessionPaused, setSessionPaused] = useState(false);
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
+  const [sessionQuizDone, setSessionQuizDone] = useState(false);
+  const [sessionEnding, setSessionEnding] = useState(false);
+  const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
+
+  const [sessionAttendance, setSessionAttendance] = useState<Record<string, "present" | "absent">>({});
+  const [sessionSubjectMaterials, setSessionSubjectMaterials] = useState<any[]>([]);
+
+  const [mainScreenContentUrl, setMainScreenContentUrl] = useState<string | null>(null);
+  const [mainScreenTitle, setMainScreenTitle] = useState("");
+  const [mainScreenDirectUrl, setMainScreenDirectUrl] = useState<string | null>(null);
+
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "ai"; text: string }>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  
+  const [recommendations, setRecommendations] = useState<{ videos: any[], resources: any[] } | null>(null);
+  const [recoLoading, setRecoLoading] = useState(false);
+
+  const sessionContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!activeSession && sessionIdFromUrl && data.liveSessions) {
+      const found = (data.liveSessions as LiveSessionLike[]).find(s => sameId(s.id, sessionIdFromUrl));
+      if (found) {
+        setActiveSession(found);
+        setAttendanceMarked(found.attendanceMarked);
+        setSessionQuizDone(found.quizSubmitted);
+        const savedTime = localStorage.getItem(`pausedTime_${found.id}`);
+        if (savedTime) setSessionTime(parseInt(savedTime));
+      }
+    }
+  }, [sessionIdFromUrl, data.liveSessions, activeSession]);
+
+  // Direct fetch for subject materials to ensure they are available even if global context is delayed
+  useEffect(() => {
+    if (activeSession?.subjectId) {
+      fetchSubjectMaterials(activeSession.subjectId)
+        .then(mats => {
+          console.log("Directly fetched subject materials:", mats);
+          setSessionSubjectMaterials(mats || []);
+        })
+        .catch(err => console.error("Error fetching subject materials:", err));
+    }
+  }, [activeSession?.subjectId]);
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  const classStudents = useMemo(() => {
+    if (!activeSession || !data.students) return [];
+    return data.students.filter((s: any) => sameId(s.classId, activeSession.classId));
+  }, [data.students, activeSession]);
+
+  const grade = useMemo(() => {
+    if (!activeSession || !data.classes) return 10;
+    const cls = data.classes.find((c: any) => sameId(c.id, activeSession.classId));
+    return cls ? (parseInt(String(cls.grade)) || 10) : 10;
+  }, [activeSession, data.classes]);
+
+  useEffect(() => {
+    if (!activeSession || sessionPaused) return;
+    const timer = setInterval(() => {
+      setSessionTime(prev => {
+        const next = prev + 1;
+        localStorage.setItem(`pausedTime_${activeSession.id}`, next.toString());
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [activeSession, sessionPaused]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
+  const getMaterialViewerUrl = (relativePath: string) => {
+    if (!relativePath) return "";
+    // If it's already a full URL (http/https), use it directly
+    if (relativePath.startsWith("http")) return relativePath;
+    
+    const clean = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+    return `${getApiBase()}/api/materials/view?path=${encodeURIComponent(clean)}`;
+  };
+
+  const isPptxPath = (p: string | null) => !!p && /\.pptx?$/i.test(p);
+
+  const handleEndSession = async () => {
+    if (!activeSession) return;
+    setSessionEnding(true);
+    try {
+      await endLiveSession(activeSession.id);
+      localStorage.removeItem(`pausedTime_${activeSession.id}`);
+      refetch();
+      navigate("/teacher");
+      toast.success("Session ended successfully.");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to end session.");
+    } finally {
+      setSessionEnding(false);
+    }
+  };
+
+  const handleMarkAttendance = async () => {
+    if (!activeSession || attendanceSubmitting) return;
+    
+    // Ensure we have an entry for every student in the class
+    const entries = classStudents.map(s => ({
+      studentId: s.id,
+      status: sessionAttendance[s.id] || "absent"
+    }));
+
+    if (entries.length === 0) {
+      toast.error("No students found in this class.");
+      return;
+    }
+
+    setAttendanceSubmitting(true);
+    try {
+      await submitAttendance({
+        classId: activeSession.classId,
+        date: new Date().toISOString().split('T')[0],
+        entries,
+        liveSessionId: activeSession.id
+      });
+      setAttendanceMarked(true);
+      toast.success("Attendance saved successfully!");
+      setSessionViewMode("tools");
+      refetch(); // Refresh data to update status
+    } catch (err: any) {
+      console.error("Attendance error:", err);
+      toast.error(err.message || "Failed to save attendance.");
+    } finally {
+      setAttendanceSubmitting(false);
+    }
+  };
+
+  const handleFetchRecommendations = useCallback(async () => {
+    if (!activeSession) return;
+    setRecoLoading(true);
+    try {
+      const res = await getAiRecommendations({
+        topic: activeSession.topicName,
+        subject: activeSession.subjectName,
+        grade: grade
+      });
+      setRecommendations(res);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not fetch recommendations.");
+    } finally {
+      setRecoLoading(false);
+    }
+  }, [activeSession, grade]);
+
+  useEffect(() => {
+    if (sessionViewMode === "recommendations" && !recommendations && !recoLoading) {
+      handleFetchRecommendations();
+    }
+  }, [sessionViewMode, recommendations, recoLoading, handleFetchRecommendations]);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      sessionContainerRef.current?.requestFullscreen().catch(err => {
+        toast.error(`Error: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const handleNextPage = () => setPdfPage(p => p + 1);
+  const handlePrevPage = () => setPdfPage(p => Math.max(1, p - 1));
+
+  const handleSendChat = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading || !activeSession) return;
+    setChatMessages(prev => [...prev, { role: "user", text: msg }]);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      const res = await askAiAssistant({
+        question: msg,
+        topic: activeSession.topicName,
+        subject: activeSession.subjectName,
+      });
+      setChatMessages(prev => [...prev, { role: "ai", text: res.answer }]);
+    } catch (e) {
+      console.error(e);
+      setChatMessages(prev => [...prev, { role: "ai", text: "AI Assistant is currently unavailable." }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  if (!activeSession) {
+    return (
+      <DashboardLayout title="Live Session">
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading session details...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const sessionChapter = data.chapters?.find((c: any) => sameId(c.id, activeSession.chapterId));
+
   return (
-    <DashboardLayout title="Lesson Screen">
-      <div className="max-w-4xl mx-auto">
-        <Button variant="ghost" onClick={() => navigate("/teacher")} className="mb-4 gap-2">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-        </Button>
-        <div className="bg-teal-light rounded-xl p-3 mb-6">
-          <p className="text-xs text-muted-foreground">{curriculum.subject} → {curriculum.chapter}</p>
-          <h2 className="font-display font-bold text-foreground">{curriculum.topic}</h2>
+    <DashboardLayout title="Live Teaching Session">
+      <div className="space-y-6">
+        {/* Header Bar */}
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-border/50 shadow-sm sticky top-0 z-10">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/teacher")} className="gap-2 text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-4 h-4" /> Exit
+              </Button>
+              <div className="h-8 w-px bg-border/60" />
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-primary/70 leading-tight mb-1">{activeSession.subjectName} • {activeSession.className}</p>
+                <h2 className="font-display text-xl font-bold text-foreground leading-tight">{sessionChapter?.name || "Chapter Name"}</h2>
+                <p className="text-xs text-muted-foreground">{activeSession.topicName}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 text-destructive text-[11px] font-bold border border-destructive/20">
+                <Radio className={`w-3.5 h-3.5 ${sessionPaused ? "" : "animate-pulse"}`} /> 
+                {sessionPaused ? "PAUSED" : "LIVE"} • {formatTime(sessionTime)}
+              </div>
+              
+              <Badge variant="outline" className={`gap-1.5 h-8 px-3 ${attendanceMarked ? "bg-success/5 text-success border-success/20" : "bg-amber/5 text-amber border-amber/20"}`}>
+                {attendanceMarked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                Attendance: {attendanceMarked ? "Done" : "Pending"}
+              </Badge>
+
+              <Badge variant="outline" className={`gap-1.5 h-8 px-3 ${sessionQuizDone ? "bg-success/5 text-success border-success/20" : "bg-amber/5 text-amber border-amber/20"}`}>
+                {sessionQuizDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                Quiz: {sessionQuizDone ? "Done" : "Pending"}
+              </Badge>
+
+              <div className="flex gap-2 ml-2">
+                <Button variant="outline" size="sm" className={`gap-2 h-9 ${sessionPaused ? "bg-amber-light border-amber/30 text-amber" : ""}`} onClick={() => setSessionPaused(!sessionPaused)}>
+                  {sessionPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                  {sessionPaused ? "Resume" : "Pause"}
+                </Button>
+                <Button variant="destructive" size="sm" className="gap-2 h-9 shadow-sm" onClick={() => { if (confirm("Are you sure?")) handleEndSession(); }}>
+                  <XCircle className="w-4 h-4" /> End Session
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <Card className="shadow-card border-border mb-6">
-          <CardContent className="p-8 min-h-[300px] flex flex-col justify-center">
-            <div className="text-center mb-6">
-              <span className="text-xs text-muted-foreground">Slide {currentSlide + 1} of {slides.length}</span>
-              <h3 className="font-display text-2xl font-bold text-foreground mt-2">{slides[currentSlide]}</h3>
-            </div>
-            <p className="text-muted-foreground text-center whitespace-pre-line max-w-2xl mx-auto">
-              {slideContents[currentSlide]}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Main Area */}
+          <div className="lg:col-span-3 space-y-6">
+            <div ref={sessionContainerRef} className={`relative rounded-3xl overflow-hidden bg-slate-50/50 shadow-2xl transition-all duration-500 ${isFullscreen ? "fixed inset-0 z-[100]" : "aspect-video border border-slate-200/50"}`}>
+              {mainScreenContentUrl ? (
+                <>
+                  {isPptxPath(mainScreenDirectUrl) ? (
+                    <PptxViewer src={mainScreenContentUrl} width={isFullscreen ? window.innerWidth : 1200} height={isFullscreen ? window.innerHeight : 675} />
+                  ) : (
+                    <div className="w-full h-full flex flex-col bg-white">
+                      <iframe 
+                        key={pdfPage}
+                        src={(mainScreenContentUrl?.includes("#") ? mainScreenContentUrl.split("#")[0] : mainScreenContentUrl) + `#page=${pdfPage}&toolbar=0&navpanes=0&scrollbar=0`} 
+                        title={mainScreenTitle} 
+                        className="flex-1 border-none" 
+                        allow="fullscreen" 
+                      />
+                      <div className="h-14 bg-slate-900 text-white flex items-center justify-between px-6">
+                        <div className="flex items-center gap-4">
+                          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={handlePrevPage} disabled={pdfPage <= 1}>
+                            <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+                          </Button>
+                          <span className="text-sm font-medium bg-white/10 px-3 py-1 rounded-full">Page {pdfPage}</span>
+                          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={handleNextPage}>
+                            Next <Play className="w-4 h-4 ml-2" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9 gap-2" onClick={toggleFullscreen}>
+                             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                             {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                           </Button>
+                           <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={() => { setMainScreenContentUrl(null); setMainScreenTitle(""); setMainScreenDirectUrl(null); setPdfPage(1); }}>
+                             <X className="w-4 h-4" />
+                           </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    {/* Floating close button if needed, but we have it in the bar now */}
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-20 h-20 rounded-3xl bg-teal-50 flex items-center justify-center mx-auto mb-6 ring-1 ring-teal-100">
+                      <BookOpen className="w-10 h-10 text-teal-600" />
+                    </div>
+                    <div className="space-y-1 mb-6">
+                      <h3 className="text-xl font-bold text-slate-800">{sessionChapter?.name || "Chapter Name"}</h3>
+                      <p className="text-sm text-slate-500 font-medium">{activeSession.topicName}</p>
+                    </div>
 
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            disabled={currentSlide === 0}
-            onClick={() => setCurrentSlide(prev => prev - 1)}
-            className="gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" /> Previous
-          </Button>
-          <div className="flex gap-1.5">
-            {slides.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentSlide(i)}
-                className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                  i === currentSlide ? "bg-primary" : "bg-border"
-                }`}
-              />
-            ))}
+                    <Button variant="outline" size="sm" className="bg-white border-slate-200 text-slate-600 hover:bg-slate-50 gap-2 h-9 px-4 rounded-xl shadow-sm" onClick={toggleFullscreen}>
+                      <Maximize className="w-4 h-4" /> Fullscreen
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          {currentSlide < slides.length - 1 ? (
-            <Button onClick={() => setCurrentSlide(prev => prev + 1)} className="gap-2">
-              Next <ArrowRight className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button onClick={() => navigate("/teacher/quiz")} className="gap-2">
-              Start Quiz <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
+
+          {/* Sidebar Area */}
+          <div className="flex flex-col h-full gap-6">
+            {/* AI Tools Card */}
+            <Card className="border-primary/20 shadow-xl overflow-hidden flex flex-col h-[400px] bg-white">
+              <CardHeader className="p-4 bg-primary/5 border-b border-primary/10 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-primary" />
+                  </div>
+                  <CardTitle className="text-sm font-display font-bold">AI Teaching Tools</CardTitle>
+                </div>
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-[10px] font-bold uppercase tracking-wider text-primary hover:bg-primary/10" onClick={() => setSessionViewMode(sessionViewMode === "attendance" ? "tools" : "attendance")}>
+                  {sessionViewMode === "attendance" ? <X className="w-3.5 h-3.5 mr-1" /> : <Users className="w-3.5 h-3.5 mr-1" />}
+                  {sessionViewMode === "attendance" ? "Close" : "Attendance"}
+                </Button>
+              </CardHeader>
+              
+              <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
+                {sessionViewMode === "attendance" ? (
+                  <div className="flex flex-col h-full">
+                    <div className="p-4 bg-muted/30 flex items-center justify-between">
+                      <h4 className="text-xs font-bold">Student List</h4>
+                      <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={() => {
+                        const allPresent = Object.fromEntries(classStudents.map(s => [s.id, "present" as const]));
+                        setSessionAttendance(allPresent);
+                      }}>Mark All Present</Button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                      {classStudents.map(s => (
+                        <div key={s.id} className="flex items-center justify-between group">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-medium text-foreground">{s.name}</span>
+                            <span className="text-[10px] text-muted-foreground">Roll: {s.rollNo}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant={sessionAttendance[s.id] === "present" ? "default" : "outline"} className={`h-7 w-7 p-0 rounded-lg ${sessionAttendance[s.id] === "present" ? "bg-success hover:bg-success/90" : ""}`} onClick={() => setSessionAttendance(p => ({...p, [s.id]: "present"}))}>P</Button>
+                            <Button size="sm" variant={sessionAttendance[s.id] === "absent" ? "default" : "outline"} className={`h-7 w-7 p-0 rounded-lg ${sessionAttendance[s.id] === "absent" ? "bg-destructive hover:bg-destructive/90" : ""}`} onClick={() => setSessionAttendance(p => ({...p, [s.id]: "absent"}))}>A</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 border-t bg-white">
+                      <Button className="w-full h-10 shadow-sm" onClick={handleMarkAttendance} disabled={attendanceSubmitting}>Submit Attendance</Button>
+                    </div>
+                  </div>
+                ) : sessionViewMode === "ai_chat" ? (
+                  <div className="flex flex-col h-full">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {chatMessages.length === 0 && (
+                        <div className="text-center py-12 space-y-3">
+                          <Bot className="w-10 h-10 text-primary/30 mx-auto" />
+                          <p className="text-xs text-muted-foreground">Ask me anything about <br/><span className="font-bold text-foreground">{activeSession.topicName}</span></p>
+                        </div>
+                      )}
+                      {chatMessages.map((m, i) => (
+                        <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[85%] rounded-2xl px-3 py-2.5 text-xs shadow-sm ${m.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none"}`}>
+                            {m.text}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-4 border-t bg-white">
+                      <div className="relative">
+                        <Input placeholder="Type your question..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendChat()} className="pr-10 rounded-xl h-10 bg-muted/50 border-none focus-visible:ring-primary" />
+                        <Button size="icon" variant="ghost" className="absolute right-1 top-1 h-8 w-8 text-primary" onClick={handleSendChat}><Send className="w-4 h-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : sessionViewMode === "recommendations" ? (
+                  <div className="flex flex-col h-full">
+                    <div className="p-4 bg-teal-50/50 flex items-center justify-between border-b border-teal-100">
+                      <div className="flex items-center gap-2">
+                        <Youtube className="w-4 h-4 text-teal-600" />
+                        <h4 className="text-xs font-bold text-teal-900">Recommended Videos</h4>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSessionViewMode("tools")}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                      {recoLoading ? (
+                        <div className="flex flex-col items-center justify-center h-32 space-y-2">
+                          <RotateCcw className="w-5 h-5 animate-spin text-teal-600" />
+                          <p className="text-[10px] text-muted-foreground">Finding the best videos...</p>
+                        </div>
+                      ) : recommendations?.videos?.length ? (
+                        recommendations.videos.map((v, i) => (
+                          <div key={i} className="group p-2.5 rounded-xl border border-slate-100 hover:border-teal-200 hover:bg-teal-50/30 transition-all cursor-pointer" onClick={() => {
+                            if (v.url.includes("youtube.com") || v.url.includes("youtu.be")) {
+                              const vidId = v.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1];
+                              if (vidId) {
+                                setMainScreenContentUrl(`https://www.youtube.com/embed/${vidId}?autoplay=1`);
+                                setMainScreenTitle(v.title);
+                                setMainScreenDirectUrl(v.url);
+                              } else window.open(v.url, "_blank");
+                            } else {
+                              window.open(v.url, "_blank");
+                            }
+                          }}>
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
+                                <Play className="w-4 h-4 text-teal-600" />
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-teal-700">{v.title}</h5>
+                                <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{v.description || "Educational video content"}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-10 px-4">
+                          <Info className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-xs text-slate-500">No specific videos found. Try asking the AI Chatbot first!</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 border-t bg-slate-50">
+                      <Button variant="outline" className="w-full h-8 text-[10px] gap-2 border-teal-200 text-teal-700 hover:bg-teal-50" onClick={handleFetchRecommendations}>
+                        <RotateCcw className="w-3.5 h-3.5" /> Refresh Suggestions
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-2">
+                    <button className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-primary/5 transition-all group border border-transparent hover:border-primary/10" onClick={() => setSessionViewMode("ai_chat")}>
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform"><MessageCircle className="w-5 h-5" /></div>
+                      <div className="text-left"><p className="text-sm font-bold">AI Chatbot</p><p className="text-[10px] text-muted-foreground">Ask AI anything</p></div>
+                    </button>
+                    <button className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-teal-light transition-all group border border-transparent hover:border-teal-400/10" onClick={() => setSessionViewMode("recommendations")}>
+                      <div className="w-10 h-10 rounded-xl bg-teal-400/10 flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform"><Youtube className="w-5 h-5" /></div>
+                      <div className="text-left"><p className="text-sm font-bold">YouTube Recommends</p><p className="text-[10px] text-muted-foreground">Find related videos</p></div>
+                    </button>
+                    <button className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-purple-50 transition-all group border border-transparent hover:border-purple-200" onClick={() => toast.info("Launching Quiz...")}>
+                      <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform"><QrCode className="w-5 h-5" /></div>
+                      <div className="text-left"><p className="text-sm font-bold">Launch Quiz</p><p className="text-[10px] text-muted-foreground">QR-based quiz</p></div>
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Curriculum Materials Area */}
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">Curriculum Materials</p>
+              
+              <Card className="border-border shadow-sm hover:shadow-md transition-all cursor-pointer group bg-white" onClick={() => {
+                // Priority 1: Chapter-specific textbook chunk
+                if (sessionChapter?.textbookChunkPdfPath) {
+                  setMainScreenContentUrl(getMaterialViewerUrl(sessionChapter.textbookChunkPdfPath));
+                  setMainScreenTitle("Textbook Reference");
+                  setMainScreenDirectUrl(sessionChapter.textbookChunkPdfPath);
+                  return;
+                }
+                
+                // Priority 2: Subject materials fetched for this session or from global data
+                const subMaterial = sessionSubjectMaterials?.find((m: any) => 
+                  sameId(m.subject_id || m.subjectId, activeSession.subjectId)
+                ) || data.subjectMaterials?.find((m: any) => 
+                  sameId(m.subject_id || m.subjectId, activeSession.subjectId)
+                ) || sessionSubjectMaterials?.find((m: any) => 
+                  String(m.title || "").toLowerCase().includes(String(activeSession.subjectName || "").toLowerCase())
+                ) || data.subjectMaterials?.find((m: any) => 
+                  String(m.title || "").toLowerCase().includes(String(activeSession.subjectName || "").toLowerCase())
+                );
+
+                console.log("Subject Materials (Session):", sessionSubjectMaterials);
+                console.log("Subject Materials (Global):", data.subjectMaterials);
+                console.log("Active Session:", { subjectId: activeSession.subjectId, subjectName: activeSession.subjectName });
+                console.log("Found material:", subMaterial);
+
+                if (subMaterial) {
+                  const materialUrl = subMaterial.url || subMaterial.file_path;
+                  if (materialUrl) {
+                    setMainScreenContentUrl(getMaterialViewerUrl(materialUrl));
+                    setMainScreenTitle(subMaterial.title);
+                    setMainScreenDirectUrl(materialUrl);
+                    return;
+                  }
+                }
+
+                toast.info("No textbook found for this subject.");
+              }}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Book className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs leading-tight">Textbook</h3>
+                    <p className="text-[10px] text-muted-foreground">Open chapter material</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-sm hover:shadow-md transition-all cursor-pointer group bg-white" onClick={() => {
+                // Priority 1: Chapter-specific PPT from studyMaterials
+                const chapterPpt = data.studyMaterials?.find((m: any) => sameId(m.chapterId, activeSession.chapterId) && isPptxPath(m.url));
+                
+                // Priority 2: Global subject PPT from subjectMaterials
+                const subjectPpt = sessionSubjectMaterials?.find((m: any) => isPptxPath(m.url || m.file_path)) || 
+                                  data.subjectMaterials?.find((m: any) => sameId(m.subject_id || m.subjectId, activeSession.subjectId) && isPptxPath(m.url));
+
+                const ppt = chapterPpt || subjectPpt;
+
+                if (ppt) {
+                  const pptUrl = ppt.url || ppt.file_path;
+                  setMainScreenContentUrl(getMaterialViewerUrl(pptUrl));
+                  setMainScreenTitle(ppt.title || "Subject Presentation");
+                  setMainScreenDirectUrl(pptUrl);
+                } else {
+                  toast.info("No PPT found for this lesson.");
+                }
+              }}>
+                <CardContent className="p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <FileText className="w-5 h-5 text-amber" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xs leading-tight">Presentation</h3>
+                    <p className="text-[10px] text-muted-foreground">Open topic PPT</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

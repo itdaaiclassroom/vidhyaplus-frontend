@@ -14,7 +14,7 @@ function resolveApiBase(): string {
   return "";
 }
 const API_BASE = resolveApiBase();
-const AI_API_BASE = import.meta.env.VITE_AI_API_URL || "http://localhost:8001";
+// const AI_API_BASE = import.meta.env.VITE_AI_API_URL || "http://localhost:8001";
 
 
 
@@ -137,6 +137,14 @@ export interface AllDataResponse {
     classId?: string | null;
     teacherId?: string | null;
   }>;
+  subjectMaterials?: Array<{
+    id: string;
+    subject_id: string;
+    title: string;
+    url: string;
+    content_type?: string;
+    created_at?: string;
+  }>;
 }
 
 export interface PrincipalStudent {
@@ -168,6 +176,9 @@ export interface PrincipalStudent {
   dob?: string;
   gender?: string;
   disabilities?: string;
+  score?: number;
+  name?: string;
+  rollNo?: number;
 }
 
 export interface PrincipalTeacher {
@@ -896,12 +907,13 @@ export async function getAiRecommendations(payload: {
   videos: Array<{ title: string; url: string; description?: string }>;
   resources: Array<{ title: string; url: string; snippet?: string }>;
 }> {
-  const res = await fetch(`${AI_API_BASE}/recommend`, {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/ai/recommend`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`AI Recommendation service returned ${res.status}`);
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
@@ -912,12 +924,13 @@ export async function askAiAssistant(payload: {
   subject?: string;
   chapter?: string;
 }): Promise<{ question: string; answer: string }> {
-  const res = await fetch(`${AI_API_BASE}/ask`, {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/ai/ask`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`AI Assistant service returned ${res.status}`);
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
@@ -936,6 +949,37 @@ export async function uploadSubjectMaterial(subjectId: string, payload: { title:
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function uploadTopicPpt(topicId: string, payload: { title: string; file: string; filename: string }): Promise<{ ok: boolean; path: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/ppt`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteSubjectMaterial(id: string): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/materials/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteTopicPpt(topicId: string): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/ppt`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();

@@ -18,6 +18,13 @@ const SectionManagement: React.FC<SectionManagementProps> = ({ onViewStudents })
   const { grades, sections, loading, refetchSections } = usePrincipal();
   
   // Modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState("");
+  const [newSectionCode, setNewSectionCode] = useState("");
+  const [editingSection, setEditingSection] = useState<PrincipalSection | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleAddSection = async () => {
     if (!selectedGrade || !newSectionCode.trim()) {

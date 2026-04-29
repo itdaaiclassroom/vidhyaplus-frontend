@@ -70,6 +70,7 @@ const emptyData: AllDataResponse = {
   liveQuizAnswers: [],
   timetables: [],
   coCurricularActivities: [],
+  subjectMaterials: [],
 };
 
 function toAppData(api: AllDataResponse | null): AllDataResponse {
@@ -104,6 +105,7 @@ function toAppData(api: AllDataResponse | null): AllDataResponse {
     liveQuizAnswers: api.liveQuizAnswers ?? emptyData.liveQuizAnswers,
     timetables: api.timetables ?? emptyData.timetables,
     coCurricularActivities: api.coCurricularActivities ?? emptyData.coCurricularActivities,
+    subjectMaterials: api.subjectMaterials ?? emptyData.subjectMaterials,
   };
 }
 

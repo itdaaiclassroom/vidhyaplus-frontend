@@ -442,7 +442,7 @@ const ModernAdminDashboard = () => {
       )}
 
       {/* Live Sessions Monitor Toggle Button (Floating) */}
-      <div className="fixed bottom-8 right-[360px] z-50">
+      <div className={`fixed bottom-8 ${activeTab === 'overview' ? 'right-[360px]' : 'right-8'} z-50 transition-all duration-300`}>
         <Button 
           className="rounded-full h-14 w-14 shadow-2xl shadow-primary/40 bg-primary hover:bg-primary-hover"
           onClick={() => setShowLiveMonitor(!showLiveMonitor)}
@@ -453,7 +453,7 @@ const ModernAdminDashboard = () => {
 
       {/* Live Monitor Panel */}
       {showLiveMonitor && (
-        <Card className="fixed bottom-24 right-[360px] w-96 z-50 shadow-2xl border-0 rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4">
+        <Card className={`fixed bottom-24 ${activeTab === 'overview' ? 'right-[360px]' : 'right-8'} w-96 z-50 shadow-2xl border-0 rounded-2xl overflow-hidden animate-in slide-in-from-bottom-4 transition-all duration-300`}>
           <CardHeader className="bg-primary text-white flex flex-row items-center justify-between py-4">
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Radio className="w-4 h-4 animate-pulse" /> Live Sessions ({activeSessions.length})

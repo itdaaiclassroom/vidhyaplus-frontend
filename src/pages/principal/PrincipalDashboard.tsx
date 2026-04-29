@@ -14,7 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck } from "lucide-react";
+import { 
+  BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, 
+  LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck,
+  UserPlus, FileUp, Layers, Contact, Menu, PanelLeftOpen, PanelLeftClose 
+} from "lucide-react";
+import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrincipal, PrincipalProvider } from "@/contexts/PrincipalContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
@@ -77,7 +83,8 @@ const navigationGroups = [
 ];
 
 const PrincipalDashboardInner: React.FC = () => {
-  const { students: realStudents, teachers: realTeachers, grades, sections, loading } = usePrincipal();
+  const { schoolId } = useAuth();
+  const { students: realStudents, teachers: realTeachers, grades, sections, loading, refetch } = usePrincipal();
   
   const [openGroups, setOpenGroups] = useState<string[]>(["Dashboard", "Student Management"]);
   const toggleGroup = (title: string) => {
@@ -89,11 +96,9 @@ const PrincipalDashboardInner: React.FC = () => {
   const [teacherFilter, setTeacherFilter] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
 
-  const sectionsForFilter = React.useMemo(() => {
-    if (gradeFilter === "all") return [];
-    return sections.filter(s => s.grade_id === Number(gradeFilter));
-  }, [sections, gradeFilter]);
+  const [sectionsForFilter, setSectionsForFilter] = useState<PrincipalSection[]>([]);
 
   const [selectedStudent, setSelectedStudent] = useState<PrincipalStudent | null>(null);
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<PrincipalStudent | null>(null);
@@ -102,8 +107,24 @@ const PrincipalDashboardInner: React.FC = () => {
   const [pendingClassFilter, setPendingClassFilter] = useState<string | null>(null);
   const [assignTeacher, setAssignTeacher] = useState<PrincipalTeacher | null>(null);
   const [subjectsList, setSubjectsList] = useState<any[]>([]);
-  const [teacherStats, setTeacherStats] = useState<{ total_teachers: number, present_today: number, absent_today: number, leave_today: number, present_list: any[], absent_list: any[], leave_list: any[] } | null>(null);
-  const [studentStats, setStudentStats] = useState<{ total_students: number, present_today: number, absent_today: number, class_breakdown: any } | null>(null);
+  const [teacherStats, setTeacherStats] = useState<{ 
+    total_teachers: number, 
+    present_today: number, 
+    absent_today: number, 
+    leave_today: number, 
+    not_marked_today: number,
+    present_list: any[], 
+    absent_list: any[], 
+    leave_list: any[],
+    not_marked_list: any[]
+  } | null>(null);
+  const [studentStats, setStudentStats] = useState<{ 
+    total_students: number, 
+    present_today: number, 
+    absent_today: number, 
+    not_marked_today: number,
+    class_breakdown: any 
+  } | null>(null);
 
   // Drill-down state
   const [drillDownType, setDrillDownType] = useState<"teacher" | "student" | null>(null);
@@ -114,25 +135,22 @@ const PrincipalDashboardInner: React.FC = () => {
 
   const loadSchoolData = () => {
     if (!schoolId) return;
-    setLoading(true);
+    setIsStatsLoading(true);
+    
+    // Core data is now managed by PrincipalContext
+    refetch();
+
+    // Stats and subjects are fetched locally
     Promise.all([
-      fetchPrincipalStudents(schoolId),
-      fetchPrincipalTeachers(schoolId),
-      fetchPrincipalGrades(),
       fetchPrincipalSubjects().catch(() => []),
       fetchTeacherAttendanceSummary(schoolId).catch(() => null),
       fetchStudentAttendanceSummary(schoolId).catch(() => null)
-    ]).then(([sData, tData, gData, subData, tStats, sStats]) => {
-      setRealStudents(sData);
-      setRealTeachers(tData);
-      setGrades(gData.grades);
+    ]).then(([subData, tStats, sStats]) => {
       setSubjectsList(Array.isArray(subData) ? subData : []);
       setTeacherStats(tStats);
       setStudentStats(sStats);
-      console.log("PRINCIPAL DASHBOARD DATA LOADED:", { tStats, sStats, teacherCount: tData.length, studentCount: sData.length });
-    }).catch(console.error).finally(() => setLoading(false));
-
-
+      console.log("PRINCIPAL DASHBOARD STATS LOADED:", { tStats, sStats });
+    }).catch(console.error).finally(() => setIsStatsLoading(false));
   };
 
   useEffect(() => {
@@ -141,12 +159,7 @@ const PrincipalDashboardInner: React.FC = () => {
 
   const refreshTeachers = () => {
     if (!schoolId) return;
-    fetchPrincipalTeachers(schoolId)
-      .then(tData => {
-        console.log("REFRESHED TEACHERS:", tData);
-        setRealTeachers(tData);
-      })
-      .catch(console.error);
+    refetch(); // Use context refetch
   };
 
   useEffect(() => {
@@ -217,7 +230,7 @@ const PrincipalDashboardInner: React.FC = () => {
       : true;
   });
 
-  if (loading) {
+  if (loading || (isStatsLoading && !teacherStats)) {
     return (
       <DashboardLayout title="Principal Dashboard">
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -404,18 +417,26 @@ const PrincipalDashboardInner: React.FC = () => {
                         <div 
                           className="bg-success h-full transition-all duration-1000" 
                           style={{ width: `${(teacherStats.present_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                          title="Present"
                         />
                         <div 
                           className="bg-amber h-full transition-all duration-1000" 
                           style={{ width: `${(teacherStats.leave_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                          title="On Leave"
                         />
                         <div 
                           className="bg-destructive h-full transition-all duration-1000" 
                           style={{ width: `${(teacherStats.absent_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                          title="Absent"
+                        />
+                        <div 
+                          className="bg-slate-300 h-full transition-all duration-1000" 
+                          style={{ width: `${(teacherStats.not_marked_today / (teacherStats.total_teachers || 1)) * 100}%` }}
+                          title="Not Marked"
                         />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                         <div 
                           className="p-2 rounded-lg bg-success-light/30 border border-success/10 cursor-pointer hover:bg-success-light/50 transition-colors"
                           onClick={() => { setDrillDownType("teacher"); setDrillDownStatus("present"); }}
@@ -436,6 +457,13 @@ const PrincipalDashboardInner: React.FC = () => {
                         >
                           <p className="text-xs font-bold text-destructive">{teacherStats.absent_today}</p>
                           <p className="text-[10px] text-muted-foreground font-medium">Absent</p>
+                        </div>
+                        <div 
+                          className="p-2 rounded-lg bg-slate-100 border border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors"
+                          onClick={() => { setDrillDownType("teacher"); setDrillDownStatus("not_marked"); }}
+                        >
+                          <p className="text-xs font-bold text-slate-600">{teacherStats.not_marked_today}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">Not Marked</p>
                         </div>
                       </div>
                     </div>
@@ -479,7 +507,8 @@ const PrincipalDashboardInner: React.FC = () => {
                             <tr className="text-muted-foreground border-b border-border">
                               <th className="text-left py-1 font-medium">Class</th>
                               <th className="text-right py-1 font-medium">Present</th>
-                              <th className="text-right py-1 font-medium">Status</th>
+                              <th className="text-right py-1 font-medium">Absent</th>
+                              <th className="text-right py-1 font-medium">Pending</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -493,10 +522,11 @@ const PrincipalDashboardInner: React.FC = () => {
                                   onClick={() => { setDrillDownType("student"); setDrillDownClass(className); }}
                                 >
                                   <td className="py-2 font-medium">{className}</td>
-                                  <td className="py-2 text-right">{stats.present}/{total}</td>
+                                  <td className="py-2 text-right font-bold text-success">{stats.present}</td>
+                                  <td className="py-2 text-right font-bold text-destructive">{stats.absent}</td>
                                   <td className="py-2 text-right">
-                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${pct > 80 ? 'bg-success-light text-success' : 'bg-amber-light text-amber'}`}>
-                                      {pct}%
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500">
+                                      {stats.not_marked}
                                     </span>
                                   </td>
                                 </tr>
@@ -524,7 +554,7 @@ const PrincipalDashboardInner: React.FC = () => {
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 capitalize">
                     {drillDownType === "teacher" ? (
-                      <><Users className="w-5 h-5 text-primary" /> {drillDownStatus} Teachers</>
+                      <><Users className="w-5 h-5 text-primary" /> {drillDownStatus?.replace('_', ' ')} Teachers</>
                     ) : (
                       <><CalendarCheck className="w-5 h-5 text-info" /> {drillDownClass} Attendance</>
                     )}
@@ -535,7 +565,8 @@ const PrincipalDashboardInner: React.FC = () => {
                     <div className="grid grid-cols-1 gap-3">
                       {(drillDownStatus === "present" ? (teacherStats.present_list || []) : 
                         drillDownStatus === "absent" ? (teacherStats.absent_list || []) : 
-                        (teacherStats.leave_list || [])).map((t: any) => (
+                        drillDownStatus === "leave" ? (teacherStats.leave_list || []) :
+                        (teacherStats.not_marked_list || [])).map((t: any) => (
                         <div key={t.id} className="p-3 rounded-lg border bg-secondary/10 flex justify-between items-center">
                           <div>
                             <p className="font-bold text-sm">{t.full_name}</p>
@@ -544,15 +575,17 @@ const PrincipalDashboardInner: React.FC = () => {
                           <Badge variant="outline" className={
                             drillDownStatus === "present" ? "bg-success-light text-success border-success/20" :
                             drillDownStatus === "absent" ? "bg-red-50 text-destructive border-red-100" :
-                            "bg-amber-light text-amber border-amber/20"
+                            drillDownStatus === "leave" ? "bg-amber-light text-amber border-amber/20" :
+                            "bg-slate-100 text-slate-500 border-slate-200"
                           }>
-                            {drillDownStatus}
+                            {drillDownStatus?.replace('_', ' ')}
                           </Badge>
                         </div>
                       ))}
                       {((drillDownStatus === "present" ? (teacherStats.present_list || []) : 
                          drillDownStatus === "absent" ? (teacherStats.absent_list || []) : 
-                         (teacherStats.leave_list || [])).length === 0) && (
+                         drillDownStatus === "leave" ? (teacherStats.leave_list || []) :
+                         (teacherStats.not_marked_list || [])).length === 0) && (
                         <p className="text-center py-10 text-muted-foreground italic">No teachers found in this category.</p>
                       )}
                     </div>
@@ -565,6 +598,8 @@ const PrincipalDashboardInner: React.FC = () => {
                           <span className="font-bold text-success">{(studentStats.class_breakdown[drillDownClass].present || 0)}</span> Present
                           <span className="mx-2 text-muted-foreground">|</span>
                           <span className="font-bold text-destructive">{(studentStats.class_breakdown[drillDownClass].absent || 0)}</span> Absent
+                          <span className="mx-2 text-muted-foreground">|</span>
+                          <span className="font-bold text-slate-500">{(studentStats.class_breakdown[drillDownClass].not_marked || 0)}</span> Pending
                         </div>
                         <Badge className="bg-primary text-white">Total: {(studentStats.class_breakdown[drillDownClass].students || []).length}</Badge>
                       </div>
@@ -582,8 +617,12 @@ const PrincipalDashboardInner: React.FC = () => {
                               <td className="p-2 font-medium">{s.roll_no || 'N/A'}</td>
                               <td className="p-2">{s.name}</td>
                               <td className="p-2 text-right">
-                                <Badge className={s.status === 'present' ? 'bg-success text-white' : 'bg-destructive text-white'}>
-                                  {s.status}
+                                <Badge className={
+                                  s.status === 'present' ? 'bg-success text-white' : 
+                                  s.status === 'absent' ? 'bg-destructive text-white' : 
+                                  'bg-slate-400 text-white'
+                                }>
+                                  {s.status?.replace('_', ' ')}
                                 </Badge>
                               </td>
                             </tr>
