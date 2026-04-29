@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
@@ -192,7 +193,12 @@ const AdminDashboard = () => {
       ];
   }, [combinedClassStatus]);
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+  return localStorage.getItem("adminTab") || "overview";
+});
+  useEffect(() => {
+  localStorage.setItem("adminTab", activeTab);
+}, [activeTab]);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
