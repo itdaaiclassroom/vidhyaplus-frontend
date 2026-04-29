@@ -171,8 +171,25 @@ const TeacherDashboard = () => {
   const urlClass = searchParams.get("class") || "";
   const urlSubject = searchParams.get("subject") || "";
 
-  const [selectedClass, setSelectedClass] = useState<string>(urlClass);
-  const [selectedSubject, setSelectedSubject] = useState<string>(urlSubject);
+  const [selectedClass, setSelectedClass] = useState<string>(() => {
+  return urlClass || localStorage.getItem("teacherClass") || "";
+});
+
+const [selectedSubject, setSelectedSubject] = useState<string>(() => {
+  return urlSubject || localStorage.getItem("teacherSubject") || "";
+});
+
+  useEffect(() => {
+  if (selectedClass) {
+    localStorage.setItem("teacherClass", selectedClass);
+  }
+}, [selectedClass]);
+
+useEffect(() => {
+  if (selectedSubject) {
+    localStorage.setItem("teacherSubject", selectedSubject);
+  }
+}, [selectedSubject]);
 
   useEffect(() => {
     setSelectedClass(urlClass);
