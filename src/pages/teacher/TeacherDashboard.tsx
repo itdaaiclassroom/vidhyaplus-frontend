@@ -15,7 +15,7 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, fetchSchoolStudentsDynamic, fetchTeacherStudents } from "@/api/client";
+import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, fetchPrincipalStudents, fetchTodayTeacherAttendance, markTeacherSelfAttendance, fetchTeacherAssignments } from "@/api/client";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -224,7 +224,7 @@ const TeacherDashboard = () => {
 
   const [activeSession, setActiveSession] = useState<LiveSessionLike | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
-  const [sessionAttendance, setSessionAttendance] = useState<Record<string, boolean>>({});
+  const [sessionAttendance, setSessionAttendance] = useState<Record<string, "present" | "absent">>({});
   const [attendanceMarked, setAttendanceMarked] = useState(false);
   const [sessionQuizDone, setSessionQuizDone] = useState(false);
   const [materialPreviewOpen, setMaterialPreviewOpen] = useState(false);
@@ -427,35 +427,7 @@ const TeacherDashboard = () => {
     setActivities(filtered);
   }, [coCurricularActivities, selectedClass]);
 
-  const [dynamicStudents, setDynamicStudents] = useState<any[] | null>(null);
-
-  useEffect(() => {
-    const loadStudents = async () => {
-      const schoolId = localStorage.getItem("auth.schoolId");
-      if (!schoolId) return;
-      try {
-        const data = await fetchTeacherStudents(schoolId);
-        setDynamicStudents(data.map(s => ({
-          ...s,
-          id: String(s.id),
-          // Full display name from first_name + last_name
-          name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || s.name || 'Unknown',
-          // roll_no from backend (e.g. "2601070022")
-          rollNo: s.roll_no || s.rollNo,
-          // section_id is the class identifier used for filtering against selectedClass
-          classId: String(s.section_id),
-          // grade from section join
-          grade: s.grade_id,
-          section: s.section_code,
-          score: s.score ?? 0,
-          // keep qr_codes array and profile image as-is from backend
-        })));
-      } catch (err) {
-        console.error("Failed to fetch teacher students:", err);
-      }
-    };
-    loadStudents();
-  }, []);
+  const [dynamicStudents] = useState<any[] | null>(null);
 
   const classStudents = useMemo(() => {
     const sourceStudents = dynamicStudents !== null ? dynamicStudents : students;
@@ -960,19 +932,10 @@ const TeacherDashboard = () => {
       setActiveSession(session);
       // Check for resume data
       const resumeData = getResumeData(topic.id);
-      if (resumeData) {
-        setSessionTime(resumeData.elapsedTime);
-        localStorage.removeItem(`pausedSession_${topic.id}`);
-        toast.info(`Resuming session from ${Math.floor(resumeData.elapsedTime / 60)}:${String(resumeData.elapsedTime % 60).padStart(2, "0")}`);
-      } else {
-        setSessionTime(0);
-      }
-      setSessionPaused(false);
-      setSessionViewMode("tools");
-      setSessionAttendance(Object.fromEntries(classStudents.map((s) => [s.id, false])));
-      setAttendanceMarked(false);
-      setSessionQuizDone(false);
-      liveQuizCheckpoint("live_session:created", { liveSessionId: session.id, classId: session.classId });
+      
+      // NAVIGATE to the dedicated lesson page
+      navigate(`/teacher/lesson?sessionId=${created.id}`, { state: { session } });
+      
       refetch?.();
     } catch (e) {
       liveQuizCheckpoint("live_session:error", { message: e instanceof Error ? e.message : String(e) });
@@ -1077,12 +1040,14 @@ const TeacherDashboard = () => {
   const handleMarkAttendance = async () => {
     if (!activeSession || !classStudents.length) return;
     const date = getLocalDateYmd();
-    const entries = classStudents.map((s) => ({
-      studentId: s.id,
-      status: (sessionAttendance[s.id] ? "present" : "absent") as "present" | "absent",
-    }));
+    const entries = classStudents
+      .filter((s) => sessionAttendance[s.id] !== undefined)
+      .map((s) => ({
+        studentId: s.id,
+        status: sessionAttendance[s.id] as "present" | "absent",
+      }));
     const presentCount = entries.filter((e) => e.status === "present").length;
-    const absentCount = entries.length - presentCount;
+    const absentCount = entries.filter((e) => e.status === "absent").length;
     setAttendanceSubmitting(true);
     liveQuizCheckpoint("attendance:submit", {
       liveSessionId: activeSession.id,
@@ -1536,7 +1501,7 @@ const TeacherDashboard = () => {
                 <Card className="shadow-card border-border">
                   <CardHeader className="pb-2">
                     <CardTitle className="font-display text-sm flex items-center gap-2">
-                      <Users className="w-4 h-4 text-info" /> Attendance ({Object.values(sessionAttendance).filter(Boolean).length}/{classStudents.length})
+                      <Users className="w-4 h-4 text-info" /> Attendance ({Object.values(sessionAttendance).filter(v => v === 'present').length}/{classStudents.length})
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1547,7 +1512,7 @@ const TeacherDashboard = () => {
                           variant="outline"
                           className="h-7 text-xs"
                           onClick={() => {
-                            const allPresent = Object.fromEntries(classStudents.map((s) => [s.id, true]));
+                            const allPresent = Object.fromEntries(classStudents.map((s) => [s.id, 'present' as const]));
                             setSessionAttendance(allPresent);
                           }}
                         >
@@ -1559,18 +1524,34 @@ const TeacherDashboard = () => {
                       </div>
                     )}
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                      {classStudents.map((s) => (
-                        <label key={s.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-secondary cursor-pointer transition-colors">
-                          <Checkbox
-                            checked={sessionAttendance[s.id] || false}
-                            onCheckedChange={(checked) => {
-                              setSessionAttendance((prev) => ({ ...prev, [s.id]: !!checked }));
-                            }}
-                            disabled={attendanceMarked}
-                          />
-                          <span className="text-xs text-foreground">{s.rollNo}. {s.name}</span>
-                        </label>
-                      ))}
+                      {classStudents.map((s) => {
+                        const status = sessionAttendance[s.id];
+                        return (
+                          <div key={s.id} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-secondary transition-colors">
+                            <span className="text-xs text-foreground font-medium">{s.rollNo}. {s.name}</span>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant={status === "present" ? "default" : "outline"}
+                                className={`h-7 w-7 p-0 rounded-full transition-all ${status === "present" ? "bg-success hover:bg-success/90 shadow-sm" : "hover:bg-success/10 hover:text-success"}`}
+                                disabled={attendanceMarked}
+                                onClick={() => setSessionAttendance(prev => ({ ...prev, [s.id]: status === "present" ? undefined : "present" } as any))}
+                              >
+                                <CheckCircle2 className={`w-3.5 h-3.5 ${status === "present" ? "text-white" : ""}`} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={status === "absent" ? "default" : "outline"}
+                                className={`h-7 w-7 p-0 rounded-full transition-all ${status === "absent" ? "bg-destructive hover:bg-destructive/90 shadow-sm" : "hover:bg-destructive/10 hover:text-destructive"}`}
+                                disabled={attendanceMarked}
+                                onClick={() => setSessionAttendance(prev => ({ ...prev, [s.id]: status === "absent" ? undefined : "absent" } as any))}
+                              >
+                                <XCircle className={`w-3.5 h-3.5 ${status === "absent" ? "text-white" : ""}`} />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                     {!attendanceMarked && (
                       <Button size="sm" className="w-full mt-3" onClick={handleMarkAttendance} disabled={attendanceSubmitting}>

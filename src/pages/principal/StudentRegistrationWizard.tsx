@@ -8,7 +8,7 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrincipal } from "@/contexts/PrincipalContext";
-import { registerStudent } from "@/api/client";
+import { registerStudent, PrincipalSection } from "@/api/client";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 

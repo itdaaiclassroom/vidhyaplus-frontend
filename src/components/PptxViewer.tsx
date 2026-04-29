@@ -97,14 +97,6 @@ export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH,
     };
   }, [src]);
 
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-sm p-6 ${className}`}>
-        {error}
-      </div>
-    );
-  }
-
   const canGoPrev = totalSlides > 0 && currentSlide > 0;
   const canGoNext = totalSlides > 0 && currentSlide < totalSlides - 1;
 
@@ -122,6 +114,14 @@ export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH,
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [loading, totalSlides, canGoPrev, canGoNext, goTo]);
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-sm p-6 ${className}`}>
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col ${className}`}>
