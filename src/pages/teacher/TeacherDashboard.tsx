@@ -171,30 +171,8 @@ const TeacherDashboard = () => {
   const urlClass = searchParams.get("class") || "";
   const urlSubject = searchParams.get("subject") || "";
 
-  const [selectedClass, setSelectedClass] = useState<string>(() => {
-  return urlClass || localStorage.getItem("teacherClass") || "";
-});
-
-const [selectedSubject, setSelectedSubject] = useState<string>(() => {
-  return urlSubject || localStorage.getItem("teacherSubject") || "";
-});
-
-  useEffect(() => {
-  if (selectedClass) {
-    localStorage.setItem("teacherClass", selectedClass);
-  }
-}, [selectedClass]);
-
-useEffect(() => {
-  if (selectedSubject) {
-    localStorage.setItem("teacherSubject", selectedSubject);
-  }
-}, [selectedSubject]);
-
-  useEffect(() => {
-    setSelectedClass(urlClass);
-    setSelectedSubject(urlSubject);
-  }, [urlClass, urlSubject]);
+  const [selectedClass, setSelectedClass] = useState<string>(urlClass);
+  const [selectedSubject, setSelectedSubject] = useState<string>(urlSubject);
 
   const currentClass = useMemo(() => classes.find((c) => c.id === selectedClass), [classes, selectedClass]);
   const grade = currentClass?.grade ?? 8;
