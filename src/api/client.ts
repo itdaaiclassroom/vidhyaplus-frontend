@@ -745,7 +745,7 @@ export async function adminLogin(body: { email: string; password: string }): Pro
 
 export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/auth/login/teacher`, {
+  const res = await fetch(`${API_BASE}/api/login/teacher`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

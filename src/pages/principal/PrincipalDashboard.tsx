@@ -16,6 +16,8 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePrincipal, PrincipalProvider } from "@/contexts/PrincipalContext";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 import { 
   fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
   fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, 
@@ -41,17 +43,58 @@ const InfoItem = ({ label, value, isCapitalize }: { label: string, value: string
   </div>
 );
 
-const PrincipalDashboard: React.FC = () => {
-  const { schoolId } = useAuth();
+const navigationGroups = [
+  {
+    title: "Dashboard",
+    items: [
+      { value: "overview", label: "Overview", icon: BarChart3 }
+    ]
+  },
+  {
+    title: "Student Management",
+    items: [
+      { value: "student-info", label: "Student Info", icon: Users },
+      { value: "register", label: "Student Registration", icon: UserPlus },
+      { value: "bulk-upload", label: "Bulk Registration", icon: FileUp },
+      { value: "sections", label: "Section Management", icon: Layers }
+    ]
+  },
+  {
+    title: "Teacher Management",
+    items: [
+      { value: "teacher-info", label: "Teacher Info", icon: Contact },
+      { value: "teacher-registration", label: "Teacher Registration", icon: UserPlus },
+      { value: "teacher-attendance", label: "Teacher Attendance", icon: CalendarCheck }
+    ]
+  },
+  {
+    title: "Tools & Utilities",
+    items: [
+      { value: "id-cards", label: "ID Cards Bulk", icon: Printer },
+      { value: "cocurricular", label: "Co-Curricular", icon: Trophy }
+    ]
+  }
+];
+
+const PrincipalDashboardInner: React.FC = () => {
+  const { students: realStudents, teachers: realTeachers, grades, sections, loading } = usePrincipal();
+  
+  const [openGroups, setOpenGroups] = useState<string[]>(["Dashboard", "Student Management"]);
+  const toggleGroup = (title: string) => {
+    setOpenGroups(prev => prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]);
+  };
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [studentFilterId, setStudentFilterId] = useState<string>("");
   const [teacherFilter, setTeacherFilter] = useState<string>("");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
-  const [grades, setGrades] = useState<PrincipalGrade[]>([]);
-  const [sectionsForFilter, setSectionsForFilter] = useState<PrincipalSection[]>([]);
-  const [realStudents, setRealStudents] = useState<PrincipalStudent[]>([]);
-  const [realTeachers, setRealTeachers] = useState<PrincipalTeacher[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const sectionsForFilter = React.useMemo(() => {
+    if (gradeFilter === "all") return [];
+    return sections.filter(s => s.grade_id === Number(gradeFilter));
+  }, [sections, gradeFilter]);
+
   const [selectedStudent, setSelectedStudent] = useState<PrincipalStudent | null>(null);
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<PrincipalStudent | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<PrincipalTeacher | null>(null);
@@ -188,29 +231,114 @@ const PrincipalDashboard: React.FC = () => {
   return (
     <DashboardLayout title="Principal Dashboard">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <div className="grid md:grid-cols-4 gap-6">
-        <aside className="w-[200px] flex-shrink-0">
-          <TabsList className="flex-col h-auto gap-2 w-full bg-transparent p-0">
-            <TabsTrigger value="overview" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Overview</TabsTrigger>
-            <TabsTrigger value="register" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Registration</TabsTrigger>
-            <TabsTrigger value="teacher-registration" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Registration</TabsTrigger>
-            <TabsTrigger value="teacher-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Info</TabsTrigger>
-            <TabsTrigger value="teacher-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Teacher Attendance</TabsTrigger>
-            <TabsTrigger value="student-info" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Student Info</TabsTrigger>
-            <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
-            <TabsTrigger value="qrcodes" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">QR Codes</TabsTrigger>
-            <TabsTrigger value="sections" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Section Management</TabsTrigger>
-            <TabsTrigger value="id-cards" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">ID Cards Bulk</TabsTrigger>
-            <TabsTrigger value="bulk-upload" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Bulk Registration</TabsTrigger>
-          </TabsList>
-        </aside>
+        <div className="flex flex-col md:flex-row gap-6 relative">
+          
+          {/* Mobile Sidebar Toggle */}
+          <div className="md:hidden flex items-center justify-between bg-card p-4 rounded-lg shadow-sm mb-4 border border-border print:hidden">
+            <span className="font-semibold text-foreground">Navigation</span>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon"><Menu className="w-5 h-5" /></Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0 flex flex-col h-full bg-card">
+                <div className="p-4 border-b">
+                  <span className="font-display font-semibold text-foreground text-lg">Menu</span>
+                </div>
+                <ScrollArea className="flex-1 py-4">
+                  <TabsList className="flex flex-col h-auto w-full bg-transparent p-0 space-y-6">
+                    {navigationGroups.map((group, i) => {
+                      const isOpen = openGroups.includes(group.title);
+                      return (
+                        <div key={i} className="w-full px-3">
+                          <div 
+                            className="px-4 mb-2 flex items-center justify-between cursor-pointer hover:bg-secondary/50 py-1.5 rounded-md transition-colors"
+                            onClick={() => toggleGroup(group.title)}
+                          >
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground select-none">{group.title}</h4>
+                            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isOpen && "-rotate-90")} />
+                          </div>
+                          {isOpen && (
+                            <div className="space-y-1 overflow-hidden">
+                              {group.items.map(item => (
+                                <TabsTrigger 
+                                  key={item.value} 
+                                  value={item.value} 
+                                  className="w-full flex items-center justify-start gap-3 rounded-lg px-4 py-2.5 transition-colors data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary"
+                                >
+                                  <item.icon className="w-5 h-5 opacity-80" />
+                                  <span className="font-medium text-sm">{item.label}</span>
+                                </TabsTrigger>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </TabsList>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+          </div>
 
-        <section className="md:col-span-3">
-          <TabsContent value="overview" className="space-y-4">
+          {/* Desktop Sidebar */}
+          <aside className={cn(
+            "hidden md:flex flex-col bg-card rounded-xl border shadow-sm transition-all duration-300 sticky top-[80px]",
+            isSidebarCollapsed ? "w-[80px]" : "w-[260px]",
+            "h-[calc(100vh-100px)] flex-shrink-0 z-10"
+          )}>
+            <div className="p-4 border-b flex justify-between items-center h-[60px]">
+              {!isSidebarCollapsed && <span className="font-display font-semibold text-foreground truncate">Menu</span>}
+              <Button variant="ghost" size="icon" className={cn("shrink-0", isSidebarCollapsed && "mx-auto")} onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+                {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+              </Button>
+            </div>
+            <ScrollArea className="flex-1 py-4 hide-scrollbar">
+              <TabsList className="flex flex-col h-auto w-full bg-transparent p-0 space-y-6">
+                {navigationGroups.map((group, i) => {
+                  const isOpen = isSidebarCollapsed || openGroups.includes(group.title);
+                  return (
+                    <div key={i} className="w-full px-3">
+                      {!isSidebarCollapsed && (
+                        <div 
+                          className="px-4 mb-2 flex items-center justify-between cursor-pointer hover:bg-secondary/50 py-1.5 rounded-md transition-colors"
+                          onClick={() => toggleGroup(group.title)}
+                        >
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground truncate select-none">{group.title}</h4>
+                          <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", !isOpen && "-rotate-90")} />
+                        </div>
+                      )}
+                      {isOpen && (
+                        <div className="space-y-1 overflow-hidden">
+                          {group.items.map(item => (
+                            <TabsTrigger 
+                              key={item.value} 
+                              value={item.value} 
+                              className={cn(
+                                "w-full flex items-center gap-3 rounded-lg transition-colors data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary",
+                                isSidebarCollapsed ? "justify-center px-0 py-3" : "justify-start px-4 py-2.5"
+                              )}
+                              title={isSidebarCollapsed ? item.label : undefined}
+                            >
+                              <item.icon className={cn("w-5 h-5 shrink-0", isSidebarCollapsed ? "" : "opacity-80")} />
+                              {!isSidebarCollapsed && <span className="font-medium text-sm truncate">{item.label}</span>}
+                            </TabsTrigger>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </TabsList>
+            </ScrollArea>
+          </aside>
+
+          {/* Main Content Area */}
+          <section className="flex-1 min-w-0">
+            <TabsContent value="overview" className="space-y-4 mt-0">
             <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" /> Overview
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="gradient-primary text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("student-info")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase opacity-80">Total Students</CardTitle>
@@ -219,20 +347,31 @@ const PrincipalDashboard: React.FC = () => {
                   <div className="text-3xl font-bold">{realStudents.length}</div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border shadow-sm cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("teacher-info")}>
+
+              <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("teacher-info")}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Total Teachers</CardTitle>
+                  <CardTitle className="text-xs font-medium uppercase opacity-80">Total Teachers</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">{realTeachers.length}</div>
                 </CardContent>
               </Card>
-              <Card className="bg-white border shadow-sm cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("sections")}>
+
+              <Card className="bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Classes/Sections</CardTitle>
+                  <CardTitle className="text-xs font-medium uppercase opacity-80">Total Classes</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{uniqueClasses.length}</div>
+                  <div className="text-3xl font-bold">{grades.length}</div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("sections")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium uppercase opacity-80">Total Sections</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{sections.length}</div>
                 </CardContent>
               </Card>
             </div>
@@ -576,7 +715,7 @@ const PrincipalDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredStudents.map((s) => (
-                <Card key={s.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedStudent(s)}>
+                <Card key={s.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedStudentDetails(s)}>
                   <CardHeader className="bg-secondary/30 pb-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -596,17 +735,8 @@ const PrincipalDashboard: React.FC = () => {
                         <p className="font-medium">{s.category}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
-                        <QrCode className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Identity QR</p>
-                        <p className="font-medium text-primary">Click to view</p>
-                      </div>
-                    </div>
                     <div className="mt-4 pt-2 border-t flex justify-end">
-                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedStudentDetails(s); }}>
+                      <Button variant="outline" size="sm">
                         View Full Details
                       </Button>
                     </div>
@@ -624,42 +754,6 @@ const PrincipalDashboard: React.FC = () => {
           <TabsContent value="cocurricular" className="space-y-4">
             <CoCurricularActivityRegistration />
           </TabsContent>
-
-          <TabsContent value="qrcodes" className="space-y-6">
-            <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-primary" /> Generated Student QR Codes
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {realStudents.map(s => (
-                <Card key={s.id} className="border-2 border-dashed">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-bold">{s.first_name} {s.last_name} ({s.roll_no})</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-4 overflow-x-auto pb-4">
-                      {s.qr_codes.map(qr => (
-                        <div key={qr.type} className="flex-shrink-0 text-center space-y-2">
-                          <div className="w-32 h-32 bg-white border rounded p-1 flex items-center justify-center">
-                            {qr.path ? (
-                              <img 
-                                src={`${getApiBase()}${qr.path}`} 
-                                alt={`${qr.type} QR`} 
-                                className="w-full h-full object-contain"
-                              />
-                            ) : (
-                              <div className="text-[10px] text-muted-foreground">Generating...</div>
-                            )}
-                          </div>
-                          <Badge variant="secondary" className="text-[10px] uppercase">{qr.type}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
           <TabsContent value="sections" className="space-y-4">
             <SectionManagement onViewStudents={handleViewStudents} />
           </TabsContent>
@@ -672,68 +766,6 @@ const PrincipalDashboard: React.FC = () => {
         </section>
       </div>
       </Tabs>
-
-      {/* Student QR Code Dialog */}
-      <Dialog open={!!selectedStudent} onOpenChange={(open) => { if (!open) setSelectedStudent(null); }}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-primary" />
-              Student Identity & QR
-            </DialogTitle>
-          </DialogHeader>
-          {selectedStudent && (
-            <div className="space-y-4 pt-2">
-              {/* Student Info */}
-              <div className="flex items-center gap-4 p-4 bg-secondary/40 rounded-xl">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-                  {selectedStudent.first_name.charAt(0)}
-                </div>
-                <div>
-                  <p className="font-bold text-foreground">{selectedStudent.first_name} {selectedStudent.last_name}</p>
-                  <p className="text-sm text-muted-foreground">Roll No: {selectedStudent.roll_no}</p>
-                  <p className="text-xs text-muted-foreground">Class {selectedStudent.grade_id}-{selectedStudent.section_code} • {selectedStudent.category}</p>
-                </div>
-              </div>
-
-              {/* Student ID */}
-              <div className="text-center p-3 bg-primary/5 rounded-lg border border-primary/20">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Student ID</p>
-                <p className="font-mono text-lg font-bold text-primary">{selectedStudent.id}</p>
-              </div>
-
-              {/* QR Codes */}
-              {selectedStudent.qr_codes && selectedStudent.qr_codes.length > 0 ? (
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-foreground">QR Codes</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedStudent.qr_codes.map((qr) => (
-                      <div key={qr.type} className="flex flex-col items-center gap-2 p-3 border rounded-xl bg-white">
-                        <div className="w-28 h-28 flex items-center justify-center bg-gray-50 rounded-lg">
-                          {qr.path ? (
-                            <img
-                              src={`${getApiBase()}${qr.path}`}
-                              alt={`${qr.type} QR`}
-                              className="w-full h-full object-contain"
-                            />
-                          ) : (
-                            <div className="text-xs text-muted-foreground text-center">Generating...</div>
-                          )}
-                        </div>
-                        <Badge variant="secondary" className="text-[10px] uppercase">{qr.type}</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  No QR codes generated yet for this student.
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={!!selectedStudentDetails} onOpenChange={(open) => {
         if (!open) {
@@ -877,5 +909,11 @@ const PrincipalDashboard: React.FC = () => {
     </DashboardLayout>
   );
 };
+
+const PrincipalDashboard: React.FC = () => (
+  <PrincipalProvider>
+    <PrincipalDashboardInner />
+  </PrincipalProvider>
+);
 
 export default PrincipalDashboard;
