@@ -22,13 +22,13 @@ export interface AllDataResponse {
   schools: Array<{ id: string; name: string; code: string; district: string; mandal?: string; teachers: number; students: number; classes: number; sessionsCompleted: number; activeStatus: boolean }>;
   classes: Array<{ id: string; schoolId: string; name: string; section: string; grade: number; studentCount: number }>;
   teachers: Array<{ id: string; name: string; email: string; schoolId: string; classIds: string[]; subjects: string[] }>;
-  students: Array<{ 
-    id: string; 
-    name: string; 
-    rollNo: number; 
-    section?: string; 
-    classId: string | null; 
-    schoolId: string; 
+  students: Array<{
+    id: string;
+    name: string;
+    rollNo: number;
+    section?: string;
+    classId: string | null;
+    schoolId: string;
     score: number;
     profile_image_path?: string | null;
     profile_image_url?: string | null;
@@ -180,7 +180,7 @@ export interface PrincipalTeacher {
 
 export async function fetchAll(): Promise<AllDataResponse> {
   if (!API_BASE) throw new Error("API URL not set.");
-  const res = await fetch(`${API_BASE}/api/all`);
+  const res = await fetch(`${API_BASE}/api/all`, { headers: getAuthHeaders() });
   if (res.status === 404) {
     throw new Error("API not found. Ensure backend is running.");
   }
@@ -255,7 +255,7 @@ export async function saveTopicRecommendations(payload: {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/topic-recommendations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -278,7 +278,7 @@ export async function createLiveQuiz(payload: {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/live-quiz`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -292,7 +292,7 @@ export async function getLiveQuizSession(sessionId: string): Promise<{
   questions: Array<{ id: string; questionText: string; optionA: string; optionB: string; optionC: string; optionD: string; correctOption: string; explanation: string; orderNum: number }>;
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}`);
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -301,7 +301,7 @@ export async function submitLiveQuizAnswer(sessionId: string, studentId: string,
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/answer`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ studentId, questionId, selectedOption }),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -310,7 +310,7 @@ export async function submitLiveQuizAnswer(sessionId: string, studentId: string,
 
 export async function getLiveQuizLeaderboard(sessionId: string): Promise<{ leaderboard: Array<{ rank: number; studentId: string; studentName: string; score: number }> }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/leaderboard`);
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/leaderboard`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -330,21 +330,21 @@ export async function getLiveQuizResult(sessionId: string, studentId: string): P
   }>;
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/result?student_id=${encodeURIComponent(studentId)}`);
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/result?student_id=${encodeURIComponent(studentId)}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
 export async function endLiveQuiz(sessionId: string): Promise<{ status: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/end`, { method: "PUT" });
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/end`, { method: "PUT", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
 export async function getLiveQuizTeacherQr(sessionId: string): Promise<{ sessionId: string; token: string; payloadUrl: string; dataUrl: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/teacher-qr`);
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/teacher-qr`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -366,7 +366,7 @@ export async function submitLiveQuizScan(
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/scan`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -377,7 +377,7 @@ export async function connectLiveQuizScanner(sessionId: string, deviceId: string
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/connect`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ deviceId }),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -398,14 +398,14 @@ export async function fetchLiveQuizStatus(sessionId: string): Promise<{
   submitted?: boolean;
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/status`);
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/status`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
 export async function startLiveQuizCapture(sessionId: string): Promise<{ ok: boolean; sessionId: string; started: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/start-capture`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/api/live-quiz/${sessionId}/start-capture`, { method: "POST", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -434,7 +434,7 @@ export async function startLiveSession(payload: {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/live-session/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -444,7 +444,7 @@ export async function startLiveSession(payload: {
 /** End a live teaching session; updates DB. */
 export async function endLiveSession(sessionId: string): Promise<{ id: string; status: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/live-session/${sessionId}/end`, { method: "PUT" });
+  const res = await fetch(`${API_BASE}/api/live-session/${sessionId}/end`, { method: "PUT", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -460,7 +460,7 @@ export async function submitAttendance(payload: {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/attendance`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -475,7 +475,7 @@ export async function updateChapterTextbook(
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/chapters/${chapterId}/textbook`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -490,7 +490,7 @@ export async function updateTopicPpt(
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/topics/${topicId}/ppt`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -508,11 +508,11 @@ async function parseErrorResponse(res: Response): Promise<string> {
   return text || res.statusText;
 }
 
-export async function registerStudent(body: { 
-  school_id: string; 
-  section_id: string; 
-  first_name: string; 
-  last_name: string; 
+export async function registerStudent(body: {
+  school_id: string;
+  section_id: string;
+  first_name: string;
+  last_name: string;
   category?: string;
   joined_at?: string;
   photo_url?: string;
@@ -528,11 +528,11 @@ export async function registerStudent(body: {
   return res.json();
 }
 
-export async function registerTeacher(body: { 
-  school_id: string; 
-  full_name: string; 
-  email: string; 
-  password?: string; 
+export async function registerTeacher(body: {
+  school_id: string;
+  full_name: string;
+  email: string;
+  password?: string;
   subjects?: string[];
   photo_url?: string;
   [key: string]: unknown;
@@ -633,12 +633,12 @@ export async function deletePrincipalSection(id: number): Promise<{ ok: boolean;
   return res.json();
 }
 
-export async function createSchool(body: { 
-  name: string; 
-  code: string; 
-  district: string; 
-  mandal?: string; 
-  sessions_completed?: number; 
+export async function createSchool(body: {
+  name: string;
+  code: string;
+  district: string;
+  mandal?: string;
+  sessions_completed?: number;
   active_status?: boolean;
   principalName?: string;
   principalEmail?: string;
@@ -646,10 +646,10 @@ export async function createSchool(body: {
   logo_url?: string;
 }): Promise<{ id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/schools`, { 
-    method: "POST", 
-    headers: { "Content-Type": "application/json" }, 
-    body: JSON.stringify(body) 
+  const res = await fetch(`${API_BASE}/api/schools`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body)
   });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
@@ -657,14 +657,14 @@ export async function createSchool(body: {
 
 export async function updateSchool(id: string, body: { name?: string; code?: string; district?: string; mandal?: string; sessions_completed?: number; active_status?: boolean; logo_url?: string }): Promise<{ id: string; updated: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/schools/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(`${API_BASE}/api/schools/${id}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
 
 export async function deleteSchool(id: string): Promise<{ deleted: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/schools/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/schools/${id}`, { method: "DELETE", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
@@ -682,21 +682,21 @@ export async function updateStudent(id: number, data: Partial<PrincipalStudent>)
 
 export async function deleteStudent(id: string): Promise<{ deleted: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/students/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/students/${id}`, { method: "DELETE", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
 
 export async function updateTeacher(id: string, body: { full_name?: string; email?: string; school_id?: string; password?: string }): Promise<{ id: string; updated: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/teachers/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(`${API_BASE}/api/teachers/${id}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
 
 export async function deleteTeacher(id: string): Promise<{ deleted: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/teachers/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/teachers/${id}`, { method: "DELETE", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
@@ -705,9 +705,7 @@ export type TeacherAssignment = { id: string; teacherId: string; schoolId: strin
 
 export async function getTeacherAssignments(teacherId: string): Promise<{ assignments: TeacherAssignment[] }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/assignments`, {
-    headers: getAuthHeaders(),
-  });
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/assignments`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
   return res.json();
 }
@@ -719,7 +717,7 @@ export async function updateTeacherAssignments(
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/assignments`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -795,7 +793,7 @@ export async function createLeaveApplication(body: { teacher_id: string; start_d
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/leave`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -806,7 +804,7 @@ export async function updateLeaveApplicationStatus(id: string, status: "pending"
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/leave/${encodeURIComponent(id)}/status`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ status }),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -817,14 +815,14 @@ export type StudentQrCode = { id: string; studentId: string; qrType: string; qrC
 
 export async function getStudentQrCodes(studentId: string): Promise<{ qrcodes: StudentQrCode[] }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/admin/student/${studentId}/qrcodes`);
+  const res = await fetch(`${API_BASE}/api/admin/student/${studentId}/qrcodes`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
 export async function downloadStudentQrCodesZip(studentId: string): Promise<Blob> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/admin/student/${studentId}/qrcodes/download`);
+  const res = await fetch(`${API_BASE}/api/admin/student/${studentId}/qrcodes/download`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.blob();
 }
@@ -844,7 +842,7 @@ export async function getStudentByQrToken(token: string): Promise<{
   };
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/student-qr/${encodeURIComponent(token)}`);
+  const res = await fetch(`${API_BASE}/api/student-qr/${encodeURIComponent(token)}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -866,7 +864,7 @@ export type StudentMarkApiRow = {
 export async function fetchStudentMarks(studentId?: string): Promise<{ marks: StudentMarkApiRow[] }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const q = studentId != null && studentId !== "" ? `?studentId=${encodeURIComponent(studentId)}` : "";
-  const res = await fetch(`${API_BASE}/api/student-marks${q}`);
+  const res = await fetch(`${API_BASE}/api/student-marks${q}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -883,7 +881,7 @@ export async function submitStudentMark(body: {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/student-marks`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
