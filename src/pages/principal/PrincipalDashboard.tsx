@@ -103,7 +103,12 @@ const PrincipalDashboardInner: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<PrincipalStudent | null>(null);
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<PrincipalStudent | null>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<PrincipalTeacher | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+  return localStorage.getItem("principalTab") || "overview";
+});
+  useEffect(() => {
+  localStorage.setItem("principalTab", activeTab);
+}, [activeTab]);
   const [pendingClassFilter, setPendingClassFilter] = useState<string | null>(null);
   const [assignTeacher, setAssignTeacher] = useState<PrincipalTeacher | null>(null);
   const [subjectsList, setSubjectsList] = useState<any[]>([]);
