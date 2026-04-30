@@ -33,8 +33,18 @@ export const ItdaLogo = ({ className }: { className?: string }) => (
 export const VidhyaPlusLogo = ({ className }: { className?: string }) => (
   <div className={cn("flex flex-col items-end leading-none", className)}>
     <div className="flex items-center gap-0.5">
-      <span className="font-display font-black text-[18px] text-teal-600">VidhyaPlus</span>
-      <span className="font-display font-bold text-[18px] text-teal-400">+</span>
+      <span 
+        className="font-display font-black text-[18px] text-teal-600"
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
+      >
+        VidhyaPlus
+      </span>
+      <span 
+        className="font-display font-bold text-[18px] text-teal-400"
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
+      >
+        +
+      </span>
     </div>
     <span className="text-[7px] font-bold text-slate-500 tracking-wider uppercase mt-1">Smart Learning Smarter Future</span>
   </div>
@@ -78,7 +88,10 @@ export type TeacherData = {
 // 1. Student Main Card (Horizontal)
 export const StudentMainCard = ({ data }: { data: StudentData }) => {
   return (
-    <div className="w-[450px] h-[280px] bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border border-slate-200 relative group transition-all duration-300 hover:shadow-2xl">
+    <div 
+      className="w-[450px] h-[280px] bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border border-slate-200 relative group transition-all duration-300 hover:shadow-2xl"
+      style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
+    >
       {/* Background decoration */}
       <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-teal-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500" />
       
@@ -88,7 +101,10 @@ export const StudentMainCard = ({ data }: { data: StudentData }) => {
         <div />
         <div className="flex flex-col items-end gap-2 ml-auto">
           <VidhyaPlusLogo />
-          <div className="bg-teal-600 text-white text-[9px] font-black px-3 py-1 rounded-full tracking-wider uppercase">
+          <div 
+            className="bg-teal-600 text-white text-[9px] font-black px-3 py-1 rounded-full tracking-wider uppercase"
+            style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#0d9488' } as any}
+          >
             Student ID Card
           </div>
         </div>
@@ -132,7 +148,10 @@ export const StudentMainCard = ({ data }: { data: StudentData }) => {
       </div>
 
       {/* Footer */}
-      <div className="h-10 bg-teal-600 flex items-center justify-center relative mt-auto">
+      <div 
+        className="h-10 bg-teal-600 flex items-center justify-center relative mt-auto"
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#0d9488' } as any}
+      >
         <span className="text-white text-[10px] font-medium tracking-[0.2em] uppercase opacity-90">Empowering Every Student with AI</span>
         <div className="absolute left-0 bottom-0 w-32 h-1 bg-teal-400" />
       </div>
@@ -145,17 +164,20 @@ export type OptionLetter = "A" | "B" | "C" | "D";
 
 export const StudentOptionCard = ({ data, option }: { data: StudentData, option: OptionLetter }) => {
   const configs = {
-    A: { color: "teal", theme: "bg-teal-600", text: "text-teal-600", light: "bg-teal-50", border: "border-teal-200" },
-    B: { color: "green", theme: "bg-emerald-600", text: "text-emerald-600", light: "bg-emerald-50", border: "border-emerald-200" },
-    C: { color: "blue", theme: "bg-blue-700", text: "text-blue-700", light: "bg-blue-50", border: "border-blue-200" },
-    D: { color: "purple", theme: "bg-purple-700", text: "text-purple-700", light: "bg-purple-50", border: "border-purple-200" },
+    A: { color: "teal", theme: "bg-teal-600", text: "text-teal-600", light: "bg-teal-50", border: "border-teal-200", hex: "#0d9488" },
+    B: { color: "green", theme: "bg-emerald-600", text: "text-emerald-600", light: "bg-emerald-50", border: "border-emerald-200", hex: "#059669" },
+    C: { color: "blue", theme: "bg-blue-700", text: "text-blue-700", light: "bg-blue-50", border: "border-blue-200", hex: "#1d4ed8" },
+    D: { color: "purple", theme: "bg-purple-700", text: "text-purple-700", light: "bg-purple-50", border: "border-purple-200", hex: "#7e22ce" },
   };
 
   const config = configs[option];
   const qrValue = `stu${data.rollNo}_${option}`;
 
   return (
-    <div className="w-[280px] h-[480px] print:w-[85mm] print:h-[120mm] bg-white rounded-[24px] print:rounded-xl shadow-xl print:shadow-none overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl">
+    <div 
+      className="w-[280px] h-[480px] print:w-[85mm] print:h-[120mm] bg-white rounded-[24px] print:rounded-xl shadow-xl print:shadow-none overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl"
+      style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
+    >
       {/* Background decoration */}
       <div className={cn("absolute top-24 right-[-40px] w-32 h-32 rounded-full opacity-20 group-hover:scale-125 transition-transform duration-700", config.light)} />
       
@@ -168,8 +190,16 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
 
       {/* Option Badge */}
       <div className="flex flex-col items-center py-2 print:py-3 relative z-10">
-         <span className={cn("text-[9px] font-black tracking-[0.3em] uppercase opacity-60 mb-1", config.text)}>Option</span>
-         <div className={cn("w-16 h-16 print:w-16 print:h-16 rounded-full flex items-center justify-center text-white text-3xl print:text-3xl font-black shadow-lg ring-4 ring-offset-2 ring-transparent transition-all group-hover:ring-slate-100", config.theme)}>
+         <span 
+           className={cn("text-[9px] font-black tracking-[0.3em] uppercase opacity-60 mb-1", config.text)}
+           style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
+         >
+           Option
+         </span>
+         <div 
+           className={cn("w-16 h-16 print:w-16 print:h-16 rounded-full flex items-center justify-center text-white text-3xl print:text-3xl font-black shadow-lg ring-4 ring-offset-2 ring-transparent transition-all group-hover:ring-slate-100", config.theme)}
+           style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: config.hex } as any}
+         >
            {option}
          </div>
       </div>
@@ -192,7 +222,10 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
       </div>
 
       {/* Footer */}
-      <div className={cn("h-12 print:h-10 flex items-center justify-center gap-2 mt-auto", config.theme)}>
+      <div 
+        className={cn("h-12 print:h-10 flex items-center justify-center gap-2 mt-auto", config.theme)}
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: config.hex } as any}
+      >
         <Scan className="w-4 h-4 print:w-3 print:h-3 text-white opacity-80" />
         <span className="text-white text-[9px] print:text-[9px] font-bold tracking-widest uppercase opacity-90">Scan to Select Option {option}</span>
       </div>
@@ -203,7 +236,10 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
 // 3. Teacher Main Card (Horizontal)
 export const TeacherMainCard = ({ data }: { data: TeacherData }) => {
   return (
-    <div className="w-[450px] h-[280px] bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border border-slate-200 relative group transition-all duration-300 hover:shadow-2xl">
+    <div 
+      className="w-[450px] h-[280px] bg-white rounded-[20px] shadow-xl overflow-hidden flex flex-col border border-slate-200 relative group transition-all duration-300 hover:shadow-2xl"
+      style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
+    >
       {/* Background decoration */}
       <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-blue-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500" />
       
@@ -213,7 +249,10 @@ export const TeacherMainCard = ({ data }: { data: TeacherData }) => {
         <div />
         <div className="flex flex-col items-end gap-2 ml-auto">
           <VidhyaPlusLogo />
-          <div className="bg-blue-900 text-white text-[9px] font-black px-3 py-1 rounded-full tracking-wider uppercase">
+          <div 
+            className="bg-blue-900 text-white text-[9px] font-black px-3 py-1 rounded-full tracking-wider uppercase"
+            style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#1e3a8a' } as any}
+          >
             Teacher ID Card
           </div>
         </div>
@@ -258,7 +297,10 @@ export const TeacherMainCard = ({ data }: { data: TeacherData }) => {
       </div>
 
       {/* Footer */}
-      <div className="h-10 bg-blue-900 flex items-center justify-center relative mt-auto">
+      <div 
+        className="h-10 bg-blue-900 flex items-center justify-center relative mt-auto"
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', backgroundColor: '#1e3a8a' } as any}
+      >
         <span className="text-white text-[10px] font-medium tracking-[0.2em] uppercase opacity-90">Empowering Every Educator</span>
         <div className="absolute left-0 bottom-0 w-32 h-1 bg-blue-400" />
       </div>

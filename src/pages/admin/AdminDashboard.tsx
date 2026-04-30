@@ -495,11 +495,6 @@ const AdminDashboard = () => {
 
     Promise.all(classStudents.map(renderCard)).then((images) => {
       document.body.removeChild(container);
-      const html = `<!DOCTYPE html><html><head><title>QR Cards - ${classDetail!.name}</title>
-<style>@page{size:A4;margin:10mm}body{margin:0;font-family:sans-serif}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;padding:16px}.grid img{width:100%;max-width:280px;margin:0 auto;display:block;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)}.header{text-align:center;padding:16px;border-bottom:2px solid #1a9988;margin-bottom:8px}.header h1{font-size:18px;color:#1a9988;margin:0}.header p{font-size:12px;color:#666;margin:4px 0 0}@media print{.no-print{display:none}}</style></head><body>
-<div class="header"><h1>${classDetail!.name} — Student QR Cards</h1><p>${school!.name} • ${classStudents.length} students</p></div>
-<button class="no-print" onclick="window.print()" style="display:block;margin:12px auto;padding:10px 24px;background:#1a9988;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">🖨️ Print All Cards</button>
-<div class="grid">${images.filter(Boolean).map(src => `<img src="${src}"/>`).join("")}</div></body></html>`;
       printWindow.document.write(html);
       printWindow.document.close();
     });
