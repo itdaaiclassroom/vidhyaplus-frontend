@@ -38,7 +38,7 @@ const QuizScreen = () => {
   // States
   const [phase, setPhase] = useState<"connecting" | "active" | "evaluating" | "finished">("connecting");
   const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [statusPoller, setStatusPoller] = useState<NodeJS.Timeout | null>(null);
+  const [statusPoller, setStatusPoller] = useState<any>(null);
   
   // Live Status
   const [connectedDevices, setConnectedDevices] = useState(0);

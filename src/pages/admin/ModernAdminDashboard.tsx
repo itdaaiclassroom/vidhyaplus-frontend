@@ -21,18 +21,9 @@ import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
-import { 
-  fetchAdminOverview, 
-  fetchAdminAnalytics, 
-  createAnnouncement, 
-  fetchTeacherLogs,
-  getApiBase,
-  createSchool,
-  updateSchool,
-  deleteSchool
-} from "@/api/client";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
+import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
 
 const ModernAdminDashboard = () => {
@@ -390,6 +381,7 @@ const ModernAdminDashboard = () => {
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Name</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Class</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">School</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-center">Performance</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Action</th>
                         </tr>
                       </thead>
@@ -428,6 +420,18 @@ const ModernAdminDashboard = () => {
                                 <td className="px-6 py-4 text-sm font-medium text-slate-800">{s.name}</td>
                                 <td className="px-6 py-4 text-sm text-slate-500">{grade ? `${grade} - ${section || ''}` : (section || 'N/A')}</td>
                                 <td className="px-6 py-4 text-sm text-slate-500">{schools.find(sc => sc.id === s.schoolId)?.name || 'Main School'}</td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex justify-center">
+                                    <Badge className="bg-primary/10 text-primary border-0 font-bold">
+                                      {(() => {
+                                        const results = data.studentQuizResults.filter(r => String(r.studentId) === String(s.id));
+                                        if (results.length === 0) return "N/A";
+                                        const avg = results.reduce((acc, curr) => acc + (curr.score * 100 / curr.total), 0) / results.length;
+                                        return `${Math.round(avg)}%`;
+                                      })()}
+                                    </Badge>
+                                  </div>
+                                </td>
                                 <td className="px-6 py-4 text-right">
                                   <Button 
                                     variant="ghost" 
@@ -681,6 +685,18 @@ const ModernAdminDashboard = () => {
                       <span className="text-slate-500">Students:</span>
                       <span className="font-medium text-slate-800">{school.students}</span>
                     </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500">Avg. Performance:</span>
+                      <span className="font-bold text-primary">
+                        {(() => {
+                          const schoolStudents = students.filter(s => s.schoolId === school.id).map(s => String(s.id));
+                          const results = data.studentQuizResults.filter(r => schoolStudents.includes(String(r.studentId)));
+                          if (results.length === 0) return "N/A";
+                          const avg = results.reduce((acc, curr) => acc + (curr.score * 100 / curr.total), 0) / results.length;
+                          return `${Math.round(avg)}%`;
+                        })()}
+                      </span>
+                    </div>
                     <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                       <Button 
                         variant="outline" 
@@ -796,6 +812,7 @@ const ModernAdminDashboard = () => {
       {/* Student Profile Modal */}
       <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
         <DialogContent className="max-w-3xl p-0 overflow-hidden rounded-3xl border-0 shadow-2xl">
+          <DialogTitle className="sr-only">Student Profile: {selectedStudent?.name}</DialogTitle>
           <div className="relative h-32 bg-primary">
             <div className="absolute -bottom-12 left-8 p-1 bg-white rounded-3xl shadow-xl">
               <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden">
@@ -837,6 +854,36 @@ const ModernAdminDashboard = () => {
               <DetailItem label="Pincode" value={selectedStudent?.pincode || 'N/A'} />
               <DetailItem label="Address" value={selectedStudent?.address || 'N/A'} />
             </div>
+
+            <div className="pt-6 border-t border-slate-50">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" /> Individual Performance
+              </h3>
+              <div className="h-[200px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.studentQuizResults.filter(r => String(r.studentId) === String(selectedStudent?.id))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b', fontSize: 10}} 
+                      tickFormatter={(val) => val ? new Date(val).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} domain={[0, 100]} />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey={(r) => Math.round(r.score * 100 / r.total)} 
+                      name="Score (%)"
+                      stroke="#1a9988" 
+                      strokeWidth={3} 
+                      dot={{r: 4, fill: '#1a9988'}} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -844,6 +891,7 @@ const ModernAdminDashboard = () => {
       {/* School Details Dialog */}
       <Dialog open={!!viewingSchool} onOpenChange={() => setViewingSchool(null)}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-3xl border-0 shadow-2xl bg-white max-h-[90vh] flex flex-col">
+          <DialogTitle className="sr-only">School Details: {viewingSchool?.name}</DialogTitle>
           <div className="bg-primary p-8 text-white shrink-0">
              <div className="flex justify-between items-start">
                <div>
@@ -915,10 +963,11 @@ const ModernAdminDashboard = () => {
                 <TabsContent value="school-students">
                    <div className="overflow-hidden border border-slate-100 rounded-2xl">
                       <table className="w-full text-left">
-                        <thead className="bg-slate-50 border-b border-slate-100">
+                         <thead className="bg-slate-50 border-b border-slate-100">
                           <tr>
                             <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider">Class</th>
+                            <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider text-center">Performance</th>
                             <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider text-right">Action</th>
                           </tr>
                         </thead>
@@ -946,6 +995,16 @@ const ModernAdminDashboard = () => {
                               <tr key={s.id} className="hover:bg-slate-50/50">
                                 <td className="px-6 py-4 text-sm font-medium text-slate-800">{s.name}</td>
                                 <td className="px-6 py-4 text-sm text-slate-500">{grade ? `${grade} - ${section || ''}` : (section || 'N/A')}</td>
+                                <td className="px-6 py-4 text-center">
+                                  <Badge variant="outline" className="text-primary font-bold">
+                                    {(() => {
+                                      const results = data.studentQuizResults.filter(r => String(r.studentId) === String(s.id));
+                                      if (results.length === 0) return "N/A";
+                                      const avg = results.reduce((acc, curr) => acc + (curr.score * 100 / curr.total), 0) / results.length;
+                                      return `${Math.round(avg)}%`;
+                                    })()}
+                                  </Badge>
+                                </td>
                                 <td className="px-6 py-4 text-right">
                                   <Button variant="ghost" size="sm" className="text-primary" onClick={() => setSelectedStudent(s)}>View</Button>
                                 </td>
