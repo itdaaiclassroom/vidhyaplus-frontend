@@ -4,10 +4,12 @@ import {
   fetchPrincipalTeachers, 
   fetchPrincipalGrades, 
   fetchPrincipalSections, 
+  fetchPrincipalProfile,
   PrincipalStudent, 
   PrincipalTeacher, 
   PrincipalGrade, 
-  PrincipalSection 
+  PrincipalSection,
+  PrincipalProfile
 } from "@/api/client";
 import { useAuth } from "./AuthContext";
 
@@ -16,6 +18,7 @@ interface PrincipalContextType {
   teachers: PrincipalTeacher[];
   grades: PrincipalGrade[];
   sections: PrincipalSection[];
+  profile: PrincipalProfile | null;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -33,6 +36,7 @@ export const PrincipalProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [teachers, setTeachers] = useState<PrincipalTeacher[]>([]);
   const [grades, setGrades] = useState<PrincipalGrade[]>([]);
   const [sections, setSections] = useState<PrincipalSection[]>([]);
+  const [profile, setProfile] = useState<PrincipalProfile | null>(null);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,17 +50,19 @@ export const PrincipalProvider: React.FC<{ children: ReactNode }> = ({ children 
     setLoading(true);
     setError(null);
     try {
-      const [sData, tData, gData, secData] = await Promise.all([
+      const [sData, tData, gData, secData, pData] = await Promise.all([
         fetchPrincipalStudents(schoolId),
         fetchPrincipalTeachers(schoolId),
         fetchPrincipalGrades(),
-        fetchPrincipalSections()
+        fetchPrincipalSections(),
+        fetchPrincipalProfile()
       ]);
       
       setStudents(sData);
       setTeachers(tData);
       setGrades(gData.grades);
       setSections(secData.sections);
+      setProfile(pData);
     } catch (err: any) {
       console.error("Error fetching principal data:", err);
       setError(err.message || "Failed to load dashboard data");
@@ -103,13 +109,14 @@ export const PrincipalProvider: React.FC<{ children: ReactNode }> = ({ children 
     teachers,
     grades,
     sections,
+    profile,
     loading,
     error,
     refetch: fetchAllData,
     refetchStudents,
     refetchTeachers,
     refetchSections
-  }), [students, teachers, grades, sections, loading, error, schoolId]);
+  }), [students, teachers, grades, sections, profile, loading, error, schoolId]);
 
   return (
     <PrincipalContext.Provider value={value}>

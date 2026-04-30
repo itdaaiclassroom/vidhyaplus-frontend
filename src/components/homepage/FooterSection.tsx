@@ -11,7 +11,7 @@ const FooterSection = () => {
               <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
                 <GraduationCap className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-background">ITDA Classroom</span>
+              <span className="font-display font-bold text-background">VidyaPlus</span>
             </div>
             <p className="text-muted-foreground text-sm">
               An educational innovation platform developed in collaboration with institutional stakeholders to enhance classroom experiences.
@@ -46,7 +46,7 @@ const FooterSection = () => {
         </div>
         <div className="border-t border-muted-foreground/20 mt-8 pt-6 text-center">
           <p className="text-muted-foreground text-xs">
-            © 2026 ITDA AI Classroom & Monitoring Platform. Developed as an educational innovation initiative.
+            © 2026 VidyaPlus LMS & Monitoring Platform. Developed as an educational innovation initiative.
           </p>
         </div>
       </div>

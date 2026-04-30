@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { 
   BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, 
   LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck,
-  UserPlus, FileUp, Layers, Contact, Menu, PanelLeftOpen, PanelLeftClose 
+  UserPlus, FileUp, Layers, Contact, Menu, PanelLeftOpen, PanelLeftClose,
+  Trash2
 } from "lucide-react";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +29,7 @@ import {
   fetchPrincipalStudents, fetchPrincipalTeachers, fetchPrincipalGrades, 
   fetchPrincipalSections, PrincipalStudent, PrincipalTeacher, 
   PrincipalGrade, PrincipalSection, getApiBase, updateStudent,
+  deleteStudent, deleteTeacher,
   fetchTeacherAttendanceSummary, fetchStudentAttendanceSummary,
   fetchPrincipalSubjects
 } from "@/api/client";
@@ -84,7 +86,7 @@ const navigationGroups = [
 
 const PrincipalDashboardInner: React.FC = () => {
   const { schoolId } = useAuth();
-  const { students: realStudents, teachers: realTeachers, grades, sections, loading, refetch } = usePrincipal();
+  const { students: realStudents, teachers: realTeachers, grades, sections, profile, loading, refetch } = usePrincipal();
   
   const [openGroups, setOpenGroups] = useState<string[]>(["Dashboard", "Student Management"]);
   const toggleGroup = (title: string) => {
@@ -506,14 +508,14 @@ const PrincipalDashboardInner: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="max-h-[140px] overflow-y-auto pr-2 custom-scrollbar">
-                        <table className="w-full text-xs">
+                      <div className="max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+                        <table className="w-full text-sm">
                           <thead className="sticky top-0 bg-white">
                             <tr className="text-muted-foreground border-b border-border">
-                              <th className="text-left py-1 font-medium">Class</th>
-                              <th className="text-right py-1 font-medium">Present</th>
-                              <th className="text-right py-1 font-medium">Absent</th>
-                              <th className="text-right py-1 font-medium">Pending</th>
+                              <th className="text-left py-2 font-bold uppercase tracking-wider text-[10px]">Class</th>
+                              <th className="text-right py-2 font-bold uppercase tracking-wider text-[10px]">Present</th>
+                              <th className="text-right py-2 font-bold uppercase tracking-wider text-[10px]">Absent</th>
+                              <th className="text-right py-2 font-bold uppercase tracking-wider text-[10px]">Pending</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -523,14 +525,14 @@ const PrincipalDashboardInner: React.FC = () => {
                               return (
                                 <tr 
                                   key={className} 
-                                  className="hover:bg-secondary/20 transition-colors cursor-pointer"
+                                  className="hover:bg-secondary/20 transition-colors cursor-pointer group"
                                   onClick={() => { setDrillDownType("student"); setDrillDownClass(className); }}
                                 >
-                                  <td className="py-2 font-medium">{className}</td>
-                                  <td className="py-2 text-right font-bold text-success">{stats.present}</td>
-                                  <td className="py-2 text-right font-bold text-destructive">{stats.absent}</td>
-                                  <td className="py-2 text-right">
-                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500">
+                                  <td className="py-3.5 font-bold text-slate-700">{className}</td>
+                                  <td className="py-3.5 text-right font-black text-base text-success">{stats.present}</td>
+                                  <td className="py-3.5 text-right font-black text-base text-destructive">{stats.absent}</td>
+                                  <td className="py-3.5 text-right">
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 group-hover:bg-slate-200 transition-colors">
                                       {stats.not_marked}
                                     </span>
                                   </td>
@@ -577,14 +579,36 @@ const PrincipalDashboardInner: React.FC = () => {
                             <p className="font-bold text-sm">{t.full_name}</p>
                             <p className="text-xs text-muted-foreground">{t.email}</p>
                           </div>
-                          <Badge variant="outline" className={
-                            drillDownStatus === "present" ? "bg-success-light text-success border-success/20" :
-                            drillDownStatus === "absent" ? "bg-red-50 text-destructive border-red-100" :
-                            drillDownStatus === "leave" ? "bg-amber-light text-amber border-amber/20" :
-                            "bg-slate-100 text-slate-500 border-slate-200"
-                          }>
-                            {drillDownStatus?.replace('_', ' ')}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={
+                              drillDownStatus === "present" ? "bg-success-light text-success border-success/20" :
+                              drillDownStatus === "absent" ? "bg-red-50 text-destructive border-red-100" :
+                              drillDownStatus === "leave" ? "bg-amber-light text-amber border-amber/20" :
+                              "bg-slate-100 text-slate-500 border-slate-200"
+                            }>
+                              {drillDownStatus?.replace('_', ' ')}
+                            </Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to delete teacher ${t.full_name}?`)) {
+                                  try {
+                                    await deleteTeacher(String(t.id));
+                                    toast.success("Teacher deleted successfully");
+                                    refetch();
+                                    setDrillDownType(null);
+                                  } catch (err: any) {
+                                    toast.error(err.message || "Failed to delete teacher");
+                                  }
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                       {((drillDownStatus === "present" ? (teacherStats.present_list || []) : 
@@ -614,6 +638,7 @@ const PrincipalDashboardInner: React.FC = () => {
                             <th className="p-2 font-bold">Roll No</th>
                             <th className="p-2 font-bold">Name</th>
                             <th className="p-2 font-bold text-right">Status</th>
+                            <th className="p-2 font-bold text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -629,6 +654,29 @@ const PrincipalDashboardInner: React.FC = () => {
                                 }>
                                   {s.status?.replace('_', ' ')}
                                 </Badge>
+                              </td>
+                              <td className="p-2 text-right">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm(`Are you sure you want to delete student ${s.name}?`)) {
+                                      try {
+                                        await deleteStudent(String(s.id));
+                                        toast.success("Student deleted successfully");
+                                        refetch();
+                                        // Close dialog as stats might be stale
+                                        setDrillDownType(null);
+                                      } catch (err: any) {
+                                        toast.error(err.message || "Failed to delete student");
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
                               </td>
                             </tr>
                           ))}
@@ -706,9 +754,28 @@ const PrincipalDashboardInner: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 pt-2 border-t flex justify-end">
+                    <div className="mt-3 pt-2 border-t flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setAssignTeacher(t); }}>
                         Assign Subjects/Classes
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Are you sure you want to delete teacher ${t.full_name}?`)) {
+                            try {
+                              await deleteTeacher(String(t.id));
+                              toast.success("Teacher deleted successfully");
+                              refetch();
+                            } catch (err: any) {
+                              toast.error(err.message || "Failed to delete teacher");
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardContent>
@@ -779,9 +846,28 @@ const PrincipalDashboardInner: React.FC = () => {
                         <p className="font-medium">{s.category}</p>
                       </div>
                     </div>
-                    <div className="mt-4 pt-2 border-t flex justify-end">
+                    <div className="mt-4 pt-2 border-t flex justify-end gap-2">
                       <Button variant="outline" size="sm">
                         View Full Details
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Are you sure you want to delete student ${s.first_name} ${s.last_name}?`)) {
+                            try {
+                              await deleteStudent(String(s.id));
+                              toast.success("Student deleted successfully");
+                              refetch();
+                            } catch (err: any) {
+                              toast.error(err.message || "Failed to delete student");
+                            }
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardContent>
@@ -852,11 +938,10 @@ const PrincipalDashboardInner: React.FC = () => {
                       <StudentMainCard data={{
                         id: String(selectedStudentDetails.id),
                         name: `${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`,
-                        schoolName: "Government High School",
-                        grade: selectedStudentDetails.grade_id,
+                        schoolName: profile?.school_name || "Government High School",
+                        grade: (selectedStudentDetails as any).grade_label || selectedStudentDetails.grade_id,
                         section: selectedStudentDetails.section_code,
                         rollNo: String(selectedStudentDetails.roll_no),
-                        validUpto: "31-03-2026",
                         photoUrl: selectedStudentDetails.profile_image_url
                       }} />
                     </div>
@@ -864,19 +949,18 @@ const PrincipalDashboardInner: React.FC = () => {
                     {/* Option Cards */}
                     <div className="lg:col-span-7 flex flex-col items-center gap-4">
                       <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Option Selection QR Cards</p>
-                      <div className="grid grid-cols-2 gap-6 w-full">
+                      <div className="grid grid-cols-2 gap-6 w-full pb-10">
                         {(["A", "B", "C", "D"] as OptionLetter[]).map(opt => (
-                          <div key={opt} className="scale-[0.8] origin-top">
+                          <div key={opt} className="scale-[0.8] origin-top h-[400px]">
                             <StudentOptionCard 
                               option={opt}
                               data={{
                                 id: String(selectedStudentDetails.id),
                                 name: `${selectedStudentDetails.first_name} ${selectedStudentDetails.last_name}`,
-                                schoolName: "Government High School",
-                                grade: selectedStudentDetails.grade_id,
+                                schoolName: profile?.school_name || "Government High School",
+                                grade: (selectedStudentDetails as any).grade_label || selectedStudentDetails.grade_id,
                                 section: selectedStudentDetails.section_code,
                                 rollNo: String(selectedStudentDetails.roll_no),
-                                validUpto: "31-03-2026",
                                 photoUrl: selectedStudentDetails.profile_image_url
                               }} 
                             />

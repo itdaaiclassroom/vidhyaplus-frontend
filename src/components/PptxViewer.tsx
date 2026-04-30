@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import PptxViewJS from "pptxviewjs";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+export type PptxViewerRef = {
+  nextSlide: () => void;
+  previousSlide: () => void;
+  goToSlide: (index: number) => void;
+  getCurrentSlide: () => number;
+  getTotalSlides: () => number;
+};
 
 type PptxViewerProps = {
   /** Full URL to the .pptx file (same origin or CORS-enabled). */
@@ -9,14 +17,16 @@ type PptxViewerProps = {
   className?: string;
   width?: number;
   height?: number;
+  onSlideChange?: (current: number, total: number) => void;
 };
 
 type ViewerInstance = {
   destroy: () => void;
-  nextSlide: (canvas?: HTMLCanvasElement | null) => Promise<unknown>;
-  previousSlide: (canvas?: HTMLCanvasElement | null) => Promise<unknown>;
-  goToSlide: (index: number, canvas?: HTMLCanvasElement | null) => Promise<unknown>;
-  render: (canvas?: HTMLCanvasElement | null, options?: { quality?: string }) => Promise<unknown>;
+  loadFromUrl: (url: string) => Promise<any>;
+  nextSlide: (canvas?: HTMLCanvasElement | null) => Promise<any>;
+  previousSlide: (canvas?: HTMLCanvasElement | null) => Promise<any>;
+  goToSlide: (index: number, canvas?: HTMLCanvasElement | null) => Promise<any>;
+  render: (canvas?: HTMLCanvasElement | null, options?: { quality?: string }) => Promise<any>;
   getSlideCount: () => number;
   getCurrentSlideIndex: () => number;
 };
@@ -27,13 +37,17 @@ const DEFAULT_HEIGHT = 540;
 /**
  * Renders a PPTX file with prev/next controls. Uses fixed dimensions so the full slide fits correctly (16:9).
  */
-export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT }: PptxViewerProps) {
+const PptxViewer = forwardRef<PptxViewerRef, PptxViewerProps>(({ src, className = "", width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, onSlideChange }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<ViewerInstance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [totalSlides, setTotalSlides] = useState(0);
+
+  useEffect(() => {
+    if (onSlideChange) onSlideChange(currentSlide, totalSlides);
+  }, [currentSlide, totalSlides, onSlideChange]);
 
   const goTo = useCallback(
     async (direction: "prev" | "next" | "first" | "last") => {
@@ -55,6 +69,23 @@ export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH,
     [totalSlides]
   );
 
+  useImperativeHandle(ref, () => ({
+    nextSlide: () => goTo("next"),
+    previousSlide: () => goTo("prev"),
+    goToSlide: (index: number) => {
+      const viewer = viewerRef.current;
+      const canvas = canvasRef.current;
+      if (viewer && canvas) {
+        viewer.goToSlide(index, canvas).then(() => {
+          viewer.render(canvas, { quality: "high" });
+          setCurrentSlide(viewer.getCurrentSlideIndex());
+        });
+      }
+    },
+    getCurrentSlide: () => currentSlide,
+    getTotalSlides: () => totalSlides,
+  }));
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !src) return;
@@ -71,7 +102,7 @@ export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH,
           canvas,
           enableThumbnails: false,
           slideSizeMode: "fit",
-        }) as ViewerInstance;
+        }) as unknown as ViewerInstance;
         viewerRef.current = viewer;
         await viewer.loadFromUrl(src);
         if (cancelled) return;
@@ -95,7 +126,7 @@ export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH,
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [src]);
+  }, [src, width, height]);
 
   const canGoPrev = totalSlides > 0 && currentSlide > 0;
   const canGoNext = totalSlides > 0 && currentSlide < totalSlides - 1;
@@ -115,86 +146,33 @@ export default function PptxViewer({ src, className = "", width = DEFAULT_WIDTH,
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [loading, totalSlides, canGoPrev, canGoNext, goTo]);
 
-  if (error) {
-    return (
-      <div className={`flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-sm p-6 ${className}`}>
-        {error}
-      </div>
-    );
-  }
-
   return (
-    <div className={`flex flex-col ${className}`}>
-      {/* Fixed aspect-ratio (16:9) box so the full slide fits and is not cropped */}
-      <div
-        className="relative w-full bg-muted/30 rounded-t-lg overflow-hidden"
-        style={{ aspectRatio: `${width} / ${height}` }}
-      >
+    <div className={`relative flex flex-col items-center justify-center bg-black ${className}`}>
+      <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-muted/90 rounded-t-lg text-muted-foreground text-sm z-10">
-            Loading PPTX…
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-10">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2" />
+            <p className="text-white text-sm font-medium">Loading presentation...</p>
           </div>
         )}
+        
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/10 text-destructive p-6 text-center z-10">
+            <p className="font-bold mb-2">Failed to load PPTX</p>
+            <p className="text-xs">{error}</p>
+          </div>
+        )}
+
         <canvas
           ref={canvasRef}
           width={width}
           height={height}
-          className="block w-full h-full rounded-t-lg border border-border border-b-0"
+          className="block max-w-full max-h-full"
           style={{ objectFit: "contain" }}
         />
       </div>
-
-      {!loading && totalSlides > 0 && (
-        <div className="flex items-center justify-center gap-2 py-2 px-3 bg-muted/80 rounded-b-lg border border-border border-t-0">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            disabled={!canGoPrev}
-            onClick={() => goTo("first")}
-            title="First slide"
-            aria-label="First slide"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            disabled={!canGoPrev}
-            onClick={() => goTo("prev")}
-            title="Previous slide"
-            aria-label="Previous slide"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="min-w-[7rem] text-center text-sm font-medium text-foreground tabular-nums">
-            {currentSlide + 1} / {totalSlides}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            disabled={!canGoNext}
-            onClick={() => goTo("next")}
-            title="Next slide"
-            aria-label="Next slide"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            disabled={!canGoNext}
-            onClick={() => goTo("last")}
-            title="Last slide"
-            aria-label="Last slide"
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
     </div>
   );
-}
+});
+
+export default PptxViewer;

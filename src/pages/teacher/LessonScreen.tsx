@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import PptxViewer from "@/components/PptxViewer";
+import PptxViewer, { type PptxViewerRef } from "@/components/PptxViewer";
 import { toast } from "sonner";
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { 
@@ -24,7 +24,7 @@ import {
   BookOpen, Play, CheckCircle2, Clock, ArrowLeft, Maximize, Minimize,
   Pause, Send, MessageCircle, Monitor, X, Video, Users, Radio, Sparkles,
   Bot, Lightbulb, FileText, MonitorPlay, Youtube, ExternalLink, RotateCcw, XCircle,
-  QrCode, Book, Info
+  QrCode, Book, Info, ScanLine, MousePointerClick
 } from "lucide-react";
 
 type LiveSessionLike = { 
@@ -69,6 +69,10 @@ const LessonScreen = () => {
   const [sessionEnding, setSessionEnding] = useState(false);
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
 
+  const [isQuizSetupOpen, setIsQuizSetupOpen] = useState(false);
+  const [quizSetupQuestions, setQuizSetupQuestions] = useState(10);
+  const [quizSetupMode, setQuizSetupMode] = useState<"qr" | "teacher">("qr");
+
   const [sessionAttendance, setSessionAttendance] = useState<Record<string, "present" | "absent">>({});
   const [sessionSubjectMaterials, setSessionSubjectMaterials] = useState<any[]>([]);
 
@@ -83,7 +87,11 @@ const LessonScreen = () => {
   const [recommendations, setRecommendations] = useState<{ videos: any[], resources: any[] } | null>(null);
   const [recoLoading, setRecoLoading] = useState(false);
 
+  const [pptxCurrentSlide, setPptxCurrentSlide] = useState(0);
+  const [pptxTotalSlides, setPptxTotalSlides] = useState(0);
+
   const sessionContainerRef = useRef<HTMLDivElement>(null);
+  const pptxRef = useRef<PptxViewerRef>(null);
 
   useEffect(() => {
     if (!activeSession && sessionIdFromUrl && data.liveSessions) {
@@ -163,13 +171,14 @@ const LessonScreen = () => {
       await endLiveSession(activeSession.id);
       localStorage.removeItem(`pausedTime_${activeSession.id}`);
       refetch();
-      navigate("/teacher");
       toast.success("Session ended successfully.");
     } catch (e) {
       console.error(e);
       toast.error("Failed to end session.");
     } finally {
       setSessionEnding(false);
+      const target = `/teacher?tab=chapters&class=${activeSession.classId}&subject=${activeSession.subjectId}`;
+      navigate(target);
     }
   };
 
@@ -241,6 +250,16 @@ const LessonScreen = () => {
     }
   };
 
+  const handleLaunchQuizClick = () => {
+    setIsQuizSetupOpen(true);
+  };
+
+  const handleLaunchQuizConfirm = () => {
+    if (!activeSession) return;
+    setIsQuizSetupOpen(false);
+    navigate(`/teacher/quiz?sessionId=${activeSession.id}&questions=${quizSetupQuestions}&mode=${quizSetupMode}`);
+  };
+
   const handleNextPage = () => setPdfPage(p => p + 1);
   const handlePrevPage = () => setPdfPage(p => Math.max(1, p - 1));
 
@@ -285,7 +304,7 @@ const LessonScreen = () => {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-border/50 shadow-sm sticky top-0 z-10">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate("/teacher")} className="gap-2 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={() => navigate(`/teacher?tab=chapters&class=${activeSession.classId}&subject=${activeSession.subjectId}`)} className="gap-2 text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4" /> Exit
               </Button>
               <div className="h-8 w-px bg-border/60" />
@@ -317,7 +336,7 @@ const LessonScreen = () => {
                   {sessionPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                   {sessionPaused ? "Resume" : "Pause"}
                 </Button>
-                <Button variant="destructive" size="sm" className="gap-2 h-9 shadow-sm" onClick={() => { if (confirm("Are you sure?")) handleEndSession(); }}>
+                <Button variant="destructive" size="sm" className="gap-2 h-9 shadow-sm" onClick={handleEndSession}>
                   <XCircle className="w-4 h-4" /> End Session
                 </Button>
               </div>
@@ -328,29 +347,76 @@ const LessonScreen = () => {
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Area */}
           <div className="lg:col-span-3 space-y-6">
-            <div ref={sessionContainerRef} className={`relative rounded-3xl overflow-hidden bg-slate-50/50 shadow-2xl transition-all duration-500 ${isFullscreen ? "fixed inset-0 z-[100]" : "aspect-video border border-slate-200/50"}`}>
+            <div ref={sessionContainerRef} className={`relative overflow-hidden transition-all duration-500 ${isFullscreen ? "fixed inset-0 z-[100] bg-black rounded-none" : "rounded-3xl aspect-video border border-slate-200/50 bg-slate-50/50 shadow-2xl"}`}>
               {mainScreenContentUrl ? (
                 <>
                   {isPptxPath(mainScreenDirectUrl) ? (
-                    <PptxViewer src={mainScreenContentUrl} width={isFullscreen ? window.innerWidth : 1200} height={isFullscreen ? window.innerHeight : 675} />
-                  ) : (
-                    <div className="w-full h-full flex flex-col bg-white">
-                      <iframe 
-                        key={pdfPage}
-                        src={(mainScreenContentUrl?.includes("#") ? mainScreenContentUrl.split("#")[0] : mainScreenContentUrl) + `#page=${pdfPage}&toolbar=0&navpanes=0&scrollbar=0`} 
-                        title={mainScreenTitle} 
-                        className="flex-1 border-none" 
-                        allow="fullscreen" 
-                      />
-                      <div className="h-14 bg-slate-900 text-white flex items-center justify-between px-6">
+                    <div className="w-full h-full flex flex-col">
+                      <div className="flex-1 min-h-0 flex items-center justify-center bg-black">
+                        <PptxViewer 
+                          ref={pptxRef}
+                          src={mainScreenContentUrl} 
+                          width={isFullscreen ? window.innerWidth : 1200} 
+                          height={isFullscreen ? (window.innerHeight - 64) : 675} 
+                          onSlideChange={(curr, total) => {
+                            setPptxCurrentSlide(curr);
+                            setPptxTotalSlides(total);
+                          }}
+                        />
+                      </div>
+                      <div className={`${isFullscreen ? "h-16" : "h-14"} bg-[#0f172a] text-white flex items-center justify-between px-6 shrink-0 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]`}>
                         <div className="flex items-center gap-4">
-                          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={handlePrevPage} disabled={pdfPage <= 1}>
+                          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={() => pptxRef.current?.previousSlide()} disabled={pptxCurrentSlide <= 0}>
                             <ArrowLeft className="w-4 h-4 mr-2" /> Previous
                           </Button>
-                          <span className="text-sm font-medium bg-white/10 px-3 py-1 rounded-full">Page {pdfPage}</span>
-                          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={handleNextPage}>
+                          <span className="text-sm font-medium bg-white/10 px-3 py-1 rounded-full">Slide {pptxCurrentSlide + 1} / {pptxTotalSlides}</span>
+                          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={() => pptxRef.current?.nextSlide()} disabled={pptxCurrentSlide >= pptxTotalSlides - 1}>
                             Next <Play className="w-4 h-4 ml-2" />
                           </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9 gap-2" onClick={toggleFullscreen}>
+                             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                             {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                           </Button>
+                           <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={() => { setMainScreenContentUrl(null); setMainScreenTitle(""); setMainScreenDirectUrl(null); }}>
+                             <X className="w-4 h-4" />
+                           </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex flex-col">
+                      <div className="flex-1 min-h-0 bg-black">
+                        <iframe 
+                          key={pdfPage}
+                          src={mainScreenContentUrl?.toLowerCase().endsWith('.pdf') || mainScreenDirectUrl?.toLowerCase().endsWith('.pdf') 
+                            ? (mainScreenContentUrl?.includes("#") ? mainScreenContentUrl.split("#")[0] : mainScreenContentUrl) + `#page=${pdfPage}&toolbar=0&navpanes=0&scrollbar=0`
+                            : mainScreenContentUrl || ""} 
+                          title={mainScreenTitle} 
+                          className="w-full h-full border-none" 
+                          allow="fullscreen" 
+                        />
+                      </div>
+                      <div className={`${isFullscreen ? "h-16" : "h-14"} bg-[#0f172a] text-white flex items-center justify-between px-6 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.3)]`}>
+                        <div className="flex items-center gap-4">
+                          {(mainScreenContentUrl?.toLowerCase().endsWith('.pdf') || mainScreenDirectUrl?.toLowerCase().endsWith('.pdf')) && (
+                            <>
+                              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={handlePrevPage} disabled={pdfPage <= 1}>
+                                <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+                              </Button>
+                              <span className="text-sm font-medium bg-white/10 px-3 py-1 rounded-full">Page {pdfPage}</span>
+                              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9" onClick={handleNextPage}>
+                                Next <Play className="w-4 h-4 ml-2" />
+                              </Button>
+                            </>
+                          )}
+                          {!(mainScreenContentUrl?.toLowerCase().endsWith('.pdf') || mainScreenDirectUrl?.toLowerCase().endsWith('.pdf')) && (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="bg-white/10 text-white border-white/20 h-7 text-[10px]">EXTERNAL CONTENT</Badge>
+                              <span className="text-xs font-medium text-slate-300 truncate max-w-[300px]">{mainScreenTitle}</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 h-9 gap-2" onClick={toggleFullscreen}>
@@ -435,6 +501,16 @@ const LessonScreen = () => {
                   </div>
                 ) : sessionViewMode === "ai_chat" ? (
                   <div className="flex flex-col h-full">
+                    <div className="p-4 bg-primary/5 flex items-center justify-between border-b border-primary/10">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 -ml-1 text-primary hover:bg-primary/10" onClick={() => setSessionViewMode("tools")}>
+                          <ArrowLeft className="w-4 h-4" />
+                        </Button>
+                        <Bot className="w-4 h-4 text-primary" />
+                        <h4 className="text-xs font-bold text-primary">VidyaPlus Assistant</h4>
+                      </div>
+                      <span className="text-[10px] font-bold text-primary/40 uppercase tracking-widest">AI CHAT</span>
+                    </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                       {chatMessages.length === 0 && (
                         <div className="text-center py-12 space-y-3">
@@ -461,12 +537,13 @@ const LessonScreen = () => {
                   <div className="flex flex-col h-full">
                     <div className="p-4 bg-teal-50/50 flex items-center justify-between border-b border-teal-100">
                       <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 -ml-1 text-teal-600 hover:bg-teal-100" onClick={() => setSessionViewMode("tools")}>
+                          <ArrowLeft className="w-4 h-4" />
+                        </Button>
                         <Youtube className="w-4 h-4 text-teal-600" />
                         <h4 className="text-xs font-bold text-teal-900">Recommended Videos</h4>
                       </div>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSessionViewMode("tools")}>
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <span className="text-[10px] font-bold text-teal-600/40 uppercase tracking-widest">YOUTUBE</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-3 space-y-3">
                       {recoLoading ? (
@@ -522,7 +599,7 @@ const LessonScreen = () => {
                       <div className="w-10 h-10 rounded-xl bg-teal-400/10 flex items-center justify-center text-teal-600 group-hover:scale-110 transition-transform"><Youtube className="w-5 h-5" /></div>
                       <div className="text-left"><p className="text-sm font-bold">YouTube Recommends</p><p className="text-[10px] text-muted-foreground">Find related videos</p></div>
                     </button>
-                    <button className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-purple-50 transition-all group border border-transparent hover:border-purple-200" onClick={() => toast.info("Launching Quiz...")}>
+                    <button className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-purple-50 transition-all group border border-transparent hover:border-purple-200" onClick={handleLaunchQuizClick}>
                       <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform"><QrCode className="w-5 h-5" /></div>
                       <div className="text-left"><p className="text-sm font-bold">Launch Quiz</p><p className="text-[10px] text-muted-foreground">QR-based quiz</p></div>
                     </button>
@@ -616,6 +693,82 @@ const LessonScreen = () => {
           </div>
         </div>
       </div>
+
+      {/* End Session Warning Dialog */}
+      <Dialog open={sessionEnding} onOpenChange={setSessionEnding}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>End Live Session</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-slate-600">
+              Are you sure you want to end this live session?
+              <br/><br/>
+              This will update the topic status to 'completed' and return you to the dashboard.
+            </p>
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setSessionEnding(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleEndSession}>End Session</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quiz Setup Dialog */}
+      <Dialog open={isQuizSetupOpen} onOpenChange={setIsQuizSetupOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                <QrCode className="w-4 h-4" />
+              </div>
+              Launch Live Quiz
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Number of Questions</label>
+              <Input 
+                type="number" 
+                min={1} 
+                max={30} 
+                value={quizSetupQuestions} 
+                onChange={(e) => setQuizSetupQuestions(parseInt(e.target.value) || 10)} 
+              />
+              <p className="text-[10px] text-muted-foreground">Select how many questions the AI should generate (1-30).</p>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Quiz Mode</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "qr" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
+                  onClick={() => setQuizSetupMode("qr")}
+                >
+                  <ScanLine className="w-6 h-6 mb-2" />
+                  <span className="font-bold text-sm">QR Mode</span>
+                  <span className="text-[10px] text-center mt-1 opacity-80">Students show QR cards</span>
+                </button>
+                <button 
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "teacher" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
+                  onClick={() => setQuizSetupMode("teacher")}
+                >
+                  <MousePointerClick className="w-6 h-6 mb-2" />
+                  <span className="font-bold text-sm">Teacher Mode</span>
+                  <span className="text-[10px] text-center mt-1 opacity-80">Manual selection on screen</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
+              <Button variant="outline" onClick={() => setIsQuizSetupOpen(false)}>Cancel</Button>
+              <Button onClick={handleLaunchQuizConfirm} className="gap-2 bg-purple-600 hover:bg-purple-700 text-white">
+                Launch Quiz <Play className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

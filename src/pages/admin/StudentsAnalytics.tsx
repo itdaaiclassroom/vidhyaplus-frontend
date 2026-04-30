@@ -6,13 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { downloadStudentQrCodesZip } from "@/api/client";
-import { ArrowLeft, Trophy, Download } from "lucide-react";
+import { downloadStudentQrCodesZip, deleteStudent } from "@/api/client";
+import { ArrowLeft, Trophy, Download, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 const StudentsAnalytics = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { data } = useAppData();
+  const { data, refetch } = useAppData();
   const { userName } = useAuth();
   const [downloadingQrId, setDownloadingQrId] = useState<string | null>(null);
   const admins = data.admins ?? [];
@@ -156,8 +157,7 @@ const StudentsAnalytics = () => {
                     <Trophy className="w-4 h-4 text-amber-500" /> #{item.topPerformerRank}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">QR Codes</p>
+                <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -166,7 +166,26 @@ const StudentsAnalytics = () => {
                     onClick={() => handleDownloadQrCodes(item.student.id)}
                   >
                     <Download className="w-4 h-4" />
-                    {downloadingQrId === item.student.id ? "…" : "Download"}
+                    {downloadingQrId === item.student.id ? "…" : "QR"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Are you sure you want to delete ${item.student.name}?`)) {
+                        try {
+                          await deleteStudent(item.student.id);
+                          toast.success("Student deleted successfully");
+                          refetch();
+                        } catch (err: any) {
+                          toast.error(err.message || "Failed to delete student");
+                        }
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>

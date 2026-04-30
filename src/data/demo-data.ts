@@ -332,7 +332,7 @@ export const studentBadges: StudentBadge[] = [
 ];
 
 export const studentCertificates: StudentCertificate[] = [
-  { id: "cert1", studentId: "st1", title: "Science Olympiad - 1st Place", issuer: "ITDA Education Board", date: "2026-02-15", type: "achievement" },
+  { id: "cert1", studentId: "st1", title: "Science Olympiad - 1st Place", issuer: "VidyaPlus Education Board", date: "2026-02-15", type: "achievement" },
   { id: "cert2", studentId: "st1", title: "Light & Optics Chapter Completion", issuer: "Smart Learning Portal", date: "2026-02-20", type: "completion" },
   { id: "cert3", studentId: "st1", title: "Inter-School Quiz Participant", issuer: "District Education Office", date: "2026-02-10", type: "participation" },
 ];

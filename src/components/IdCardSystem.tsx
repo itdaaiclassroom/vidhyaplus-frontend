@@ -36,7 +36,7 @@ export const VidhyaPlusLogo = ({ className }: { className?: string }) => (
       <span className="font-display font-black text-[18px] text-teal-600">VidhyaPlus</span>
       <span className="font-display font-bold text-[18px] text-teal-400">+</span>
     </div>
-    <span className="text-[7px] font-medium text-slate-500 tracking-tighter uppercase">Smart Student Learning Portal</span>
+    <span className="text-[7px] font-bold text-slate-500 tracking-wider uppercase mt-1">Smart Learning Smarter Future</span>
   </div>
 );
 
@@ -63,7 +63,6 @@ export type StudentData = {
   grade: string | number;
   section: string;
   rollNo: string;
-  validUpto: string;
   photoUrl?: string | null;
 };
 
@@ -73,7 +72,6 @@ export type TeacherData = {
   designation: string;
   subject: string;
   schoolName: string;
-  validUpto: string;
   photoUrl?: string | null;
 };
 
@@ -114,9 +112,8 @@ export const StudentMainCard = ({ data }: { data: StudentData }) => {
         <div className="flex-1 flex flex-col justify-center space-y-1">
           <InfoRow icon={User} label="Name" value={data.name} colorClass="text-teal-600" />
           <InfoRow icon={School} label="School" value={data.schoolName} />
-          <InfoRow icon={Layers} label="Class" value={`${data.grade}th ${data.section ? ` - ${data.section}` : ""}`} />
+          <InfoRow icon={Layers} label="Class" value={`${data.grade && data.grade !== 'N/A' ? `${data.grade}th` : 'Class'} ${data.section ? ` - ${data.section}` : ""}`} />
           <InfoRow icon={IdCard} label="ID No." value={data.rollNo} />
-          <InfoRow icon={Calendar} label="Valid Upto" value={data.validUpto} />
         </div>
 
         {/* QR & Sign */}
@@ -158,7 +155,7 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
   const qrValue = `stu${data.rollNo}_${option}`;
 
   return (
-    <div className="w-[280px] h-[450px] print:w-[85mm] print:h-[120mm] bg-white rounded-[24px] print:rounded-xl shadow-xl print:shadow-none overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl">
+    <div className="w-[280px] h-[480px] print:w-[85mm] print:h-[120mm] bg-white rounded-[24px] print:rounded-xl shadow-xl print:shadow-none overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl">
       {/* Background decoration */}
       <div className={cn("absolute top-24 right-[-40px] w-32 h-32 rounded-full opacity-20 group-hover:scale-125 transition-transform duration-700", config.light)} />
       
@@ -189,7 +186,7 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
         <div>
           <InfoRow icon={User} label="Name" value={data.name} colorClass={config.text} />
           <InfoRow icon={School} label="School" value={data.schoolName} />
-          <InfoRow icon={Layers} label="Class" value={`${data.grade}th ${data.section ? ` - ${data.section}` : ""}`} />
+          <InfoRow icon={Layers} label="Class" value={`${data.grade && data.grade !== 'N/A' ? `${data.grade}th` : 'Class'} ${data.section ? ` - ${data.section}` : ""}`} />
           <InfoRow icon={IdCard} label="ID No." value={`${data.rollNo}-${option}`} />
         </div>
       </div>
@@ -243,7 +240,6 @@ export const TeacherMainCard = ({ data }: { data: TeacherData }) => {
           <InfoRow icon={BookOpen} label="Subject" value={data.subject} />
           <InfoRow icon={School} label="School" value={data.schoolName} />
           <InfoRow icon={IdCard} label="ID No." value={data.id} />
-          <InfoRow icon={Calendar} label="Valid Upto" value={data.validUpto} />
         </div>
 
         {/* QR & Sign */}

@@ -13,7 +13,7 @@ const Navbar = () => {
           <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg text-foreground">ITDA Classroom</span>
+          <span className="font-display font-bold text-lg text-foreground">VidyaPlus</span>
         </Link>
 
         {/* Desktop nav */}

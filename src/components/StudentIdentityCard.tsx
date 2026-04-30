@@ -43,7 +43,7 @@ export function formatStudentIdDisplay(
 }
 
 const defaultWebsite =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_INSTITUTION_WEBSITE) || "www.itda.ai";
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_INSTITUTION_WEBSITE) || "www.vidhyaplus.com";
 
 type RowProps = { label: string; value: string };
 
