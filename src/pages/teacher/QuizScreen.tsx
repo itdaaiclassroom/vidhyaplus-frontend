@@ -51,7 +51,7 @@ const QuizScreen = () => {
   const [correctOption, setCorrectOption] = useState<string | null>(null);
 
   // For teacher mode manual entry
-  const [teacherSelectedStudent, setTeacherSelectedStudent] = useState("");
+  const [studentResponses, setStudentResponses] = useState<Record<string, string>>({});
 
   const activeSession = useMemo(() => {
     if (!liveSessionId || !data.liveSessions) return null;
@@ -115,10 +115,8 @@ const QuizScreen = () => {
         
         // Track scans for the current question
         if (status.progressByQuestion && questions[currentQIndex]) {
-          const qOrderNum = currentQIndex + 1; // Backend uses 1-indexed for some, or order_num
-          const qId = questions[currentQIndex].id;
-          // Progress is usually keyed by question ID or order. Let's check both or total answers.
-          setScansReceived(status.progressByQuestion[qOrderNum] || status.progressByQuestion[qId] || status.answersCaptured || 0);
+          const qOrderNum = currentQIndex + 1;
+          setScansReceived(status.progressByQuestion[String(qOrderNum)] || 0);
         }
       } catch (err) {
         // ignore polling errors
@@ -160,6 +158,7 @@ const QuizScreen = () => {
       setCurrentQIndex(prev => prev + 1);
       setCorrectOption(null);
       setScansReceived(0);
+      setStudentResponses({});
       setPhase("active");
     } else {
       handleFinishQuiz();
@@ -178,17 +177,22 @@ const QuizScreen = () => {
     }
   };
 
-  const handleTeacherManualSubmit = async (option: string) => {
-    if (!quizSessionId || !teacherSelectedStudent) {
-      toast.error("Please select a student first.");
-      return;
-    }
+  const handleTeacherManualSubmit = async (studentId: string, option: string) => {
+    if (!quizSessionId) return;
     const currentQ = questions[currentQIndex];
     try {
-      const res = await submitLiveQuizAnswer(quizSessionId, teacherSelectedStudent, currentQ.id, option);
-      toast.success(res.isCorrect ? "Correct answer submitted!" : "Incorrect answer submitted.");
-      // Just visually increment for teacher mode manually
-      setScansReceived(prev => prev + 1);
+      // Optimistically update UI
+      setStudentResponses(prev => ({ ...prev, [studentId]: option }));
+      
+      const res = await submitLiveQuizAnswer(quizSessionId, studentId, currentQ.id, option);
+      
+      // Update count
+      const newCount = Object.keys({ ...studentResponses, [studentId]: option }).length;
+      setScansReceived(newCount);
+      
+      if (!res.ok) {
+         toast.error("Failed to submit answer to server.");
+      }
     } catch (err: any) {
       toast.error(`Error submitting answer: ${err.message}`);
     }
@@ -220,46 +224,97 @@ const QuizScreen = () => {
   // Final Leaderboard Phase
   if (phase === "finished") {
     return (
-      <DashboardLayout title="Quiz Leaderboard">
-        <div className="max-w-2xl mx-auto">
-          <Button variant="ghost" onClick={() => navigate("/teacher/lesson")} className="mb-4 gap-2">
+      <DashboardLayout title="Quiz Results & Review">
+        <div className="max-w-4xl mx-auto pb-20">
+          <Button variant="ghost" onClick={() => navigate(`/teacher/lesson?sessionId=${liveSessionId}`)} className="mb-4 gap-2">
             <ArrowLeft className="w-4 h-4" /> Back to Lesson
           </Button>
-          <Card className="shadow-card border-border">
-            <CardHeader className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-3">
-                <Trophy className="w-8 h-8 text-white" />
-              </div>
-              <CardTitle className="font-display text-2xl">Final Leaderboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {finalLeaderboard.length > 0 ? finalLeaderboard.map((student, i) => (
-                  <div
-                    key={student.studentId}
-                    className={`flex items-center justify-between p-3 rounded-xl transition-all ${
-                      i === 0 ? "bg-gradient-to-r from-amber-100 to-amber-200 border-amber-300 border" :
-                      i === 1 ? "bg-slate-100 border-slate-200 border" :
-                      i === 2 ? "bg-orange-50 border-orange-200 border" :
-                      "bg-secondary/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        i === 0 ? "bg-amber-500 text-white" : "bg-white text-slate-700 shadow-sm"
-                      }`}>
-                        {i + 1}
-                      </span>
-                      <span className="font-bold text-sm text-slate-800">{student.studentName}</span>
-                    </div>
-                    <span className="font-black text-lg text-primary">{student.score} <span className="text-xs text-muted-foreground font-normal">pts</span></span>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+            {/* Left: Leaderboard (40% width on desktop) */}
+            <div className="md:col-span-5">
+              <Card className="shadow-card border-border sticky top-4">
+                <CardHeader className="text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-3">
+                    <Trophy className="w-8 h-8 text-white" />
                   </div>
-                )) : (
-                  <p className="text-center text-muted-foreground py-8">No scores recorded.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <CardTitle className="font-display text-2xl">Final Leaderboard</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 mb-8">
+                    {finalLeaderboard.length > 0 ? finalLeaderboard.map((student, i) => (
+                      <div
+                        key={student.studentId}
+                        className={`flex items-center justify-between p-3 rounded-xl transition-all ${
+                          i === 0 ? "bg-gradient-to-r from-amber-100 to-amber-200 border-amber-300 border" :
+                          i === 1 ? "bg-slate-100 border-slate-200 border" :
+                          i === 2 ? "bg-orange-50 border-orange-200 border" :
+                          "bg-secondary/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                            i === 0 ? "bg-amber-500 text-white" :
+                            i === 1 ? "bg-slate-400 text-white" :
+                            i === 2 ? "bg-orange-400 text-white" :
+                            "bg-slate-200 text-slate-500"
+                          }`}>
+                            {i + 1}
+                          </div>
+                          <span className="font-bold text-slate-800">{student.studentName}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-lg text-primary">{student.score}</span>
+                          <span className="text-[10px] ml-1 text-muted-foreground uppercase font-bold">pts</span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-center py-8 text-muted-foreground italic">No responses recorded</div>
+                    )}
+                  </div>
+                  <Button className="w-full" onClick={() => navigate(`/teacher/lesson?sessionId=${liveSessionId}`)}>Done</Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right: Question Review (60% width on desktop) */}
+            <div className="md:col-span-7 space-y-4">
+               <h3 className="text-lg font-bold flex items-center gap-2 mb-2">
+                 <CheckCircle2 className="w-5 h-5 text-success" /> Question Review
+               </h3>
+               {questions.map((q, idx) => (
+                 <Card key={q.id} className="border-border overflow-hidden">
+                    <div className="bg-secondary/30 p-3 border-b border-border flex justify-between items-center">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Question {idx + 1}</span>
+                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                        Correct: {q.correctOption}
+                      </Badge>
+                    </div>
+                    <CardContent className="pt-4">
+                      <p className="font-bold text-slate-800 mb-4">{q.questionText}</p>
+                      <div className="grid grid-cols-1 gap-2 mb-4">
+                        {['A', 'B', 'C', 'D'].map(opt => (
+                          <div key={opt} className={`p-2 rounded-lg border text-sm flex items-center gap-2 ${
+                            opt === q.correctOption ? 'bg-success/5 border-success/30 text-success-dark font-medium' : 'bg-white border-border text-slate-600'
+                          }`}>
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              opt === q.correctOption ? 'bg-success text-white' : 'bg-slate-100 text-slate-400'
+                            }`}>{opt}</span>
+                            {q[`option${opt}`]}
+                          </div>
+                        ))}
+                      </div>
+                      {q.explanation && (
+                        <div className="mt-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
+                          <p className="text-[10px] font-bold text-blue-800 mb-1 uppercase tracking-widest">Explanation</p>
+                          <p className="text-xs text-blue-900/70 italic">{q.explanation}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                 </Card>
+               ))}
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -269,9 +324,9 @@ const QuizScreen = () => {
 
   return (
     <DashboardLayout title="Live Quiz Session">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" onClick={() => navigate("/teacher/lesson")} className="gap-2">
+          <Button variant="ghost" onClick={() => navigate(`/teacher/lesson?sessionId=${liveSessionId}`)} className="gap-2">
             <ArrowLeft className="w-4 h-4" /> Exit Quiz
           </Button>
           <div className="flex items-center gap-4">
@@ -320,126 +375,147 @@ const QuizScreen = () => {
         )}
 
         {(phase === "active" || phase === "evaluating") && currentQuestion && (
-          <div className="space-y-6">
-            <Card className="shadow-lg border-border relative overflow-hidden">
-              <div className="absolute top-0 left-0 h-1 bg-primary transition-all duration-500" style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }} />
-              
-              <CardHeader className="pb-2 pt-6">
-                <div className="flex justify-between items-center mb-2">
-                  <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-                    Question {currentQIndex + 1} of {questions.length}
-                  </Badge>
-                  {mode === "qr" && (
-                    <div className="text-sm font-bold text-slate-600 bg-secondary px-3 py-1 rounded-full">
-                      <span className="text-primary">{scansReceived}</span> / {totalStudents} Scanned
-                    </div>
-                  )}
-                </div>
-                <h3 className="font-display text-2xl font-bold text-foreground leading-tight">{currentQuestion.questionText}</h3>
-              </CardHeader>
-              
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                  {['A', 'B', 'C', 'D'].map((opt) => {
-                    const text = currentQuestion[`option${opt}` as keyof typeof currentQuestion];
-                    const isCorrectOption = phase === "evaluating" && opt === correctOption;
-                    const isWrongOption = phase === "evaluating" && opt !== correctOption;
-                    
-                    return (
-                      <div 
-                        key={opt} 
-                        className={`relative rounded-xl p-4 min-h-[80px] flex items-center border-2 transition-all ${
-                          isCorrectOption ? "bg-success/10 border-success shadow-[0_0_15px_rgba(34,197,94,0.2)]" :
-                          isWrongOption ? "bg-secondary/50 border-border opacity-50" :
-                          "bg-white border-border hover:border-primary/30 hover:shadow-md"
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mr-4 shrink-0 ${
-                          isCorrectOption ? "bg-success text-white" : "bg-secondary text-slate-500"
-                        }`}>
-                          {opt}
-                        </div>
-                        <span className={`font-medium ${isCorrectOption ? "text-success-dark font-bold text-lg" : "text-slate-700"}`}>
-                          {text as string}
-                        </span>
-                        {isCorrectOption && (
-                          <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-success" />
-                        )}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-8 space-y-6">
+              <Card className="shadow-lg border-border relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-1 bg-primary transition-all duration-500" style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }} />
+                
+                <CardHeader className="pb-2 pt-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                      Question {currentQIndex + 1} of {questions.length}
+                    </Badge>
+                    {mode === "qr" && (
+                      <div className="text-sm font-bold text-slate-600 bg-secondary px-3 py-1 rounded-full">
+                        <span className="text-primary">{scansReceived}</span> / {totalStudents} Scanned
                       </div>
-                    );
-                  })}
-                </div>
-
-                {mode === "teacher" && phase === "active" && (
-                  <div className="bg-secondary/50 p-4 rounded-xl mb-8 flex items-center gap-4">
-                    <div className="text-sm font-bold text-slate-700 whitespace-nowrap">Manual Entry:</div>
-                    <select 
-                      className="flex-1 h-10 px-3 rounded-md border border-border"
-                      value={teacherSelectedStudent}
-                      onChange={(e) => setTeacherSelectedStudent(e.target.value)}
-                    >
-                      <option value="">Select Student...</option>
-                      {classStudents.map(s => <option key={s.id} value={s.id}>{s.name} ({s.rollNo})</option>)}
-                    </select>
-                    <div className="flex gap-2">
-                      {['A','B','C','D'].map(opt => (
-                        <Button key={opt} variant="outline" className="w-10 h-10 p-0 font-bold" onClick={() => handleTeacherManualSubmit(opt)}>{opt}</Button>
-                      ))}
-                    </div>
+                    )}
                   </div>
-                )}
-
-                {phase === "evaluating" && currentQuestion.explanation && (
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 mb-8">
-                    <h4 className="font-bold text-blue-800 text-sm mb-1">Explanation</h4>
-                    <p className="text-sm text-blue-900/80">{currentQuestion.explanation}</p>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between border-t border-border pt-6">
-                  {phase === "active" ? (
-                    <Button size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary-dark font-bold text-lg px-12" onClick={handleEvaluate}>
-                      Evaluate Question
-                    </Button>
-                  ) : (
-                    <Button size="lg" className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 font-bold px-8" onClick={handleNextQuestion}>
-                      {currentQIndex < questions.length - 1 ? "Next Question" : "Finish Quiz & View Leaderboard"} <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
-                    </Button>
-                  )}
-                  
-                  {phase === "active" && mode === "qr" && (
-                    <div className="flex items-center text-sm text-muted-foreground animate-pulse">
-                      <ScanLine className="w-4 h-4 mr-2" />
-                      Scanning responses from teacher's phone...
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Mini Leaderboard (Top 5) */}
-            {miniLeaderboard.length > 0 && (
-              <Card className="shadow-sm border-border">
-                <CardHeader className="py-3 px-4 bg-secondary/50 border-b border-border">
-                  <CardTitle className="font-display text-sm flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-amber-500" /> Current Leaders
-                  </CardTitle>
+                  <h3 className="font-display text-2xl font-bold text-foreground leading-tight">{currentQuestion.questionText}</h3>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <div className="flex flex-wrap gap-3">
-                    {miniLeaderboard.slice(0, 5).map((s, i) => (
-                      <div key={s.studentId} className="bg-white border border-border shadow-sm rounded-lg px-3 py-2 text-xs flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${i===0?'bg-amber-100 text-amber-700':i===1?'bg-slate-100 text-slate-700':'bg-orange-50 text-orange-700'}`}>
-                          #{i + 1}
-                        </span>
-                        <span className="font-bold text-slate-700 truncate max-w-[100px]">{s.studentName}</span>
-                        <span className="font-black text-primary ml-1">{s.score}</span>
+                
+                <CardContent className="pt-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                    {['A', 'B', 'C', 'D'].map((opt) => {
+                      const text = currentQuestion[`option${opt}` as keyof typeof currentQuestion];
+                      const isCorrectOption = phase === "evaluating" && opt === correctOption;
+                      const isWrongOption = phase === "evaluating" && opt !== correctOption;
+                      
+                      return (
+                        <div 
+                          key={opt} 
+                          className={`relative rounded-xl p-4 min-h-[60px] flex items-center border transition-all ${
+                            isCorrectOption ? "bg-success/10 border-success" :
+                            isWrongOption ? "bg-secondary/50 border-border opacity-50" :
+                            "bg-white border-border"
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3 shrink-0 ${
+                            isCorrectOption ? "bg-success text-white" : "bg-secondary text-slate-500"
+                          }`}>
+                            {opt}
+                          </div>
+                          <span className={`font-medium ${isCorrectOption ? "text-success-dark font-bold" : "text-slate-700"}`}>
+                            {text as string}
+                          </span>
+                          {isCorrectOption && (
+                            <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 text-success" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {mode === "teacher" && phase === "active" && (
+                    <div className="border border-border rounded-xl overflow-hidden mb-8">
+                      <div className="bg-secondary/50 p-2 border-b border-border flex justify-between items-center">
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Students</h4>
+                        <Badge variant="outline" className="bg-white">
+                          {Object.keys(studentResponses).length} / {totalStudents}
+                        </Badge>
                       </div>
-                    ))}
+                      <div className="max-h-[300px] overflow-y-auto divide-y divide-border bg-white">
+                        {classStudents.map((s) => {
+                          const selectedOpt = studentResponses[s.id];
+                          return (
+                            <div key={s.id} className="p-2 flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-sm">{s.name}</span>
+                                <span className="text-[10px] text-muted-foreground">Roll: {s.rollNo}</span>
+                              </div>
+                              <div className="flex gap-1">
+                                {['A', 'B', 'C', 'D'].map((opt) => (
+                                  <Button
+                                    key={opt}
+                                    variant={selectedOpt === opt ? "default" : "outline"}
+                                    size="sm"
+                                    className="w-8 h-8 p-0 font-bold"
+                                    onClick={() => handleTeacherManualSubmit(s.id, opt)}
+                                  >
+                                    {opt}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-between border-t border-border pt-6">
+                    {phase === "active" ? (
+                      <Button size="lg" className="w-full sm:w-auto px-8" onClick={handleEvaluate}>
+                        Evaluate Question
+                      </Button>
+                    ) : (
+                      <Button size="lg" className="w-full sm:w-auto px-8" onClick={handleNextQuestion}>
+                        {currentQIndex < questions.length - 1 ? "Next Question" : "Finish Quiz"} <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                      </Button>
+                    )}
+                    
+                    {phase === "active" && mode === "qr" && (
+                      <div className="flex items-center text-sm text-muted-foreground animate-pulse">
+                        <ScanLine className="w-4 h-4 mr-2" />
+                        Scanning responses...
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </div>
+
+            <div className="lg:col-span-4 space-y-6">
+              {miniLeaderboard.length > 0 && (
+                <Card className="shadow-lg border-primary/20">
+                  <CardHeader className="py-4 px-5 bg-primary/5 border-b border-primary/10">
+                    <CardTitle className="font-display text-lg flex items-center gap-2">
+                      <Trophy className="w-5 h-5 text-amber-500" /> Live Leaderboard
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border">
+                      {miniLeaderboard.slice(0, 5).map((s, i) => (
+                        <div key={s.studentId} className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                              i === 0 ? 'bg-amber-500 text-white' : 
+                              i === 1 ? 'bg-slate-400 text-white' : 
+                              i === 2 ? 'bg-orange-400 text-white' : 
+                              'bg-secondary text-slate-700'
+                            }`}>
+                              {i + 1}
+                            </span>
+                            <span className="font-bold text-sm">{s.studentName}</span>
+                          </div>
+                          <span className="font-black text-primary">{s.score} pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         )}
       </div>
