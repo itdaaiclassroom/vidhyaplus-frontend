@@ -14,6 +14,7 @@ import {
   PrincipalSection
 } from "@/api/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePrincipal } from "@/contexts/PrincipalContext";
 import { toast } from "sonner";
 import { 
   FileSpreadsheet, 
@@ -71,6 +72,7 @@ function excelDateToString(value: any): string | null {
 
 const BulkUpload: React.FC = () => {
   const { schoolId } = useAuth();
+  const principalContext = usePrincipal();
   const [type, setType] = useState<UploadType>("students");
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -255,6 +257,15 @@ const BulkUpload: React.FC = () => {
       // Clear parsed data so the Register button disappears (prevents re-registration)
       setParsedData([]);
       setFile(null);
+
+      // Refetch context data to update the dashboard immediately
+      if (successCount > 0) {
+        if (type === "students" && principalContext?.refetchStudents) {
+          await principalContext.refetchStudents();
+        } else if (type === "teachers" && principalContext?.refetchTeachers) {
+          await principalContext.refetchTeachers();
+        }
+      }
     } catch (err) {
       toast.error("Critical error during bulk processing.");
       console.error(err);

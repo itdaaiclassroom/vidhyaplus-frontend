@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -34,9 +33,10 @@ import {
   PolarAngleAxis, PolarRadiusAxis
 } from "recharts";
 import { StudentForm, TeacherForm } from "./RegistrationForms";
-import { createSchool, updateSchool, deleteSchool, getTeacherAssignments, updateTeacher, updateTeacherAssignments, updateChapterTextbook, updateTopicPpt, getApiBase } from "@/api/client";
+import { createSchool, updateSchool, deleteSchool, getTeacherAssignments, updateTeacher, updateTeacherAssignments, updateChapterTextbook, updateTopicPpt, getApiBase, deleteStudent } from "@/api/client";
 import { uploadFileToR2, deleteFileFromR2 } from "@/services/uploadService";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 
 const AdminDashboard = () => {
   const { data, loading, error, isFromApi, refetch } = useAppData();
@@ -452,7 +452,7 @@ const AdminDashboard = () => {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 14px 'Space Grotesk', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("ITDA AI Classroom", 160, 30);
+        ctx.fillText("VidyaPlus LMS", 160, 30);
         ctx.font = "11px 'Plus Jakarta Sans', sans-serif";
         ctx.fillText("Student Identity Card", 160, 50);
         const tempDiv = document.createElement("div");
@@ -1128,7 +1128,28 @@ const AdminDashboard = () => {
                                   ) : <span className="text-xs text-muted-foreground">—</span>}
                                 </td>
                                 <td className="p-3">
-                                  <Button variant="outline" size="sm" className="text-xs h-7">View Profile</Button>
+                                  <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" className="text-xs h-7">View Profile</Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Are you sure you want to delete ${s.name}?`)) {
+                                          try {
+                                            await deleteStudent(s.id);
+                                            toast.success("Student deleted successfully");
+                                            refetch();
+                                          } catch (err: any) {
+                                            toast.error(err.message || "Failed to delete student");
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             );

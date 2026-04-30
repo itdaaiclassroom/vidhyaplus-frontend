@@ -170,7 +170,9 @@ const TeacherDashboard = () => {
 
   const urlClass = searchParams.get("class") || "";
   const urlSubject = searchParams.get("subject") || "";
+  const urlTab = searchParams.get("tab") || "overview";
 
+  const [activeTab, setActiveTab] = useState<string>(urlTab);
   const [selectedClass, setSelectedClass] = useState<string>(urlClass);
   const [selectedSubject, setSelectedSubject] = useState<string>(urlSubject);
 
@@ -1920,7 +1922,7 @@ const TeacherDashboard = () => {
   // Normal dashboard
   return (
     <DashboardLayout title="Teacher Dashboard">
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex gap-8">
           {/* Fixed Sidebar */}
           <aside className="w-[200px] flex-shrink-0">

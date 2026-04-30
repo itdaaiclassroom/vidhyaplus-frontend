@@ -282,6 +282,8 @@ export async function createLiveQuiz(payload: {
   subjectId: string;
   /** Optional: link to live session so only one quiz per session is created */
   liveSessionId?: string;
+  noOfQuestions?: number;
+  mode?: 'qr' | 'teacher';
 }): Promise<{
   id: string;
   questions: Array<{ id: string; questionText: string; optionA: string; optionB: string; optionC: string; optionD: string; correctOption: string; explanation: string; orderNum: number }>;
@@ -570,6 +572,24 @@ export async function fetchPrincipalStudents(schoolId: string): Promise<Principa
 export async function fetchPrincipalTeachers(schoolId: string): Promise<PrincipalTeacher[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/principal/schools/${schoolId}/teachers`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export interface PrincipalProfile {
+  id: number;
+  email: string;
+  full_name: string;
+  school_id: number;
+  school_name: string;
+  role: string;
+}
+
+export async function fetchPrincipalProfile(): Promise<PrincipalProfile> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/profile`, {
     headers: getAuthHeaders()
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));

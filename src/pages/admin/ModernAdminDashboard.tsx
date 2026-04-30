@@ -62,6 +62,12 @@ const ModernAdminDashboard = () => {
     logo: File | null;
   }>({ name: "", code: "", district: "", mandal: "", sessionsCompleted: 0, activeStatus: true, principalName: "", principalEmail: "", principalPassword: "", logo: null });
   const [schoolSubmitting, setSchoolSubmitting] = useState(false);
+  const [viewingSchool, setViewingSchool] = useState<any>(null);
+  const [filterSchool, setFilterSchool] = useState<string>("all");
+  const [filterClass, setFilterClass] = useState<string>("all");
+  const [filterSection, setFilterSection] = useState<string>("all");
+  const [filterSubject, setFilterSubject] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (schoolFormOpen && editingSchool) {
@@ -78,7 +84,7 @@ const ModernAdminDashboard = () => {
     fetchTeacherLogs().then(setLogs).catch(console.error);
   }, []);
 
-  const { schools, teachers, students, liveSessions } = data;
+  const { schools, teachers, students, liveSessions, classes, subjects } = data;
 
   const activeSessions = useMemo(() => liveSessions.filter(s => s.status === "active"), [liveSessions]);
 
@@ -324,40 +330,225 @@ const ModernAdminDashboard = () => {
 
           {/* Students Content */}
           <TabsContent value="students" className="space-y-6">
-             <Card className="border-0 shadow-sm rounded-2xl">
-               <CardContent className="p-0">
-                 <table className="w-full text-left">
-                   <thead className="bg-slate-50/50 border-b border-slate-100">
-                     <tr>
-                       <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Student ID</th>
-                       <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Name</th>
-                       <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Class</th>
-                       <th className="px-6 py-4 font-semibold text-slate-700 text-sm">School</th>
-                       <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Action</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-100">
-                     {students.slice(0, 10).map(s => (
-                       <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                         <td className="px-6 py-4 text-sm font-medium text-primary">#{s.id}</td>
-                         <td className="px-6 py-4 text-sm font-medium text-slate-800">{s.name}</td>
-                         <td className="px-6 py-4 text-sm text-slate-500">{s.section || '10-A'}</td>
-                         <td className="px-6 py-4 text-sm text-slate-500">{schools.find(sc => sc.id === s.schoolId)?.name || 'Main School'}</td>
-                         <td className="px-6 py-4 text-right">
-                           <Button 
-                             variant="ghost" 
-                             size="sm" 
-                             className="text-primary hover:text-primary hover:bg-primary/5 rounded-lg"
-                             onClick={() => setSelectedStudent(s)}
-                           >
-                             <Eye className="w-4 h-4 mr-2" /> View
-                           </Button>
-                         </td>
-                       </tr>
-                     ))}
-                   </tbody>
-                 </table>
-               </CardContent>
+             <div className="flex flex-wrap gap-4 items-end bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="space-y-1.5 flex-1 min-w-[200px]">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Search Students</Label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Input 
+                      className="pl-9 bg-slate-50 border-slate-100 rounded-xl" 
+                      placeholder="Name or ID..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5 w-48">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">School</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={filterSchool}
+                    onChange={(e) => setFilterSchool(e.target.value)}
+                  >
+                    <option value="all">All Schools</option>
+                    {[...schools].sort((a,b) => a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 w-32">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Class</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={filterClass}
+                    onChange={(e) => setFilterClass(e.target.value)}
+                  >
+                    <option value="all">All Classes</option>
+                    {Array.from(new Set(classes.map(c => c.grade))).sort((a,b) => a-b).map(g => <option key={g} value={g}>{g}th Class</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 w-32">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Section</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={filterSection}
+                    onChange={(e) => setFilterSection(e.target.value)}
+                  >
+                    <option value="all">All Sections</option>
+                    {Array.from(new Set(classes.map(c => c.section))).sort().map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <Button variant="outline" className="rounded-xl h-10" onClick={() => { setFilterSchool("all"); setFilterClass("all"); setFilterSection("all"); setSearchQuery(""); }}>
+                  Reset
+                </Button>
+             </div>
+
+             <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-100">
+                        <tr>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Name</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Class</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm">School</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {students
+                          .filter(s => {
+                            const studentClass = classes.find(c => c.id === s.classId);
+                            const grade = studentClass?.grade;
+                            const section = s.section || studentClass?.section;
+                            
+                            const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.toString().includes(searchQuery);
+                            const matchSchool = filterSchool === "all" || s.schoolId.toString() === filterSchool;
+                            const matchClass = filterClass === "all" || grade?.toString() === filterClass;
+                            const matchSection = filterSection === "all" || section === filterSection;
+                            return matchSearch && matchSchool && matchClass && matchSection;
+                          })
+                          .sort((a, b) => {
+                            const classA = classes.find(c => c.id === a.classId);
+                            const classB = classes.find(c => c.id === b.classId);
+                            const gradeA = classA?.grade || 0;
+                            const gradeB = classB?.grade || 0;
+                            if (gradeA !== gradeB) return gradeA - gradeB;
+                            
+                            const secA = a.section || classA?.section || '';
+                            const secB = b.section || classB?.section || '';
+                            if (secA !== secB) return secA.localeCompare(secB);
+                            
+                            return Number(a.id) - Number(b.id);
+                          })
+                          .map(s => {
+                            const studentClass = classes.find(c => c.id === s.classId);
+                            const grade = studentClass?.grade;
+                            const section = s.section || studentClass?.section;
+                            return (
+                              <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-6 py-4 text-sm font-medium text-slate-800">{s.name}</td>
+                                <td className="px-6 py-4 text-sm text-slate-500">{grade ? `${grade} - ${section || ''}` : (section || 'N/A')}</td>
+                                <td className="px-6 py-4 text-sm text-slate-500">{schools.find(sc => sc.id === s.schoolId)?.name || 'Main School'}</td>
+                                <td className="px-6 py-4 text-right">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-primary hover:text-primary hover:bg-primary/5 rounded-lg"
+                                    onClick={() => setSelectedStudent(s)}
+                                  >
+                                    <Eye className="w-4 h-4 mr-2" /> View
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        {students.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-12 text-center text-slate-400">No students found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+             </Card>
+          </TabsContent>
+
+          {/* Teachers Content */}
+          <TabsContent value="teachers" className="space-y-6">
+             <div className="flex flex-wrap gap-4 items-end bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="space-y-1.5 flex-1 min-w-[200px]">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Search Teachers</Label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Input 
+                      className="pl-9 bg-slate-50 border-slate-100 rounded-xl" 
+                      placeholder="Name or Subject..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5 w-48">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">School</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={filterSchool}
+                    onChange={(e) => setFilterSchool(e.target.value)}
+                  >
+                    <option value="all">All Schools</option>
+                    {[...schools].sort((a,b) => a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 w-40">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Subject</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={filterSubject}
+                    onChange={(e) => setFilterSubject(e.target.value)}
+                  >
+                    <option value="all">All Subjects</option>
+                    {[...subjects].sort((a,b) => a.name.localeCompare(b.name)).map(sub => <option key={sub.id} value={sub.name}>{sub.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 w-32">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Section</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={filterSection}
+                    onChange={(e) => setFilterSection(e.target.value)}
+                  >
+                    <option value="all">All Sections</option>
+                    {Array.from(new Set(classes.map(c => c.section))).sort().map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <Button variant="outline" className="rounded-xl h-10" onClick={() => { setFilterSchool("all"); setFilterSubject("all"); setFilterSection("all"); setSearchQuery(""); }}>
+                  Reset
+                </Button>
+             </div>
+
+             <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-100">
+                        <tr>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Name</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm">School</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Subject</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {teachers
+                          .filter(t => {
+                            const matchSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase());
+                            const matchSchool = filterSchool === "all" || t.schoolId?.toString() === filterSchool;
+                            const matchSubject = filterSubject === "all" || (t.subjects && t.subjects.includes(filterSubject));
+                            return matchSearch && matchSchool && matchSubject;
+                          })
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map(t => {
+                            const teacherSubjects = t.subjects && Array.isArray(t.subjects) ? t.subjects.join(", ") : "";
+                            return (
+                              <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-6 py-4 text-sm font-medium text-slate-800">{t.name}</td>
+                                <td className="px-6 py-4 text-sm text-slate-500">{schools.find(sc => sc.id === t.schoolId)?.name || 'Main School'}</td>
+                                <td className="px-6 py-4 text-sm text-slate-500">{teacherSubjects || 'Not Assigned'}</td>
+                                <td className="px-6 py-4 text-sm text-right">
+                                  <Badge className="bg-emerald-100 text-emerald-600 border-0">Active</Badge>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        {teachers.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-12 text-center text-slate-400">No teachers found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
              </Card>
           </TabsContent>
 
@@ -386,7 +577,9 @@ const ModernAdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {data.admins?.map(admin => (
+                    {(data.admins || [])
+                      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+                      .map(admin => (
                       <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-primary">#{admin.id}</td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-800">{admin.full_name}</td>
@@ -417,7 +610,9 @@ const ModernAdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {logs.map((log, i) => (
+                    {[...logs]
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                      .map((log, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-slate-800">{log.teacher_name}</td>
                         <td className="px-6 py-4 text-sm">
@@ -441,7 +636,9 @@ const ModernAdminDashboard = () => {
           {/* Schools Content */}
           <TabsContent value="schools" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {schools.map(school => (
+              {[...schools]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(school => (
                 <Card key={school.id} className="border-0 shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
                   <CardHeader className="bg-white border-b border-slate-50 flex flex-row items-center justify-between">
                     <div className="flex flex-col">
@@ -458,7 +655,7 @@ const ModernAdminDashboard = () => {
                           name: school.name, 
                           code: school.code, 
                           district: school.district, 
-                          mandal: (school as any).mandal, 
+                          mandal: school.mandal, 
                           sessionsCompleted: school.sessionsCompleted, 
                           activeStatus: school.activeStatus 
                         }); 
@@ -485,13 +682,21 @@ const ModernAdminDashboard = () => {
                       <span className="font-medium text-slate-800">{school.students}</span>
                     </div>
                     <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                        onClick={() => setViewingSchool(school)}
+                      >
+                        View Details
+                      </Button>
                       <div className="flex items-center gap-2">
                         <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
-                        <span className="text-xs font-bold text-rose-500 uppercase">Live Session</span>
+                        <span className="text-[10px] font-bold text-rose-500 uppercase">Live Session</span>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setShowLiveMonitor(true)}>
+                          <ChevronRight className="w-4 h-4 text-primary" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-primary" onClick={() => setShowLiveMonitor(true)}>
-                        Monitor <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -615,7 +820,12 @@ const ModernAdminDashboard = () => {
 
             <div className="grid grid-cols-3 gap-6 py-6 border-y border-slate-50">
               <DetailItem label="School" value={schools.find(s => s.id === selectedStudent?.schoolId)?.name || 'Main School'} />
-              <DetailItem label="Class" value={selectedStudent?.section || '10-A'} />
+              {(() => {
+                const studentClass = classes.find(c => c.id === selectedStudent?.classId);
+                const grade = studentClass?.grade;
+                const section = selectedStudent?.section || studentClass?.section;
+                return <DetailItem label="Class" value={grade ? `${grade} - ${section || ''}` : (section || 'N/A')} />;
+              })()}
               <DetailItem label="Phone" value={selectedStudent?.phone_number || 'N/A'} />
             </div>
 
@@ -627,6 +837,129 @@ const ModernAdminDashboard = () => {
               <DetailItem label="Pincode" value={selectedStudent?.pincode || 'N/A'} />
               <DetailItem label="Address" value={selectedStudent?.address || 'N/A'} />
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* School Details Dialog */}
+      <Dialog open={!!viewingSchool} onOpenChange={() => setViewingSchool(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-3xl border-0 shadow-2xl bg-white max-h-[90vh] flex flex-col">
+          <div className="bg-primary p-8 text-white shrink-0">
+             <div className="flex justify-between items-start">
+               <div>
+                 <Badge className="bg-white/20 text-white border-0 mb-2">{viewingSchool?.code}</Badge>
+                 <h2 className="text-3xl font-bold font-display">{viewingSchool?.name}</h2>
+                 <p className="text-white/70 flex items-center gap-1 mt-1">
+                   <Activity className="w-4 h-4" /> {viewingSchool?.district} District
+                 </p>
+               </div>
+               <div className="text-right">
+                 <p className="text-white/60 text-xs font-bold uppercase tracking-wider">Status</p>
+                 <Badge className="bg-emerald-400 text-primary font-bold mt-1">
+                   {viewingSchool?.activeStatus ? "ACTIVE" : "INACTIVE"}
+                 </Badge>
+               </div>
+             </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-8 pt-6">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Teachers</p>
+                  <p className="text-2xl font-bold text-slate-800">{teachers.filter(t => t.schoolId === viewingSchool?.id).length}</p>
+                </Card>
+                <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Students</p>
+                  <p className="text-2xl font-bold text-slate-800">{students.filter(s => s.schoolId === viewingSchool?.id).length}</p>
+                </Card>
+                <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Classes</p>
+                  <p className="text-2xl font-bold text-slate-800">{Array.from(new Set(classes.filter(c => c.schoolId === viewingSchool?.id).map(c => c.grade))).length}</p>
+                </Card>
+                <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sections</p>
+                  <p className="text-2xl font-bold text-slate-800">{classes.filter(c => c.schoolId === viewingSchool?.id).length}</p>
+                </Card>
+             </div>
+
+             <Tabs defaultValue="school-teachers" className="space-y-6">
+                <TabsList className="bg-slate-100 p-1 rounded-xl">
+                  <TabsTrigger value="school-teachers" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Teachers</TabsTrigger>
+                  <TabsTrigger value="school-students" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Students</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="school-teachers">
+                   <div className="overflow-hidden border border-slate-100 rounded-2xl">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                          <tr>
+                            <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider text-right">Subject</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {teachers.filter(t => t.schoolId === viewingSchool?.id).map(t => {
+                            const teacherSubjects = t.subjects && Array.isArray(t.subjects) ? t.subjects.join(", ") : "";
+                            return (
+                              <tr key={t.id} className="hover:bg-slate-50/50">
+                                <td className="px-6 py-4 text-sm font-medium text-slate-800">{t.name}</td>
+                                <td className="px-6 py-4 text-sm text-slate-500 text-right">{teacherSubjects || 'Not Assigned'}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                   </div>
+                </TabsContent>
+
+                <TabsContent value="school-students">
+                   <div className="overflow-hidden border border-slate-100 rounded-2xl">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                          <tr>
+                            <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider">Class</th>
+                            <th className="px-6 py-3 font-semibold text-slate-700 text-xs uppercase tracking-wider text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {students
+                            .filter(s => s.schoolId === viewingSchool?.id)
+                            .sort((a, b) => {
+                              const classA = classes.find(c => c.id === a.classId);
+                              const classB = classes.find(c => c.id === b.classId);
+                              const gradeA = classA?.grade || 0;
+                              const gradeB = classB?.grade || 0;
+                              if (gradeA !== gradeB) return gradeA - gradeB;
+                              
+                              const secA = a.section || classA?.section || '';
+                              const secB = b.section || classB?.section || '';
+                              if (secA !== secB) return secA.localeCompare(secB);
+                              
+                              return Number(a.id) - Number(b.id);
+                            })
+                            .map(s => {
+                            const studentClass = classes.find(c => c.id === s.classId);
+                            const grade = studentClass?.grade;
+                            const section = s.section || studentClass?.section;
+                            return (
+                              <tr key={s.id} className="hover:bg-slate-50/50">
+                                <td className="px-6 py-4 text-sm font-medium text-slate-800">{s.name}</td>
+                                <td className="px-6 py-4 text-sm text-slate-500">{grade ? `${grade} - ${section || ''}` : (section || 'N/A')}</td>
+                                <td className="px-6 py-4 text-right">
+                                  <Button variant="ghost" size="sm" className="text-primary" onClick={() => setSelectedStudent(s)}>View</Button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                   </div>
+                </TabsContent>
+             </Tabs>
+          </div>
+          <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+             <Button variant="ghost" onClick={() => setViewingSchool(null)}>Close Details</Button>
           </div>
         </DialogContent>
       </Dialog>

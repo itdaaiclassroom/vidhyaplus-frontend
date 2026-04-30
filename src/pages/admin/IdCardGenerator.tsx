@@ -252,17 +252,16 @@ const IdCardGenerator = () => {
         ) : (
           <div className="space-y-12">
             {viewMode === "main" ? (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 print:grid print:grid-cols-2 print:gap-10 print:space-y-0 print:pt-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 py-10 print:grid print:grid-cols-2 print:gap-10 print:space-y-0 print:pt-4">
                 {studentsToPrint.map((s) => {
                   const displayName = principalCtx ? `${s.first_name} ${s.last_name}` : s.name;
                   const studentData: StudentData = {
                     id: String(s.id),
                     name: displayName,
                     schoolName: currentSchoolName,
-                    grade: principalCtx ? (s.grade_label || "N/A") : ((s as any).grade || "N/A"),
+                    grade: principalCtx ? (s.grade_label || "Class") : ((s as any).grade || "Class"),
                     section: principalCtx ? s.section_code : (s.section || "A"),
                     rollNo: String(principalCtx ? s.roll_no : (s.rollNo || s.id)),
-                    validUpto: "31-03-2026",
                     photoUrl: s.profile_image_url
                   };
                   return (
@@ -273,17 +272,16 @@ const IdCardGenerator = () => {
                 })}
               </div>
             ) : (
-              <div className="space-y-16 printable-area">
+              <div className="space-y-16 py-10 printable-area">
                 {studentsToPrint.map((s) => {
                   const displayName = principalCtx ? `${s.first_name} ${s.last_name}` : s.name;
                   const studentData: StudentData = {
                     id: String(s.id),
                     name: displayName,
                     schoolName: currentSchoolName,
-                    grade: principalCtx ? (s.grade_label || "N/A") : ((s as any).grade || "N/A"),
+                    grade: principalCtx ? (s.grade_label || "Class") : ((s as any).grade || "Class"),
                     section: principalCtx ? s.section_code : (s.section || "A"),
                     rollNo: String(principalCtx ? s.roll_no : (s.rollNo || s.id)),
-                    validUpto: "31-03-2026",
                     photoUrl: s.profile_image_url
                   };
                   return (
