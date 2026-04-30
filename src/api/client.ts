@@ -14,7 +14,7 @@ function resolveApiBase(): string {
   return "";
 }
 const API_BASE = resolveApiBase();
-// const AI_API_BASE = import.meta.env.VITE_AI_API_URL || "http://localhost:8001";
+const AI_API_BASE = (import.meta.env.VITE_AI_API_URL || "http://187.127.158.229:8001").replace(/\/$/, "");
 
 
 
@@ -930,9 +930,10 @@ export async function getAiRecommendations(payload: {
   query_used?: string;
   youtube_source?: string;
 }> {
-  const res = await fetch(`http://187.127.158.229:8001/recommend`, {
+  const res = await fetch(`${API_BASE}/api/ai/recommend`, {
     method: "POST",
     headers: {
+      ...getAuthHeaders(),
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload),
@@ -948,9 +949,10 @@ export async function askAiAssistant(payload: {
   subject?: string;
   chapter?: string;
 }): Promise<{ answer: string; source_docs?: string[]; model_used?: string }> {
-  const res = await fetch(`http://187.127.158.229:8001/ask`, {
+  const res = await fetch(`${API_BASE}/api/ai/ask`, {
     method: "POST",
     headers: {
+      ...getAuthHeaders(),
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload),

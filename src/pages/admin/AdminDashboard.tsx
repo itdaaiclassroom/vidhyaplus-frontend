@@ -495,6 +495,77 @@ const AdminDashboard = () => {
 
     Promise.all(classStudents.map(renderCard)).then((images) => {
       document.body.removeChild(container);
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>QR Cards - ${classDetail!.name}</title>
+            <style>
+              @page { size: A4; margin: 10mm; }
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              body { margin: 0; font-family: sans-serif; background: #f9fafb; color: #1f2937; }
+              .header { text-align: center; padding: 25px 20px; background: white; border-bottom: 1px solid #e5e7eb; margin-bottom: 25px; }
+              .header h1 { margin: 0; font-size: 22px; font-weight: 800; color: #0d9488; }
+              .header p { margin: 6px 0 0; font-size: 14px; color: #6b7280; }
+              .grid { 
+                display: grid; 
+                grid-template-columns: repeat(2, 1fr); 
+                gap: 20px; 
+                padding: 0 20px 30px; 
+                max-width: 850px; 
+                margin: 0 auto; 
+              }
+              .card-wrapper { 
+                page-break-inside: avoid; 
+                display: flex; 
+                justify-content: center; 
+              }
+              .card-image { 
+                width: 100%; 
+                max-width: 320px; 
+                height: auto; 
+                border-radius: 14px; 
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); 
+              }
+              .no-print { 
+                position: fixed; 
+                top: 20px; 
+                right: 20px; 
+                padding: 10px 20px; 
+                background: #0d9488; 
+                color: white; 
+                border: none; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: 700; 
+                font-size: 14px;
+                box-shadow: 0 4px 6px rgba(13, 148, 136, 0.2);
+                z-index: 100;
+              }
+              @media print {
+                .no-print { display: none; }
+                body { background: white; }
+                .header { border: none; padding-top: 10px; }
+                .grid { gap: 8mm; }
+              }
+            </style>
+          </head>
+          <body>
+            <button class="no-print" onclick="window.print()">Print Cards</button>
+            <div class="header">
+              <h1>${classDetail!.name} — Student QR Cards</h1>
+              <p>${school!.name} • ${classStudents.length} Students</p>
+            </div>
+            <div class="grid">
+              ${images.map(img => `
+                <div class="card-wrapper">
+                  <img src="${img}" class="card-image" />
+                </div>
+              `).join('')}
+            </div>
+          </body>
+        </html>
+      `;
       printWindow.document.write(html);
       printWindow.document.close();
     });
