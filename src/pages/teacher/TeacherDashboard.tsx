@@ -1089,11 +1089,20 @@ const TeacherDashboard = () => {
     if (!activeSession) return;
     setRecoLoading(true);
     try {
-      const res = await getAiRecommendations({
+      const activeChapter = activeSession?.chapterId 
+        ? chapters.find(c => String(c.id) === String(activeSession.chapterId))
+        : null;
+
+      const payload = {
         topic: activeSession.topicName,
         subject: activeSession.subjectName,
-        grade: grade
-      });
+        grade: grade,
+        chapter: activeChapter?.name || activeSession.topicName
+      };
+      console.log("[AI Recommend] Sending payload:", JSON.stringify(payload));
+
+      const res = await getAiRecommendations(payload);
+      console.log("[AI Recommend] Response:", res);
       setRecommendations(res);
     } catch (e) {
       console.error(e);
@@ -1104,7 +1113,7 @@ const TeacherDashboard = () => {
       setRecoLoading(false);
     }
 
-  }, [activeSession, grade]);
+  }, [activeSession, grade, chapters]);
 
    const handleChapterStatusChange = (chId: string, newStatus: string) => {
 

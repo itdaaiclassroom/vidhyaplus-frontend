@@ -923,14 +923,18 @@ export async function getAiRecommendations(payload: {
   topic: string;
   subject: string;
   grade: number;
+  chapter?: string;
 }): Promise<{
-  videos: Array<{ title: string; url: string; description?: string }>;
+  videos: Array<{ title: string; url: string; description?: string; thumbnail?: string; source?: string }>;
   resources: Array<{ title: string; url: string; snippet?: string }>;
+  query_used?: string;
+  youtube_source?: string;
 }> {
-  if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/ai/recommend`, {
+  const res = await fetch(`http://187.127.158.229:8001/recommend`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -943,11 +947,12 @@ export async function askAiAssistant(payload: {
   topic?: string;
   subject?: string;
   chapter?: string;
-}): Promise<{ question: string; answer: string }> {
-  if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/ai/ask`, {
+}): Promise<{ answer: string; source_docs?: string[]; model_used?: string }> {
+  const res = await fetch(`http://187.127.158.229:8001/ask`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -1028,6 +1033,13 @@ export async function fetchAdminAnalytics(): Promise<{
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/admin/analytics`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchSubjectPerformance(): Promise<Array<{ subject: string; avgScore: number; sessions: number }>> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/performance/subjects`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }

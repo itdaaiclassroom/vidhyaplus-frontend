@@ -132,7 +132,10 @@ const LessonScreen = () => {
   const grade = useMemo(() => {
     if (!activeSession || !data.classes) return 10;
     const cls = data.classes.find((c: any) => sameId(c.id, activeSession.classId));
-    return cls ? (parseInt(String(cls.grade)) || 10) : 10;
+    if (!cls) return 10;
+    const gradeStr = String(cls.grade || cls.name || "");
+    const match = gradeStr.match(/\d+/);
+    return match ? parseInt(match[0]) : 10;
   }, [activeSession, data.classes]);
 
   useEffect(() => {
@@ -220,11 +223,18 @@ const LessonScreen = () => {
     if (!activeSession) return;
     setRecoLoading(true);
     try {
-      const res = await getAiRecommendations({
+      const activeChapter = data.chapters?.find((c: any) => sameId(c.id, activeSession.chapterId));
+
+      const payload = {
         topic: activeSession.topicName,
         subject: activeSession.subjectName,
-        grade: grade
-      });
+        grade: grade,
+        chapter: activeChapter?.name || activeSession.topicName
+      };
+      console.log("[AI Recommend] LessonScreen payload:", JSON.stringify(payload));
+
+      const res = await getAiRecommendations(payload);
+      console.log("[AI Recommend] LessonScreen response:", res);
       setRecommendations(res);
     } catch (e) {
       console.error(e);
@@ -232,7 +242,7 @@ const LessonScreen = () => {
     } finally {
       setRecoLoading(false);
     }
-  }, [activeSession, grade]);
+  }, [activeSession, grade, data.chapters]);
 
   useEffect(() => {
     if (sessionViewMode === "recommendations" && !recommendations && !recoLoading) {
@@ -270,10 +280,12 @@ const LessonScreen = () => {
     setChatInput("");
     setChatLoading(true);
     try {
+      const chapterName = data.chapters?.find((c: any) => c.id === activeSession.chapterId || c.id === parseInt(activeSession.chapterId))?.name;
       const res = await askAiAssistant({
         question: msg,
         topic: activeSession.topicName,
         subject: activeSession.subjectName,
+        chapter: chapterName,
       });
       setChatMessages(prev => [...prev, { role: "ai", text: res.answer }]);
     } catch (e) {
@@ -525,6 +537,15 @@ const LessonScreen = () => {
                           </div>
                         </div>
                       ))}
+                      {chatLoading && (
+                        <div className="flex justify-start">
+                          <div className="max-w-[85%] rounded-2xl px-4 py-3 text-xs shadow-sm bg-muted text-foreground rounded-tl-none flex items-center space-x-1.5">
+                            <span className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce"></span>
+                            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-1.5 h-1.5 bg-primary/80 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4 border-t bg-white">
                       <div className="relative">
