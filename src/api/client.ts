@@ -480,6 +480,16 @@ export async function submitAttendance(payload: {
   return res.json();
 }
 
+/** Fetch attendance records for a class on a specific date. */
+export async function getStudentAttendance(classId: string, date: string): Promise<Array<{ student_id: string; status: string }>> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/students/attendance?class_id=${classId}&attendance_date=${date}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 /** Admin: set or upload chapter textbook (replaces existing). Pass either path or { file: base64, filename }. */
 export async function updateChapterTextbook(
   chapterId: string,
@@ -1179,6 +1189,178 @@ export async function fetchStudentAttendanceSummary(schoolId?: string, date?: st
 export async function fetchPrincipalSubjects(): Promise<any[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/principal/subjects`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+// ============================
+// Chapter Gating APIs
+// ============================
+
+export interface ChapterGatingStatus {
+  chapterId: string;
+  chapterNo: number;
+  chapterName: string;
+  isLocked: boolean;
+  assessmentAvailable: boolean;
+  teacherPassed: boolean;
+  teacherBestScore: number;
+  teacherAttempts: number;
+  studentAvgScore: number;
+  studentPassPercentage: number;
+  studentThresholdMet: boolean;
+  totalStudents: number;
+  studentsPassed: number;
+  overridden: string | null;
+  lockReason: string;
+}
+
+export interface GatingStatusResponse {
+  gatingEnabled: boolean;
+  teacherPassThreshold: number;
+  studentThreshold: number;
+  chapters: ChapterGatingStatus[];
+}
+
+export interface AssessmentQuestion {
+  id: string;
+  questionText: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctOption: string;
+  explanation: string;
+}
+
+export async function fetchChapterGatingStatus(
+  teacherId: string,
+  classId: string,
+  subjectId: string,
+  gradeId: string | number
+): Promise<GatingStatusResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const params = new URLSearchParams({
+    teacher_id: teacherId,
+    class_id: classId,
+    subject_id: subjectId,
+    grade_id: String(gradeId),
+  });
+  const res = await fetch(`${API_BASE}/api/chapter-gating/status?${params}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchAssessmentQuestions(chapterId: string): Promise<{
+  chapterId: string;
+  chapterName: string;
+  subjectId: string;
+  gradeId: number;
+  source: string;
+  questions: AssessmentQuestion[];
+  totalQuestions: number;
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/assessment/${chapterId}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function submitTeacherAssessment(payload: {
+  teacherId: string;
+  chapterId: string;
+  subjectId: string;
+  gradeId: string | number;
+  classId: string;
+  answers: Array<{ questionId: string; selectedOption: string }>;
+  questions: AssessmentQuestion[];
+}): Promise<{
+  passed: boolean;
+  score: number;
+  total: number;
+  percentage: number;
+  passThreshold: number;
+  attemptNumber: number;
+  graded: Array<{ questionId: string; selectedOption: string; correctOption: string; isCorrect: boolean }>;
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/assessment/submit`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function computeStudentPerformance(classId: string, chapterId: string, subjectId: string): Promise<{
+  classId: string;
+  chapterId: string;
+  avgScore: number;
+  passPercentage: number;
+  totalStudents: number;
+  studentsPassed: number;
+  thresholdMet: boolean;
+  threshold: number;
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/student-performance/compute`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ classId, chapterId, subjectId }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchGatingConfig(): Promise<{ config: Record<string, string>; rows: Array<{ config_key: string; config_value: string; description: string; updated_at: string }> }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/config`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateGatingConfig(payload: {
+  teacher_pass_percentage?: string;
+  student_threshold_percentage?: string;
+  gating_enabled?: string;
+  allow_manual_override?: string;
+}): Promise<{ updated: number; ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/config`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createChapterOverride(payload: {
+  teacherId: string;
+  chapterId: string;
+  classId: string;
+  overrideType: "unlock" | "lock";
+  reason?: string;
+  adminId?: string;
+}): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/override`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchChapterOverrides(teacherId?: string, classId?: string): Promise<{ overrides: any[] }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const params = new URLSearchParams();
+  if (teacherId) params.append("teacher_id", teacherId);
+  if (classId) params.append("class_id", classId);
+  const url = `${API_BASE}/api/chapter-gating/overrides${params.toString() ? `?${params}` : ""}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }

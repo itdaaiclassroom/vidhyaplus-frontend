@@ -16,6 +16,7 @@ import {
   getAiRecommendations,
   askAiAssistant,
   submitAttendance,
+  getStudentAttendance,
   fetchSubjectMaterials,
   getApiBase
 } from "@/api/client";
@@ -57,6 +58,14 @@ const LessonScreen = () => {
 
   const sessionIdFromUrl = searchParams.get("sessionId");
   const initialSession = location.state?.session as LiveSessionLike | undefined;
+
+  const getLocalDateYmd = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
 
   const [activeSession, setActiveSession] = useState<LiveSessionLike | null>(initialSession || null);
   const [sessionTime, setSessionTime] = useState(0);
@@ -105,6 +114,26 @@ const LessonScreen = () => {
       }
     }
   }, [sessionIdFromUrl, data.liveSessions, activeSession]);
+
+  // Fetch existing attendance if already marked for today
+  useEffect(() => {
+    if (activeSession && Object.keys(sessionAttendance).length === 0) {
+      const date = getLocalDateYmd();
+      getStudentAttendance(activeSession.classId, date)
+        .then(records => {
+          if (records.length > 0) {
+            const mapped: Record<string, "present" | "absent"> = {};
+            records.forEach(r => {
+              // Backend returns status like "Present" or "Absent", normalize to lowercase
+              mapped[String(r.student_id)] = r.status.toLowerCase() as "present" | "absent";
+            });
+            setSessionAttendance(mapped);
+            setAttendanceMarked(true);
+          }
+        })
+        .catch(err => console.error("Failed to fetch existing attendance:", err));
+    }
+  }, [activeSession]);
 
   // Direct fetch for subject materials to ensure they are available even if global context is delayed
   useEffect(() => {
