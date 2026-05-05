@@ -15,7 +15,30 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, fetchPrincipalStudents, fetchTodayTeacherAttendance, markTeacherSelfAttendance, fetchTeacherAssignments } from "@/api/client";
+import { 
+  createLeaveApplication, 
+  updateLeaveApplicationStatus, 
+  createLiveQuiz, 
+  getLiveQuizLeaderboard, 
+  endLiveQuiz, 
+  getApiBase, 
+  startLiveSession, 
+  submitAttendance, 
+  endLiveSession, 
+  getLiveQuizTeacherQr, 
+  fetchLiveQuizStatus, 
+  startLiveQuizCapture, 
+  submitLiveQuizAnswer, 
+  getAiRecommendations, 
+  askAiAssistant, 
+  fetchPrincipalStudents, 
+  fetchTodayTeacherAttendance, 
+  markTeacherSelfAttendance, 
+  fetchTeacherAssignments,
+  fetchChapterGatingStatus,
+  type GatingStatusResponse
+} from "@/api/client";
+import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel } from "./TeacherAssessment";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -29,7 +52,7 @@ import {
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
   Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
-  Youtube, ExternalLink
+  Youtube, ExternalLink, Lock, AlertTriangle
 } from "lucide-react";
 
 import {
@@ -246,8 +269,34 @@ const TeacherDashboard = () => {
   const [sessionStartLoading, setSessionStartLoading] = useState(false);
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
-  const [recommendations, setRecommendations] = useState<{ videos: any[], resources: any[] } | null>(null);
   const [recoLoading, setRecoLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const [gatingStatus, setGatingStatus] = useState<GatingStatusResponse | null>(null);
+  const [gatingLoading, setGatingLoading] = useState(false);
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
+  const [assessmentChapter, setAssessmentChapter] = useState<{ id: string, name: string } | null>(null);
+
+  const fetchGating = useCallback(async () => {
+    if (!teacherId || !selectedClass || !selectedSubject || !grade) {
+      console.log("Gating fetch skipped: missing params", { teacherId, selectedClass, selectedSubject, grade });
+      return;
+    }
+    setGatingLoading(true);
+    try {
+      console.log("Fetching gating status for:", { teacherId, selectedClass, selectedSubject, grade });
+      const res = await fetchChapterGatingStatus(teacherId, selectedClass, selectedSubject, grade);
+      console.log("Gating status received:", res);
+      setGatingStatus(res);
+    } catch (e) {
+      console.error("Failed to fetch gating status:", e);
+    } finally {
+      setGatingLoading(false);
+    }
+  }, [teacherId, selectedClass, selectedSubject, grade]);
+
+  useEffect(() => {
+    fetchGating();
+  }, [fetchGating]);
   const [chatLoading, setChatLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
   const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; status?: string } | null>(null);
@@ -2154,33 +2203,122 @@ const TeacherDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="w-20 flex items-center gap-2">
-                            <Progress value={progress} className="h-2 flex-1" />
-                            <span className="text-xs text-muted-foreground">{progress}%</span>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="w-20 flex items-center gap-2">
+                              <Progress value={progress} className="h-2 flex-1" />
+                              <span className="text-xs text-muted-foreground">{progress}%</span>
+                            </div>
+                            {gatingStatus && (
+                              <ChapterGatingBadge 
+                                gatingStatus={gatingStatus.chapters.find(gs => sameId(gs.chapterId, ch.id)) || null} 
+                                gatingEnabled={gatingStatus.gatingEnabled}
+                              />
+                            )}
                           </div>
                           <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                         </div>
                       </div>
 
+                      {/* Gating Logic Message & Assessment Button */}
+                      {isExpanded && gatingStatus && gatingStatus.gatingEnabled && (() => {
+                        const gs = gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id));
+                        if (!gs) return null;
+                        
+                        return (
+                          <div className="px-4 pb-2">
+                            {gs.isLocked && (
+                              <div className="p-3 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 mb-3">
+                                <Lock className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-xs font-semibold text-red-700">Chapter Locked</p>
+                                  <p className="text-[11px] text-red-600 mt-0.5">{gs.lockReason}</p>
+                                </div>
+                                {gs.assessmentAvailable && !gs.teacherPassed && (
+                                  <Button 
+                                    size="sm" 
+                                    className="h-8 text-xs bg-red-600 hover:bg-red-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAssessmentChapter({ id: ch.id, name: ch.name });
+                                      setAssessmentOpen(true);
+                                    }}
+                                  >
+                                    Take Assessment
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+
+                            {!gs.isLocked && !gs.teacherPassed && gs.assessmentAvailable && (
+                               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 flex items-start gap-3 mb-3">
+                                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-xs font-semibold text-amber-700">Teaching Unlocked (Assessment Pending)</p>
+                                  <p className="text-[11px] text-amber-600 mt-0.5">You can teach, but we recommend passing the assessment first.</p>
+                                </div>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-8 text-xs border-amber-200 text-amber-700 hover:bg-amber-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAssessmentChapter({ id: ch.id, name: ch.name });
+                                    setAssessmentOpen(true);
+                                  }}
+                                >
+                                  Take Assessment
+                                </Button>
+                              </div>
+                            )}
+
+                            {gs.teacherPassed && (
+                              <div className="flex items-center gap-2">
+                                <StudentPerformancePanel 
+                                  gatingStatus={gs} 
+                                  studentThreshold={gatingStatus.studentThreshold}
+                                  onReteach={() => {
+                                    if (confirm("Start a new reteach session for this chapter?")) {
+                                      if (chTopics.length > 0) handleStartSession(chTopics[0]);
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-primary mt-2"
+                                  onClick={(e) => { e.stopPropagation(); fetchGating(); }}
+                                  title="Refresh scores"
+                                >
+                                  <RotateCcw className={`w-3.5 h-3.5 ${gatingLoading ? "animate-spin" : ""}`} />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Topics Dropdown */}
                       {isExpanded && (
                         <div className="border-t border-border bg-secondary/30 p-4 space-y-2">
-                          {chTopics.length > 0 ? chTopics.map((topic) => {
-                            const tStatusRaw = topicStatusState[String(topic.id)] || topic.status;
-                            const tNorm = !inSyllabusScope ? "not_started" : normalizeTopicStatus(tStatusRaw);
-                            const tsc = statusColors[tNorm];
-                            const isTopicExpanded = expandedTopics[topic.id];
-
-                            return (
+                          {/* If locked, show a blur or overlay message */}
+                          {gatingStatus?.gatingEnabled && gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id))?.isLocked && (
+                            <div className="py-8 text-center">
+                              <Lock className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">Topics are locked until requirements are met.</p>
+                            </div>
+                          )}
+                          
+                          {(!gatingStatus?.gatingEnabled || !gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id))?.isLocked) && (
+                            chTopics.length > 0 ? chTopics.map((topic) => (
                               <div key={topic.id} className="bg-card rounded-xl border border-border overflow-hidden">
                                 <div
                                   className="p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
                                   onClick={() => toggleTopic(topic.id)}
                                 >
                                   <div className="flex items-center gap-2">
-                                    {tNorm === "completed" ? (
+                                    {normalizeTopicStatus(topicStatusState[String(topic.id)] || topic.status) === "completed" ? (
                                       <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                    ) : tNorm === "in_progress" ? (
+                                    ) : normalizeTopicStatus(topicStatusState[String(topic.id)] || topic.status) === "in_progress" ? (
                                       <Clock className="w-4 h-4 text-amber flex-shrink-0" />
                                     ) : (
                                       <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
@@ -2200,11 +2338,11 @@ const TeacherDashboard = () => {
                                     >
                                       <Play className="w-3 h-3" /> {sessionStartLoading ? "Starting…" : "Start Session"}
                                     </Button>
-                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isTopicExpanded ? "rotate-180" : ""}`} />
+                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedTopics[topic.id] ? "rotate-180" : ""}`} />
                                   </div>
                                 </div>
 
-                                {isTopicExpanded && (
+                                {expandedTopics[topic.id] && (
                                   <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2">
                                     {ch.textbookChunkPdfPath && (
                                       <Button
@@ -2246,29 +2384,29 @@ const TeacherDashboard = () => {
                                   </div>
                                 )}
                               </div>
-                            );
-                          }) : (
-                            <div className="pt-2">
-                              {ch.textbookChunkPdfPath ? (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                                    disabled={!!workflowLoading}
-                                    onClick={(e) => { e.stopPropagation(); handleAutoWorkflow(ch.id); }}
-                                  >
-                                    <Sparkles className={`w-3.5 h-3.5 ${workflowLoading === ch.id ? "animate-spin" : ""}`} />
-                                    {workflowLoading === ch.id ? "Processing Chapter..." : "AI Auto-Generate Topics & Quizzes"}
-                                  </Button>
-                                  <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                                    Click to automatically segment this chapter into topics and generate materials.
-                                  </p>
-                                </>
-                              ) : (
-                                <p className="text-sm text-muted-foreground p-2">No topics defined. Upload a textbook PDF to enable AI auto-generation.</p>
-                              )}
-                            </div>
+                            )) : (
+                              <div className="pt-2">
+                                {ch.textbookChunkPdfPath ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                                      disabled={!!workflowLoading}
+                                      onClick={(e) => { e.stopPropagation(); handleAutoWorkflow(ch.id); }}
+                                    >
+                                      <Sparkles className={`w-3.5 h-3.5 ${workflowLoading === ch.id ? "animate-spin" : ""}`} />
+                                      {workflowLoading === ch.id ? "Processing Chapter..." : "AI Auto-Generate Topics & Quizzes"}
+                                    </Button>
+                                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                                      Click to automatically segment this chapter into topics and generate materials.
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground p-2">No topics defined. Upload a textbook PDF to enable AI auto-generation.</p>
+                                )}
+                              </div>
+                            )
                           )}
                         </div>
                       )}
@@ -2837,6 +2975,36 @@ const TeacherDashboard = () => {
           </DialogHeader>
           {detailedStudent && (
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-secondary rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Annual Score</p>
+                  <p className="text-xl font-bold text-primary">{detailedStudent.score}%</p>
+                </div>
+                <div className="p-3 bg-secondary rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Attendance</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {studentAttendance.find(a => a.studentId === detailedStudent.id)?.percentage || 0}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recent Quiz Results</h4>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {studentQuizResults.filter(r => r.studentId === detailedStudent.id).map((r, i) => {
+                    const chapter = chapters.find(c => sameId(c.id, r.chapterId));
+                    return (
+                      <div key={i} className="flex items-center justify-between p-2.5 bg-card border border-border rounded-lg text-xs">
+                        <span className="font-medium text-foreground truncate max-w-[150px]">{chapter?.name || "Chapter Quiz"}</span>
+                        <Badge variant="outline" className={r.score / r.total >= 0.6 ? "text-success border-success/30" : "text-destructive border-destructive/30"}>
+                          {Math.round((r.score / r.total) * 100)}%
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
               {/* Performance graph */}
               <div>
                 <p className="text-sm font-medium">Subject-wise Scores</p>
@@ -2954,6 +3122,25 @@ const TeacherDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* Teacher Chapter Assessment Dialog */}
+      {assessmentChapter && (
+        <TeacherAssessmentDialog
+          open={assessmentOpen}
+          onClose={() => setAssessmentOpen(false)}
+          chapterId={assessmentChapter.id}
+          chapterName={assessmentChapter.name}
+          teacherId={teacherId || ""}
+          subjectId={selectedSubject}
+          gradeId={grade}
+          classId={selectedClass}
+          onAssessmentComplete={(passed) => {
+            if (passed) {
+              fetchGating(); // Refetch gating status to unlock chapters
+              refetch(); // Global data refetch if needed
+            }
+          }}
+        />
+      )}
 
     </DashboardLayout>
   );

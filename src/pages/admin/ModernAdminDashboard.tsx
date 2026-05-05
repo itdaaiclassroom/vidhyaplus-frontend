@@ -5,7 +5,7 @@ import {
   MessageSquare, Calendar as CalendarIcon, LogOut, 
   Settings, Search, Eye, Plus, Shield, Clock,
   BookOpen, ClipboardList, Radio, MonitorPlay, ChevronRight,
-  Trash2, Edit
+  Trash2, Edit, ShieldCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
+import GatingAdminPanel from "./GatingAdminPanel";
 
 const ModernAdminDashboard = () => {
   const { data, loading, refetch } = useAppData();
@@ -157,6 +158,7 @@ const ModernAdminDashboard = () => {
     { id: "students", label: "Students", icon: GraduationCap },
     { id: "materials", label: "Materials", icon: BookOpen },
     { id: "logs", label: "Logs", icon: ClipboardList },
+    { id: "gating", label: "Gating Controls", icon: ShieldCheck },
     { id: "profile", label: "Profile", icon: Settings },
     { id: "usermanagement", label: "User Management", icon: Shield },
   ];
@@ -635,6 +637,15 @@ const ModernAdminDashboard = () => {
                 </table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Gating Controls Content */}
+          <TabsContent value="gating" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800">Teacher Competency Gating</h2>
+              <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1">Advanced Control</Badge>
+            </div>
+            <GatingAdminPanel />
           </TabsContent>
 
           {/* Schools Content */}
