@@ -1989,7 +1989,6 @@ const TeacherDashboard = () => {
               <TabsTrigger value="chapters" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Chapters & Topics</TabsTrigger>
               <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
               {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
-              <TabsTrigger value="timetable" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Timetable</TabsTrigger>
               <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
               <TabsTrigger value="my-assignments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assignments</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
@@ -2090,9 +2089,6 @@ const TeacherDashboard = () => {
                         `}>
                               {item.percentage}%
                             </Badge>
-                            {index === 0 && (
-                              <p className="text-[10px] font-bold text-amber mt-1 tracking-wider uppercase">Topper</p>
-                            )}
                           </div>
                         </div>
                       );
@@ -2100,68 +2096,6 @@ const TeacherDashboard = () => {
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">No students found for this class.</p>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="timetable" className="space-y-4">
-              <Card className="shadow-card border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" /> Class Timetable
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    School starts at 9:00 AM. Period duration: 40 mins. Breaks: 10:20-10:35 and 2:20-2:35. Lunch: 11:55-1:00.
-                  </p>
-                  {(() => {
-                    const dayNames: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday" };
-                    const rows = timetables
-                      .filter((t) => t.classId === selectedClass)
-                      .filter((t) => (t.subjectId ? t.subjectId === selectedSubject : false))
-                      .sort((a, b) => (a.weekDay - b.weekDay) || (a.periodNo - b.periodNo));
-                    if (!rows.length) return <p className="text-sm text-muted-foreground">No timetable slots mapped for your subject in this class.</p>;
-                    const periods = [1, 2, 3, 4, 5, 6, 7, 8];
-                    const grid = new Map<string, { subjectName: string; startTime: string; endTime: string }>();
-                    rows.forEach((r) => {
-                      grid.set(`${r.weekDay}-${r.periodNo}`, { subjectName: r.subjectName, startTime: r.startTime, endTime: r.endTime });
-                    });
-                    return (
-                      <div className="overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="bg-secondary border-b border-border">
-                              <th className="p-2 text-left font-medium">Day \\ Period</th>
-                              {periods.map((p) => <th key={p} className="p-2 text-left font-medium">P{p}</th>)}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[1, 2, 3, 4, 5, 6].map((day) => (
-                              <tr key={day} className="border-b border-border last:border-0">
-                                <td className="p-2 font-semibold text-foreground">{dayNames[day]}</td>
-                                {periods.map((p) => {
-                                  const slot = grid.get(`${day}-${p}`);
-                                  return (
-                                    <td key={`${day}-${p}`} className="p-2 align-top">
-                                      {slot ? (
-                                        <div className="rounded-md bg-teal-light px-2 py-1.5">
-                                          <p className="font-medium text-foreground">{slot.subjectName}</p>
-                                          <p className="text-[10px] text-muted-foreground">{String(slot.startTime).slice(0, 5)}-{String(slot.endTime).slice(0, 5)}</p>
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -2431,9 +2365,21 @@ const TeacherDashboard = () => {
                     <CardTitle className="font-display text-lg flex items-center gap-2">
                       <Users className="w-5 h-5 text-primary" /> {currentClass?.name} — Students ({classStudents.length})
                     </CardTitle>
-                    <div>
+                    <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadClassCsv()}>
                         <FileDown className="w-4 h-4" /> Download Students CSV
+                      </Button>
+                      <Button variant="default" size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => {
+                        toast.promise(
+                          new Promise(resolve => setTimeout(resolve, 2000)),
+                          {
+                            loading: 'Generating Class Report...',
+                            success: 'Class Report Generated Successfully!',
+                            error: 'Failed to generate report'
+                          }
+                        );
+                      }}>
+                        <FileDown className="w-4 h-4" /> GENERATE CLASS REPORT
                       </Button>
                     </div>
                   </div>
@@ -2444,38 +2390,55 @@ const TeacherDashboard = () => {
                       <thead>
                         <tr className="border-b border-border bg-secondary">
                           <th className="text-left p-3 font-medium text-muted-foreground">Roll</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground min-w-[120px]">Name</th>
                           <th className="text-left p-3 font-medium text-muted-foreground">Attendance</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Annual Score</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Performance</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 1">FA1</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 2">FA2</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 3">FA3</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 4">FA4</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Summative Assessment 1">SA1</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Summative Assessment 2">SA2</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs text-primary">Quiz</th>
+                          <th className="text-center p-3 font-medium text-foreground whitespace-nowrap bg-primary/5">Perf Index</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground min-w-[140px]">Report Card / Feedback</th>
                         </tr>
                       </thead>
                       <tbody>
                         {classStudents.map(s => {
                           const att = studentAttendance.find(a => a.studentId === s.id);
+                          // Mocking data for the demonstration of the new features
+                          const mockFA1 = Math.floor(Math.random() * 20) + 5;
+                          const mockSA1 = Math.floor(Math.random() * 40) + 10;
+                          const mockQuiz = Math.floor(Math.random() * 20);
+                          const mockPerfIndex = Math.floor((mockFA1/25)*30 + (mockSA1/50)*40 + (mockQuiz/20)*20 + ((att?.percentage || 0)/100)*10);
+                          
                           return (
-                            <tr key={s.id} className="border-b border-border last:border-0">
-                              <td className="p-3 text-foreground">{s.rollNo}</td>
-                              <td className="p-3 text-foreground font-medium">{s.name}</td>
+                            <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                              <td className="p-3 text-foreground whitespace-nowrap">{s.rollNo}</td>
+                              <td className="p-3 text-foreground font-bold">{s.name}</td>
                               <td className="p-3">
                                 {att ? (
                                   <div className="flex items-center gap-2">
-                                    <Progress value={att.percentage} className="h-2 w-20" />
-                                    <span className="text-xs text-muted-foreground">{att.percentage}%</span>
+                                    <Progress value={att.percentage} className="h-1.5 w-16" />
+                                    <span className="text-[10px] font-bold text-muted-foreground">{att.percentage}%</span>
                                   </div>
                                 ) : <span className="text-xs text-muted-foreground">—</span>}
                               </td>
-                              <td className="p-3 text-foreground font-medium">
-                                {s.score ?? "—"}
+                              <td className="p-2 text-center"><Input defaultValue={mockFA1} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={mockSA1} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center font-bold text-primary">{mockQuiz}/20</td>
+                              <td className="p-3 text-center bg-primary/5 font-black text-foreground">
+                                {mockPerfIndex} <span className="text-[9px] text-muted-foreground">/100</span>
                               </td>
-                              <td className="p-3">
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs cursor-pointer"
-                                  onClick={() => setViewingStudent(s.id)}
-                                >
-                                  View
-                                </Badge>
+                              <td className="p-3 text-center flex flex-col gap-2">
+                                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200" onClick={() => toast.success(`Generated Report Card for ${s.name}`)}>
+                                  Generate Report
+                                </Button>
+                                <Input placeholder="Teacher feedback..." className="h-7 text-[10px] bg-transparent border-dashed" />
                               </td>
                             </tr>
                           );
@@ -2805,7 +2768,7 @@ const TeacherDashboard = () => {
               <Card className="shadow-card border-border">
                 <CardHeader>
                   <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <CalendarCheck className="w-5 h-5 text-primary" /> Class Status — {currentClass?.name}
+                    <CalendarCheck className="w-5 h-5 text-primary" /> Staff Leaves & Public Holidays
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -2814,45 +2777,26 @@ const TeacherDashboard = () => {
                       <thead>
                         <tr className="border-b border-border bg-secondary">
                           <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Reason</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Event / Teacher</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {classStatusLocal.map((cs) => (
-                          <tr key={cs.id} className="border-b border-border last:border-0">
-                            <td className="p-3 text-foreground">{cs.date}</td>
-                            <td className="p-3">
-                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cs.status === "conducted" ? "bg-success-light text-success" : "bg-destructive/10 text-destructive"
-                                }`}>
-                                {cs.status === "conducted"
-                                  ? <><CheckCircle2 className="w-3 h-3" /> Conducted</>
-                                  : <><XCircle className="w-3 h-3" /> Cancelled</>
-                                }
-                              </span>
-                            </td>
-                            <td className="p-3 text-muted-foreground text-xs">{cs.reason || "—"}</td>
-                            <td className="p-3">
-                              <Select
-                                value={cs.status}
-                                onValueChange={(val) => {
-                                  setClassStatusLocal((prev) =>
-                                    prev.map((c) => (c.id === cs.id ? { ...c, status: val as "conducted" | "cancelled" } : c))
-                                  );
-                                }}
-                              >
-                                <SelectTrigger className="w-[130px] h-8 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="conducted">Conducted</SelectItem>
-                                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </td>
-                          </tr>
-                        ))}
+                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-3 text-foreground whitespace-nowrap">2026-05-15</td>
+                          <td className="p-3 text-foreground font-bold">Venkatesh Rao</td>
+                          <td className="p-3"><Badge variant="outline" className="bg-amber/10 text-amber border-amber/20">Staff Leave</Badge></td>
+                        </tr>
+                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-3 text-foreground whitespace-nowrap">2026-06-05</td>
+                          <td className="p-3 text-foreground font-bold">World Environment Day</td>
+                          <td className="p-3"><Badge variant="outline" className="bg-teal-light/50 text-teal-medium border-teal-medium/20">Public Holiday</Badge></td>
+                        </tr>
+                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-3 text-foreground whitespace-nowrap">2026-08-15</td>
+                          <td className="p-3 text-foreground font-bold">Independence Day</td>
+                          <td className="p-3"><Badge variant="outline" className="bg-teal-light/50 text-teal-medium border-teal-medium/20">Public Holiday</Badge></td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>

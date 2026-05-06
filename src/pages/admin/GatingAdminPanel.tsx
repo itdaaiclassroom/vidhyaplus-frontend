@@ -225,7 +225,11 @@ export default function GatingAdminPanel() {
                   >
                     <option value="">Choose Class...</option>
                     {classes
-                      .filter(c => teachers.find(t => t.id === targetTeacherId)?.classId === c.id || true) // Simplified
+                      .filter(c => {
+                        if (!targetTeacherId) return true;
+                        const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
+                        return teacher?.classIds.includes(c.id) ?? true;
+                      })
                       .map(c => <option key={c.id} value={c.id}>{c.name} ({schools.find(s => s.id === c.schoolId)?.name})</option>)}
                   </select>
                 </div>
