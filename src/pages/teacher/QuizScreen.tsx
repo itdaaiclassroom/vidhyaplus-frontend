@@ -6,18 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QrCode, ScanLine, Trophy, ArrowLeft, CheckCircle2, XCircle, Play, Loader2, Users, AlertTriangle, Lightbulb, Bot } from "lucide-react";
 import { toast } from "sonner";
+import ArucoScannerBoard from "@/components/ArucoScannerBoard";
 import { useAppData } from "@/contexts/DataContext";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { 
   createLiveQuiz, 
   getLiveQuizSession, 
-  getLiveQuizTeacherQr, 
   fetchLiveQuizStatus, 
   startLiveQuizCapture, 
   getLiveQuizLeaderboard, 
   endLiveQuiz,
   submitLiveQuizAnswer
 } from "@/api/client";
+import { QRCodeSVG } from "qrcode.react";
 
 // Polling interval
 const POLL_INTERVAL = 2000;
@@ -29,12 +30,11 @@ const QuizScreen = () => {
   
   const liveSessionId = searchParams.get("sessionId");
   const noOfQuestionsStr = searchParams.get("questions") || "10";
-  const mode = searchParams.get("mode") as "qr" | "teacher" || "qr";
+  const mode = searchParams.get("mode") as "qr" | "teacher" | "aruco" || "qr";
 
   const [initializing, setInitializing] = useState(true);
   const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   
   // States
   const [phase, setPhase] = useState<"connecting" | "active" | "evaluating" | "finished">("connecting");
@@ -96,9 +96,11 @@ const QuizScreen = () => {
         setTotalStudents(classStudents.length);
 
         if (mode === "qr") {
-          const qrRes = await getLiveQuizTeacherQr(res.id);
-          setQrDataUrl(qrRes.dataUrl);
           setPhase("connecting");
+        } else if (mode === "aruco") {
+          // ArUco mode — start capture and go straight to active
+          await startLiveQuizCapture(res.id);
+          setPhase("active");
         } else {
           // Teacher mode skips QR connect
           await startLiveQuizCapture(res.id);
@@ -460,9 +462,13 @@ const QuizScreen = () => {
               </p>
             </div>
             <CardContent className="p-12 flex flex-col items-center">
-              {qrDataUrl ? (
+              {quizSessionId ? (
                 <div className="p-4 bg-white rounded-2xl shadow-sm border border-border mb-8">
-                  <img src={qrDataUrl} alt="Scanner QR Code" className="w-64 h-64" />
+                  <QRCodeSVG 
+                    value={`${window.location.origin}/teacher/live-quiz-scan?session=${quizSessionId}`} 
+                    size={256} 
+                    level="M" 
+                  />
                 </div>
               ) : (
                 <div className="w-64 h-64 bg-slate-100 animate-pulse rounded-2xl mb-8" />
@@ -483,7 +489,20 @@ const QuizScreen = () => {
           </Card>
         )}
 
-        {(phase === "active" || phase === "evaluating") && currentQuestion && (
+        {/* ArUco Scanner Board — full-width when in ArUco mode */}
+        {mode === "aruco" && phase === "active" && currentQuestion && quizSessionId && (
+          <ArucoScannerBoard
+            quizSessionId={quizSessionId}
+            classStudents={classStudents.map((s: any) => ({ id: s.id, name: s.name, rollNo: s.rollNo }))}
+            currentQuestion={currentQuestion}
+            questionIndex={currentQIndex}
+            totalQuestions={questions.length}
+            onComplete={handleEvaluate}
+            onCancel={() => navigate(`/teacher/lesson?sessionId=${liveSessionId}`)}
+          />
+        )}
+
+        {(phase === "active" || phase === "evaluating") && currentQuestion && mode !== "aruco" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-8 space-y-6">
               <Card className="shadow-lg border-border relative overflow-hidden">

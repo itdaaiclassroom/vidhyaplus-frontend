@@ -1,5 +1,7 @@
 import React from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { ArucoMarkerSvg } from "@/components/ArucoMarkerSvg";
+import { toArucoId } from "@/lib/arucoGenerator";
 import { 
   User, 
   School, 
@@ -171,7 +173,7 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
   };
 
   const config = configs[option];
-  const qrValue = `stu${data.rollNo}_${option}`;
+  const arucoId = toArucoId(Number(data.rollNo), option);
 
   return (
     <div 
@@ -207,7 +209,7 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
       {/* QR Code */}
       <div className="flex justify-center py-4 print:py-4 relative z-10">
         <div className={cn("p-3 print:p-2 bg-white border rounded-[28px] print:rounded-2xl shadow-inner transition-transform group-hover:scale-105", config.border)}>
-          <QRCodeSVG value={qrValue} size={110} className="print:w-[120px] print:h-[120px]" level="H" />
+          <ArucoMarkerSvg id={arucoId} size={110} className="print:w-[120px] print:h-[120px]" />
         </div>
       </div>
 
