@@ -474,7 +474,7 @@ const QuizScreen = () => {
                 <div className="w-64 h-64 bg-slate-100 animate-pulse rounded-2xl mb-8" />
               )}
               
-              <div className="flex gap-4">
+              <div className="flex flex-wrap justify-center gap-4">
                 <Button size="lg" onClick={handleStartCapture} className="gap-2 px-8" disabled={connectedDevices === 0}>
                   <Play className="w-5 h-5" />
                   {connectedDevices > 0 ? "Start Quiz Now" : "Waiting for connection..."}
@@ -482,6 +482,15 @@ const QuizScreen = () => {
                 {connectedDevices === 0 && (
                   <Button variant="outline" size="lg" onClick={handleStartCapture}>
                     Force Start
+                  </Button>
+                )}
+                {quizSessionId && (
+                  <Button 
+                    variant="secondary" 
+                    size="lg" 
+                    onClick={() => window.open(`/teacher/live-quiz-scan?session=${quizSessionId}`, '_blank')}
+                  >
+                    Open Laptop Scanner
                   </Button>
                 )}
               </div>

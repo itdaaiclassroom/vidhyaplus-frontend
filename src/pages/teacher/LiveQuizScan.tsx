@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { connectLiveQuizScanner, fetchLiveQuizStatus, submitLiveQuizScan } from "@/api/client";
 import { toast } from "sonner";
 import { Html5Qrcode } from "html5-qrcode";
@@ -27,7 +28,19 @@ const LiveQuizScan = () => {
   const [submitting, setSubmitting] = useState(false);
   const [logs, setLogs] = useState<Array<{ id: string; text: string; ok: boolean }>>([]);
 
+  const [cameras, setCameras] = useState<Array<{ id: string, label: string }>>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
+
   const expected = useMemo(() => (status ? status.questions * status.students : 0), [status]);
+
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const lastScannedRef = useRef<string>("");
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stateRef = useRef({ questionNo, sessionId });
+
+  useEffect(() => {
+    stateRef.current = { questionNo, sessionId };
+  }, [questionNo, sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -61,39 +74,81 @@ const LiveQuizScan = () => {
   }, [sessionId]);
 
   useEffect(() => {
-    let html5QrCode: Html5Qrcode;
-    let isStarted = false;
+    Html5Qrcode.getCameras().then((devices) => {
+      if (devices && devices.length > 0) {
+        setCameras(devices);
+        // Default to environment camera if available, otherwise first device
+        const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
+        setSelectedCameraId(backCam ? backCam.id : devices[0].id);
+      }
+    }).catch(console.error);
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().then(() => {
+          scannerRef.current?.clear();
+        }).catch(console.error);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCameraId) return;
 
     const startScanner = async () => {
       try {
-        html5QrCode = new Html5Qrcode("qr-reader");
-        await html5QrCode.start(
-          { facingMode: "environment" },
+        if (!scannerRef.current) {
+          scannerRef.current = new Html5Qrcode("qr-reader");
+        } else if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+
+        await scannerRef.current.start(
+          selectedCameraId,
           { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            setScanRaw(decodedText);
-            // Optionally auto-submit here if desired, 
-            // but for now we just fill the input.
+          async (decodedText) => {
+            if (decodedText && decodedText !== lastScannedRef.current) {
+              lastScannedRef.current = decodedText;
+              setScanRaw(decodedText);
+              
+              const sRef = stateRef.current;
+              if (!sRef.sessionId) return;
+              
+              toast.success(`Scanned: ${decodedText}`);
+              
+              try {
+                const r = await submitLiveQuizScan(sRef.sessionId, { questionNo: sRef.questionNo, qrRaw: decodedText.trim() });
+                setLogs((prev) => [{ id: `${Date.now()}`, text: r.confirmation, ok: true }, ...prev].slice(0, 30));
+                
+                // Refresh status
+                fetchLiveQuizStatus(sRef.sessionId).then(s => {
+                  setStatus((prev: any) => ({ ...prev, ...s }));
+                }).catch(() => {});
+
+              } catch (e: any) {
+                const msg = e.message || "Scan failed";
+                toast.error(msg);
+                setLogs((prev) => [{ id: `${Date.now()}`, text: msg, ok: false }, ...prev].slice(0, 30));
+              }
+
+              // Allow re-scanning the same code after 2.5 seconds
+              if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+              scanTimeoutRef.current = setTimeout(() => {
+                lastScannedRef.current = "";
+                setScanRaw("");
+              }, 2500);
+            }
           },
           () => {} // ignore continuous scan errors
         );
-        isStarted = true;
       } catch (err) {
         console.error("Camera start error:", err);
-        toast.error("Failed to open camera. Please ensure permissions are granted and you are using a secure connection (HTTPS).");
+        toast.error("Failed to open the selected camera.");
       }
     };
 
     startScanner();
-
-    return () => {
-      if (isStarted && html5QrCode) {
-        html5QrCode.stop()
-          .then(() => html5QrCode.clear())
-          .catch(console.error);
-      }
-    };
-  }, []);
+  }, [selectedCameraId]);
 
   const handleSubmit = async () => {
     if (!sessionId || !scanRaw.trim()) return;
@@ -138,10 +193,29 @@ const LiveQuizScan = () => {
 
         <Card className="border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Camera Scanner</CardTitle>
+            <CardTitle className="text-base flex items-center justify-between">
+              Camera Scanner
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-lg"></div>
+          <CardContent className="space-y-4">
+            {cameras.length > 0 && (
+              <div>
+                <Label className="mb-2 block">Select Camera</Label>
+                <Select value={selectedCameraId} onValueChange={setSelectedCameraId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a camera" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cameras.map(cam => (
+                      <SelectItem key={cam.id} value={cam.id}>
+                        {cam.label || `Camera ${cam.id.substring(0, 8)}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-black min-h-[250px]"></div>
           </CardContent>
         </Card>
 

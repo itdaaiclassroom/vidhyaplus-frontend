@@ -80,7 +80,7 @@ const LessonScreen = () => {
 
   const [isQuizSetupOpen, setIsQuizSetupOpen] = useState(false);
   const [quizSetupQuestions, setQuizSetupQuestions] = useState(10);
-  const [quizSetupMode, setQuizSetupMode] = useState<"qr" | "teacher">("qr");
+  const [quizSetupMode, setQuizSetupMode] = useState<"qr" | "teacher" | "aruco">("qr");
 
   const [sessionAttendance, setSessionAttendance] = useState<Record<string, "present" | "absent">>({});
   const [sessionSubjectMaterials, setSessionSubjectMaterials] = useState<any[]>([]);
@@ -790,14 +790,22 @@ const LessonScreen = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Quiz Mode</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "qr" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
                   onClick={() => setQuizSetupMode("qr")}
                 >
                   <ScanLine className="w-6 h-6 mb-2" />
                   <span className="font-bold text-sm">QR Mode</span>
-                  <span className="text-[10px] text-center mt-1 opacity-80">Students show QR cards</span>
+                  <span className="text-[10px] text-center mt-1 opacity-80">Scan via phone/webcam</span>
+                </button>
+                <button
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "aruco" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
+                  onClick={() => setQuizSetupMode("aruco")}
+                >
+                  <QrCode className="w-6 h-6 mb-2" />
+                  <span className="font-bold text-sm text-center">ArUco Mode</span>
+                  <span className="text-[10px] text-center mt-1 opacity-80">Scan whole class instantly</span>
                 </button>
                 <button
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "teacher" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
@@ -805,7 +813,7 @@ const LessonScreen = () => {
                 >
                   <MousePointerClick className="w-6 h-6 mb-2" />
                   <span className="font-bold text-sm">Teacher Mode</span>
-                  <span className="text-[10px] text-center mt-1 opacity-80">Manual selection on screen</span>
+                  <span className="text-[10px] text-center mt-1 opacity-80">Manual screen select</span>
                 </button>
               </div>
             </div>
