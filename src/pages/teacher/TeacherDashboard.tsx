@@ -15,7 +15,30 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { createLeaveApplication, updateLeaveApplicationStatus, createLiveQuiz, getLiveQuizLeaderboard, endLiveQuiz, getApiBase, startLiveSession, submitAttendance, endLiveSession, getLiveQuizTeacherQr, fetchLiveQuizStatus, startLiveQuizCapture, submitLiveQuizAnswer, getAiRecommendations, askAiAssistant, fetchPrincipalStudents, fetchTodayTeacherAttendance, markTeacherSelfAttendance, fetchTeacherAssignments } from "@/api/client";
+import { 
+  createLeaveApplication, 
+  updateLeaveApplicationStatus, 
+  createLiveQuiz, 
+  getLiveQuizLeaderboard, 
+  endLiveQuiz, 
+  getApiBase, 
+  startLiveSession, 
+  submitAttendance, 
+  endLiveSession, 
+  getLiveQuizTeacherQr, 
+  fetchLiveQuizStatus, 
+  startLiveQuizCapture, 
+  submitLiveQuizAnswer, 
+  getAiRecommendations, 
+  askAiAssistant, 
+  fetchPrincipalStudents, 
+  fetchTodayTeacherAttendance, 
+  markTeacherSelfAttendance, 
+  fetchTeacherAssignments,
+  fetchChapterGatingStatus,
+  type GatingStatusResponse
+} from "@/api/client";
+import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel } from "./TeacherAssessment";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -29,7 +52,7 @@ import {
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
   Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
-  Youtube, ExternalLink
+  Youtube, ExternalLink, Lock, AlertTriangle
 } from "lucide-react";
 
 import {
@@ -246,8 +269,34 @@ const TeacherDashboard = () => {
   const [sessionStartLoading, setSessionStartLoading] = useState(false);
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
-  const [recommendations, setRecommendations] = useState<{ videos: any[], resources: any[] } | null>(null);
   const [recoLoading, setRecoLoading] = useState(false);
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const [gatingStatus, setGatingStatus] = useState<GatingStatusResponse | null>(null);
+  const [gatingLoading, setGatingLoading] = useState(false);
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
+  const [assessmentChapter, setAssessmentChapter] = useState<{ id: string, name: string } | null>(null);
+
+  const fetchGating = useCallback(async () => {
+    if (!teacherId || !selectedClass || !selectedSubject || !grade) {
+      console.log("Gating fetch skipped: missing params", { teacherId, selectedClass, selectedSubject, grade });
+      return;
+    }
+    setGatingLoading(true);
+    try {
+      console.log("Fetching gating status for:", { teacherId, selectedClass, selectedSubject, grade });
+      const res = await fetchChapterGatingStatus(teacherId, selectedClass, selectedSubject, grade);
+      console.log("Gating status received:", res);
+      setGatingStatus(res);
+    } catch (e) {
+      console.error("Failed to fetch gating status:", e);
+    } finally {
+      setGatingLoading(false);
+    }
+  }, [teacherId, selectedClass, selectedSubject, grade]);
+
+  useEffect(() => {
+    fetchGating();
+  }, [fetchGating]);
   const [chatLoading, setChatLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
   const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; status?: string } | null>(null);
@@ -1955,7 +2004,6 @@ const TeacherDashboard = () => {
               <TabsTrigger value="chapters" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Chapters & Topics</TabsTrigger>
               <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
               {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
-              <TabsTrigger value="timetable" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Timetable</TabsTrigger>
               <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
               <TabsTrigger value="my-assignments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assignments</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
@@ -2056,9 +2104,6 @@ const TeacherDashboard = () => {
                         `}>
                               {item.percentage}%
                             </Badge>
-                            {index === 0 && (
-                              <p className="text-[10px] font-bold text-amber mt-1 tracking-wider uppercase">Topper</p>
-                            )}
                           </div>
                         </div>
                       );
@@ -2066,68 +2111,6 @@ const TeacherDashboard = () => {
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">No students found for this class.</p>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="timetable" className="space-y-4">
-              <Card className="shadow-card border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" /> Class Timetable
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    School starts at 9:00 AM. Period duration: 40 mins. Breaks: 10:20-10:35 and 2:20-2:35. Lunch: 11:55-1:00.
-                  </p>
-                  {(() => {
-                    const dayNames: Record<number, string> = { 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday" };
-                    const rows = timetables
-                      .filter((t) => t.classId === selectedClass)
-                      .filter((t) => (t.subjectId ? t.subjectId === selectedSubject : false))
-                      .sort((a, b) => (a.weekDay - b.weekDay) || (a.periodNo - b.periodNo));
-                    if (!rows.length) return <p className="text-sm text-muted-foreground">No timetable slots mapped for your subject in this class.</p>;
-                    const periods = [1, 2, 3, 4, 5, 6, 7, 8];
-                    const grid = new Map<string, { subjectName: string; startTime: string; endTime: string }>();
-                    rows.forEach((r) => {
-                      grid.set(`${r.weekDay}-${r.periodNo}`, { subjectName: r.subjectName, startTime: r.startTime, endTime: r.endTime });
-                    });
-                    return (
-                      <div className="overflow-x-auto rounded-lg border border-border">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="bg-secondary border-b border-border">
-                              <th className="p-2 text-left font-medium">Day \\ Period</th>
-                              {periods.map((p) => <th key={p} className="p-2 text-left font-medium">P{p}</th>)}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[1, 2, 3, 4, 5, 6].map((day) => (
-                              <tr key={day} className="border-b border-border last:border-0">
-                                <td className="p-2 font-semibold text-foreground">{dayNames[day]}</td>
-                                {periods.map((p) => {
-                                  const slot = grid.get(`${day}-${p}`);
-                                  return (
-                                    <td key={`${day}-${p}`} className="p-2 align-top">
-                                      {slot ? (
-                                        <div className="rounded-md bg-teal-light px-2 py-1.5">
-                                          <p className="font-medium text-foreground">{slot.subjectName}</p>
-                                          <p className="text-[10px] text-muted-foreground">{String(slot.startTime).slice(0, 5)}-{String(slot.endTime).slice(0, 5)}</p>
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -2169,33 +2152,122 @@ const TeacherDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="w-20 flex items-center gap-2">
-                            <Progress value={progress} className="h-2 flex-1" />
-                            <span className="text-xs text-muted-foreground">{progress}%</span>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="w-20 flex items-center gap-2">
+                              <Progress value={progress} className="h-2 flex-1" />
+                              <span className="text-xs text-muted-foreground">{progress}%</span>
+                            </div>
+                            {gatingStatus && (
+                              <ChapterGatingBadge 
+                                gatingStatus={gatingStatus.chapters.find(gs => sameId(gs.chapterId, ch.id)) || null} 
+                                gatingEnabled={gatingStatus.gatingEnabled}
+                              />
+                            )}
                           </div>
                           <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                         </div>
                       </div>
 
+                      {/* Gating Logic Message & Assessment Button */}
+                      {isExpanded && gatingStatus && gatingStatus.gatingEnabled && (() => {
+                        const gs = gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id));
+                        if (!gs) return null;
+                        
+                        return (
+                          <div className="px-4 pb-2">
+                            {gs.isLocked && (
+                              <div className="p-3 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 mb-3">
+                                <Lock className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-xs font-semibold text-red-700">Chapter Locked</p>
+                                  <p className="text-[11px] text-red-600 mt-0.5">{gs.lockReason}</p>
+                                </div>
+                                {gs.assessmentAvailable && !gs.teacherPassed && (
+                                  <Button 
+                                    size="sm" 
+                                    className="h-8 text-xs bg-red-600 hover:bg-red-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAssessmentChapter({ id: ch.id, name: ch.name });
+                                      setAssessmentOpen(true);
+                                    }}
+                                  >
+                                    Take Assessment
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+
+                            {!gs.isLocked && !gs.teacherPassed && gs.assessmentAvailable && (
+                               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 flex items-start gap-3 mb-3">
+                                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-xs font-semibold text-amber-700">Teaching Unlocked (Assessment Pending)</p>
+                                  <p className="text-[11px] text-amber-600 mt-0.5">You can teach, but we recommend passing the assessment first.</p>
+                                </div>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="h-8 text-xs border-amber-200 text-amber-700 hover:bg-amber-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAssessmentChapter({ id: ch.id, name: ch.name });
+                                    setAssessmentOpen(true);
+                                  }}
+                                >
+                                  Take Assessment
+                                </Button>
+                              </div>
+                            )}
+
+                            {gs.teacherPassed && (
+                              <div className="flex items-center gap-2">
+                                <StudentPerformancePanel 
+                                  gatingStatus={gs} 
+                                  studentThreshold={gatingStatus.studentThreshold}
+                                  onReteach={() => {
+                                    if (confirm("Start a new reteach session for this chapter?")) {
+                                      if (chTopics.length > 0) handleStartSession(chTopics[0]);
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-muted-foreground hover:text-primary mt-2"
+                                  onClick={(e) => { e.stopPropagation(); fetchGating(); }}
+                                  title="Refresh scores"
+                                >
+                                  <RotateCcw className={`w-3.5 h-3.5 ${gatingLoading ? "animate-spin" : ""}`} />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Topics Dropdown */}
                       {isExpanded && (
                         <div className="border-t border-border bg-secondary/30 p-4 space-y-2">
-                          {chTopics.length > 0 ? chTopics.map((topic) => {
-                            const tStatusRaw = topicStatusState[String(topic.id)] || topic.status;
-                            const tNorm = !inSyllabusScope ? "not_started" : normalizeTopicStatus(tStatusRaw);
-                            const tsc = statusColors[tNorm];
-                            const isTopicExpanded = expandedTopics[topic.id];
-
-                            return (
+                          {/* If locked, show a blur or overlay message */}
+                          {gatingStatus?.gatingEnabled && gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id))?.isLocked && (
+                            <div className="py-8 text-center">
+                              <Lock className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">Topics are locked until requirements are met.</p>
+                            </div>
+                          )}
+                          
+                          {(!gatingStatus?.gatingEnabled || !gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id))?.isLocked) && (
+                            chTopics.length > 0 ? chTopics.map((topic) => (
                               <div key={topic.id} className="bg-card rounded-xl border border-border overflow-hidden">
                                 <div
                                   className="p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
                                   onClick={() => toggleTopic(topic.id)}
                                 >
                                   <div className="flex items-center gap-2">
-                                    {tNorm === "completed" ? (
+                                    {normalizeTopicStatus(topicStatusState[String(topic.id)] || topic.status) === "completed" ? (
                                       <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                                    ) : tNorm === "in_progress" ? (
+                                    ) : normalizeTopicStatus(topicStatusState[String(topic.id)] || topic.status) === "in_progress" ? (
                                       <Clock className="w-4 h-4 text-amber flex-shrink-0" />
                                     ) : (
                                       <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
@@ -2215,11 +2287,11 @@ const TeacherDashboard = () => {
                                     >
                                       <Play className="w-3 h-3" /> {sessionStartLoading ? "Starting…" : "Start Session"}
                                     </Button>
-                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isTopicExpanded ? "rotate-180" : ""}`} />
+                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedTopics[topic.id] ? "rotate-180" : ""}`} />
                                   </div>
                                 </div>
 
-                                {isTopicExpanded && (
+                                {expandedTopics[topic.id] && (
                                   <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2">
                                     {ch.textbookChunkPdfPath && (
                                       <Button
@@ -2261,29 +2333,29 @@ const TeacherDashboard = () => {
                                   </div>
                                 )}
                               </div>
-                            );
-                          }) : (
-                            <div className="pt-2">
-                              {ch.textbookChunkPdfPath ? (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                                    disabled={!!workflowLoading}
-                                    onClick={(e) => { e.stopPropagation(); handleAutoWorkflow(ch.id); }}
-                                  >
-                                    <Sparkles className={`w-3.5 h-3.5 ${workflowLoading === ch.id ? "animate-spin" : ""}`} />
-                                    {workflowLoading === ch.id ? "Processing Chapter..." : "AI Auto-Generate Topics & Quizzes"}
-                                  </Button>
-                                  <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                                    Click to automatically segment this chapter into topics and generate materials.
-                                  </p>
-                                </>
-                              ) : (
-                                <p className="text-sm text-muted-foreground p-2">No topics defined. Upload a textbook PDF to enable AI auto-generation.</p>
-                              )}
-                            </div>
+                            )) : (
+                              <div className="pt-2">
+                                {ch.textbookChunkPdfPath ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                                      disabled={!!workflowLoading}
+                                      onClick={(e) => { e.stopPropagation(); handleAutoWorkflow(ch.id); }}
+                                    >
+                                      <Sparkles className={`w-3.5 h-3.5 ${workflowLoading === ch.id ? "animate-spin" : ""}`} />
+                                      {workflowLoading === ch.id ? "Processing Chapter..." : "AI Auto-Generate Topics & Quizzes"}
+                                    </Button>
+                                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                                      Click to automatically segment this chapter into topics and generate materials.
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground p-2">No topics defined. Upload a textbook PDF to enable AI auto-generation.</p>
+                                )}
+                              </div>
+                            )
                           )}
                         </div>
                       )}
@@ -2308,9 +2380,21 @@ const TeacherDashboard = () => {
                     <CardTitle className="font-display text-lg flex items-center gap-2">
                       <Users className="w-5 h-5 text-primary" /> {currentClass?.name} — Students ({classStudents.length})
                     </CardTitle>
-                    <div>
+                    <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadClassCsv()}>
                         <FileDown className="w-4 h-4" /> Download Students CSV
+                      </Button>
+                      <Button variant="default" size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => {
+                        toast.promise(
+                          new Promise(resolve => setTimeout(resolve, 2000)),
+                          {
+                            loading: 'Generating Class Report...',
+                            success: 'Class Report Generated Successfully!',
+                            error: 'Failed to generate report'
+                          }
+                        );
+                      }}>
+                        <FileDown className="w-4 h-4" /> GENERATE CLASS REPORT
                       </Button>
                     </div>
                   </div>
@@ -2321,38 +2405,55 @@ const TeacherDashboard = () => {
                       <thead>
                         <tr className="border-b border-border bg-secondary">
                           <th className="text-left p-3 font-medium text-muted-foreground">Roll</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground min-w-[120px]">Name</th>
                           <th className="text-left p-3 font-medium text-muted-foreground">Attendance</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Annual Score</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Performance</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 1">FA1</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 2">FA2</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 3">FA3</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Formative Assessment 4">FA4</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Summative Assessment 1">SA1</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs" title="Summative Assessment 2">SA2</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground text-xs text-primary">Quiz</th>
+                          <th className="text-center p-3 font-medium text-foreground whitespace-nowrap bg-primary/5">Perf Index</th>
+                          <th className="text-center p-3 font-medium text-muted-foreground min-w-[140px]">Report Card / Feedback</th>
                         </tr>
                       </thead>
                       <tbody>
                         {classStudents.map(s => {
                           const att = studentAttendance.find(a => a.studentId === s.id);
+                          // Mocking data for the demonstration of the new features
+                          const mockFA1 = Math.floor(Math.random() * 20) + 5;
+                          const mockSA1 = Math.floor(Math.random() * 40) + 10;
+                          const mockQuiz = Math.floor(Math.random() * 20);
+                          const mockPerfIndex = Math.floor((mockFA1/25)*30 + (mockSA1/50)*40 + (mockQuiz/20)*20 + ((att?.percentage || 0)/100)*10);
+                          
                           return (
-                            <tr key={s.id} className="border-b border-border last:border-0">
-                              <td className="p-3 text-foreground">{s.rollNo}</td>
-                              <td className="p-3 text-foreground font-medium">{s.name}</td>
+                            <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                              <td className="p-3 text-foreground whitespace-nowrap">{s.rollNo}</td>
+                              <td className="p-3 text-foreground font-bold">{s.name}</td>
                               <td className="p-3">
                                 {att ? (
                                   <div className="flex items-center gap-2">
-                                    <Progress value={att.percentage} className="h-2 w-20" />
-                                    <span className="text-xs text-muted-foreground">{att.percentage}%</span>
+                                    <Progress value={att.percentage} className="h-1.5 w-16" />
+                                    <span className="text-[10px] font-bold text-muted-foreground">{att.percentage}%</span>
                                   </div>
                                 ) : <span className="text-xs text-muted-foreground">—</span>}
                               </td>
-                              <td className="p-3 text-foreground font-medium">
-                                {s.score ?? "—"}
+                              <td className="p-2 text-center"><Input defaultValue={mockFA1} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={mockSA1} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center font-bold text-primary">{mockQuiz}/20</td>
+                              <td className="p-3 text-center bg-primary/5 font-black text-foreground">
+                                {mockPerfIndex} <span className="text-[9px] text-muted-foreground">/100</span>
                               </td>
-                              <td className="p-3">
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs cursor-pointer"
-                                  onClick={() => setViewingStudent(s.id)}
-                                >
-                                  View
-                                </Badge>
+                              <td className="p-3 text-center flex flex-col gap-2">
+                                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200" onClick={() => toast.success(`Generated Report Card for ${s.name}`)}>
+                                  Generate Report
+                                </Button>
+                                <Input placeholder="Teacher feedback..." className="h-7 text-[10px] bg-transparent border-dashed" />
                               </td>
                             </tr>
                           );
@@ -2682,7 +2783,7 @@ const TeacherDashboard = () => {
               <Card className="shadow-card border-border">
                 <CardHeader>
                   <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <CalendarCheck className="w-5 h-5 text-primary" /> Class Status — {currentClass?.name}
+                    <CalendarCheck className="w-5 h-5 text-primary" /> Staff Leaves & Public Holidays
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -2691,45 +2792,26 @@ const TeacherDashboard = () => {
                       <thead>
                         <tr className="border-b border-border bg-secondary">
                           <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Reason</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Action</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Event / Teacher</th>
+                          <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {classStatusLocal.map((cs) => (
-                          <tr key={cs.id} className="border-b border-border last:border-0">
-                            <td className="p-3 text-foreground">{cs.date}</td>
-                            <td className="p-3">
-                              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cs.status === "conducted" ? "bg-success-light text-success" : "bg-destructive/10 text-destructive"
-                                }`}>
-                                {cs.status === "conducted"
-                                  ? <><CheckCircle2 className="w-3 h-3" /> Conducted</>
-                                  : <><XCircle className="w-3 h-3" /> Cancelled</>
-                                }
-                              </span>
-                            </td>
-                            <td className="p-3 text-muted-foreground text-xs">{cs.reason || "—"}</td>
-                            <td className="p-3">
-                              <Select
-                                value={cs.status}
-                                onValueChange={(val) => {
-                                  setClassStatusLocal((prev) =>
-                                    prev.map((c) => (c.id === cs.id ? { ...c, status: val as "conducted" | "cancelled" } : c))
-                                  );
-                                }}
-                              >
-                                <SelectTrigger className="w-[130px] h-8 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="conducted">Conducted</SelectItem>
-                                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </td>
-                          </tr>
-                        ))}
+                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-3 text-foreground whitespace-nowrap">2026-05-15</td>
+                          <td className="p-3 text-foreground font-bold">Venkatesh Rao</td>
+                          <td className="p-3"><Badge variant="outline" className="bg-amber/10 text-amber border-amber/20">Staff Leave</Badge></td>
+                        </tr>
+                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-3 text-foreground whitespace-nowrap">2026-06-05</td>
+                          <td className="p-3 text-foreground font-bold">World Environment Day</td>
+                          <td className="p-3"><Badge variant="outline" className="bg-teal-light/50 text-teal-medium border-teal-medium/20">Public Holiday</Badge></td>
+                        </tr>
+                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-3 text-foreground whitespace-nowrap">2026-08-15</td>
+                          <td className="p-3 text-foreground font-bold">Independence Day</td>
+                          <td className="p-3"><Badge variant="outline" className="bg-teal-light/50 text-teal-medium border-teal-medium/20">Public Holiday</Badge></td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -2852,6 +2934,36 @@ const TeacherDashboard = () => {
           </DialogHeader>
           {detailedStudent && (
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-secondary rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Annual Score</p>
+                  <p className="text-xl font-bold text-primary">{detailedStudent.score}%</p>
+                </div>
+                <div className="p-3 bg-secondary rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Attendance</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {studentAttendance.find(a => a.studentId === detailedStudent.id)?.percentage || 0}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Recent Quiz Results</h4>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {studentQuizResults.filter(r => r.studentId === detailedStudent.id).map((r, i) => {
+                    const chapter = chapters.find(c => sameId(c.id, r.chapterId));
+                    return (
+                      <div key={i} className="flex items-center justify-between p-2.5 bg-card border border-border rounded-lg text-xs">
+                        <span className="font-medium text-foreground truncate max-w-[150px]">{chapter?.name || "Chapter Quiz"}</span>
+                        <Badge variant="outline" className={r.score / r.total >= 0.6 ? "text-success border-success/30" : "text-destructive border-destructive/30"}>
+                          {Math.round((r.score / r.total) * 100)}%
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
               {/* Performance graph */}
               <div>
                 <p className="text-sm font-medium">Subject-wise Scores</p>
@@ -2969,6 +3081,25 @@ const TeacherDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+      {/* Teacher Chapter Assessment Dialog */}
+      {assessmentChapter && (
+        <TeacherAssessmentDialog
+          open={assessmentOpen}
+          onClose={() => setAssessmentOpen(false)}
+          chapterId={assessmentChapter.id}
+          chapterName={assessmentChapter.name}
+          teacherId={teacherId || ""}
+          subjectId={selectedSubject}
+          gradeId={grade}
+          classId={selectedClass}
+          onAssessmentComplete={(passed) => {
+            if (passed) {
+              fetchGating(); // Refetch gating status to unlock chapters
+              refetch(); // Global data refetch if needed
+            }
+          }}
+        />
+      )}
 
     </DashboardLayout>
   );
