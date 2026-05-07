@@ -12,13 +12,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { 
   createLiveQuiz, 
   getLiveQuizSession, 
-  getLiveQuizTeacherQr, 
   fetchLiveQuizStatus, 
   startLiveQuizCapture, 
   getLiveQuizLeaderboard, 
   endLiveQuiz,
   submitLiveQuizAnswer
 } from "@/api/client";
+import { QRCodeSVG } from "qrcode.react";
 
 // Polling interval
 const POLL_INTERVAL = 2000;
@@ -35,7 +35,6 @@ const QuizScreen = () => {
   const [initializing, setInitializing] = useState(true);
   const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   
   // States
   const [phase, setPhase] = useState<"connecting" | "active" | "evaluating" | "finished">("connecting");
@@ -97,8 +96,6 @@ const QuizScreen = () => {
         setTotalStudents(classStudents.length);
 
         if (mode === "qr") {
-          const qrRes = await getLiveQuizTeacherQr(res.id);
-          setQrDataUrl(qrRes.dataUrl);
           setPhase("connecting");
         } else if (mode === "aruco") {
           // ArUco mode — start capture and go straight to active
@@ -465,9 +462,13 @@ const QuizScreen = () => {
               </p>
             </div>
             <CardContent className="p-12 flex flex-col items-center">
-              {qrDataUrl ? (
+              {quizSessionId ? (
                 <div className="p-4 bg-white rounded-2xl shadow-sm border border-border mb-8">
-                  <img src={qrDataUrl} alt="Scanner QR Code" className="w-64 h-64" />
+                  <QRCodeSVG 
+                    value={`${window.location.origin}/teacher/live-quiz-scan?session=${quizSessionId}`} 
+                    size={256} 
+                    level="M" 
+                  />
                 </div>
               ) : (
                 <div className="w-64 h-64 bg-slate-100 animate-pulse rounded-2xl mb-8" />

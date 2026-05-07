@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { connectLiveQuizScanner, fetchLiveQuizStatus, submitLiveQuizScan } from "@/api/client";
 import { toast } from "sonner";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 function getDeviceId() {
   const key = "liveQuizDeviceId";
@@ -59,6 +60,27 @@ const LiveQuizScan = () => {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner(
+      "qr-reader",
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      false
+    );
+
+    scanner.render(
+      (decodedText) => {
+        setScanRaw(decodedText);
+      },
+      (error) => {
+        // Optional: handle scan errors, though they happen continuously when no QR is in view
+      }
+    );
+
+    return () => {
+      scanner.clear().catch(console.error);
+    };
+  }, []);
+
   const handleSubmit = async () => {
     if (!sessionId || !scanRaw.trim()) return;
     setSubmitting(true);
@@ -97,6 +119,15 @@ const LiveQuizScan = () => {
             <p>Attendance: <b>{status?.attendanceReady ? "Ready" : "Pending"}</b>{status?.attendanceDate ? ` (${status.attendanceDate})` : ""}</p>
             <p>Capture started: <b>{status?.started ? "Yes" : "No (wait for teacher)"}</b></p>
             <p>Progress: <b>{status?.answersCaptured ?? 0}</b> / <b>{expected}</b></p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Camera Scanner</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-lg"></div>
           </CardContent>
         </Card>
 
