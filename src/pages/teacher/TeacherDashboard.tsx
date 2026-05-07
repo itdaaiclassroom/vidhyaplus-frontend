@@ -235,7 +235,7 @@ const TeacherDashboard = () => {
   const [liveQuizLeaderboard, setLiveQuizLeaderboard] = useState<Array<{ rank: number; studentId: string; studentName: string; score: number }>>([]);
   const [liveQuizTeacherQr, setLiveQuizTeacherQr] = useState<string | null>(null);
   const [liveQuizStatus, setLiveQuizStatus] = useState<{ started: boolean; connectedDevices: number; questions: number; students: number; answersCaptured: number; attendanceReady?: boolean; attendanceDate?: string; currentQuestionNo?: number; progressByQuestion?: Record<string, number>; submitted?: boolean } | null>(null);
-  const [liveQuizCaptureMode, setLiveQuizCaptureMode] = useState<"manual" | "qr">("manual");
+  const [liveQuizCaptureMode, setLiveQuizCaptureMode] = useState<"manual" | "qr" | "aruco">("manual");
   const [manualQuestionNo, setManualQuestionNo] = useState(1);
   const [manualSelections, setManualSelections] = useState<Record<string, Record<string, string>>>({});
   const [manualSubmittingStudentId, setManualSubmittingStudentId] = useState<string | null>(null);
@@ -1643,18 +1643,33 @@ const TeacherDashboard = () => {
                     <p className="text-xs text-muted-foreground">
                       Capture status: <span className="font-medium text-foreground">{liveQuizStatus?.started ? "Started" : "Waiting to start"}</span>
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <Button
                         variant={liveQuizCaptureMode === "manual" ? "default" : "outline"}
                         onClick={() => setLiveQuizCaptureMode("manual")}
+                        size="sm"
                       >
-                        Teacher-only mode
+                        Teacher-only
                       </Button>
                       <Button
                         variant={liveQuizCaptureMode === "qr" ? "default" : "outline"}
                         onClick={() => setLiveQuizCaptureMode("qr")}
+                        size="sm"
                       >
-                        QR scanner mode
+                        QR scanner
+                      </Button>
+                      <Button
+                        variant={liveQuizCaptureMode === "aruco" ? "default" : "outline"}
+                        onClick={() => {
+                          if (liveQuizSession && activeSession) {
+                            setShowLaunchQuizDialog(false);
+                            navigate(`/teacher/quiz?sessionId=${activeSession.id}&mode=aruco`);
+                          }
+                        }}
+                        size="sm"
+                        className="gap-1"
+                      >
+                        <Monitor className="w-3 h-3" /> ArUco Webcam
                       </Button>
                     </div>
                     <Button onClick={handleStartLiveQuizCapture} disabled={!!liveQuizStatus?.started || !liveQuizStatus?.attendanceReady} className="w-full">

@@ -283,7 +283,7 @@ export async function createLiveQuiz(payload: {
   /** Optional: link to live session so only one quiz per session is created */
   liveSessionId?: string;
   noOfQuestions?: number;
-  mode?: 'qr' | 'teacher';
+  mode?: 'qr' | 'teacher' | 'aruco';
 }): Promise<{
   id: string;
   questions: Array<{ id: string; questionText: string; optionA: string; optionB: string; optionC: string; optionD: string; correctOption: string; explanation: string; orderNum: number }>;

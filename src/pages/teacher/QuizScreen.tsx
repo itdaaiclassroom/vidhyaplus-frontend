@@ -4,8 +4,9 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { QrCode, ScanLine, Trophy, ArrowLeft, CheckCircle2, XCircle, Play, Loader2, Users } from "lucide-react";
+import { QrCode, ScanLine, Trophy, ArrowLeft, CheckCircle2, XCircle, Play, Loader2, Users, Camera } from "lucide-react";
 import { toast } from "sonner";
+import ArucoScannerBoard from "@/components/ArucoScannerBoard";
 import { useAppData } from "@/contexts/DataContext";
 import { 
   createLiveQuiz, 
@@ -28,7 +29,7 @@ const QuizScreen = () => {
   
   const liveSessionId = searchParams.get("sessionId");
   const noOfQuestionsStr = searchParams.get("questions") || "10";
-  const mode = searchParams.get("mode") as "qr" | "teacher" || "qr";
+  const mode = searchParams.get("mode") as "qr" | "teacher" | "aruco" || "qr";
 
   const [initializing, setInitializing] = useState(true);
   const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
@@ -90,6 +91,10 @@ const QuizScreen = () => {
           const qrRes = await getLiveQuizTeacherQr(res.id);
           setQrDataUrl(qrRes.dataUrl);
           setPhase("connecting");
+        } else if (mode === "aruco") {
+          // ArUco mode — start capture and go straight to active
+          await startLiveQuizCapture(res.id);
+          setPhase("active");
         } else {
           // Teacher mode skips QR connect
           await startLiveQuizCapture(res.id);
@@ -374,7 +379,20 @@ const QuizScreen = () => {
           </Card>
         )}
 
-        {(phase === "active" || phase === "evaluating") && currentQuestion && (
+        {/* ArUco Scanner Board — full-width when in ArUco mode */}
+        {mode === "aruco" && phase === "active" && currentQuestion && quizSessionId && (
+          <ArucoScannerBoard
+            quizSessionId={quizSessionId}
+            classStudents={classStudents.map((s: any) => ({ id: s.id, name: s.name, rollNo: s.rollNo }))}
+            currentQuestion={currentQuestion}
+            questionIndex={currentQIndex}
+            totalQuestions={questions.length}
+            onComplete={handleEvaluate}
+            onCancel={() => navigate(`/teacher/lesson?sessionId=${liveSessionId}`)}
+          />
+        )}
+
+        {(phase === "active" || phase === "evaluating") && currentQuestion && mode !== "aruco" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-8 space-y-6">
               <Card className="shadow-lg border-border relative overflow-hidden">
