@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { connectLiveQuizScanner, fetchLiveQuizStatus, submitLiveQuizScan } from "@/api/client";
 import { toast } from "sonner";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 function getDeviceId() {
   const key = "liveQuizDeviceId";
@@ -61,23 +61,37 @@ const LiveQuizScan = () => {
   }, [sessionId]);
 
   useEffect(() => {
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
+    let html5QrCode: Html5Qrcode;
+    let isStarted = false;
 
-    scanner.render(
-      (decodedText) => {
-        setScanRaw(decodedText);
-      },
-      (error) => {
-        // Optional: handle scan errors, though they happen continuously when no QR is in view
+    const startScanner = async () => {
+      try {
+        html5QrCode = new Html5Qrcode("qr-reader");
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            setScanRaw(decodedText);
+            // Optionally auto-submit here if desired, 
+            // but for now we just fill the input.
+          },
+          () => {} // ignore continuous scan errors
+        );
+        isStarted = true;
+      } catch (err) {
+        console.error("Camera start error:", err);
+        toast.error("Failed to open camera. Please ensure permissions are granted and you are using a secure connection (HTTPS).");
       }
-    );
+    };
+
+    startScanner();
 
     return () => {
-      scanner.clear().catch(console.error);
+      if (isStarted && html5QrCode) {
+        html5QrCode.stop()
+          .then(() => html5QrCode.clear())
+          .catch(console.error);
+      }
     };
   }, []);
 
