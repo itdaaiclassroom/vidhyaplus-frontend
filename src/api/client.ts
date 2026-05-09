@@ -782,6 +782,21 @@ export async function adminLogin(body: { email: string; password: string }): Pro
   return { ...data, token: data.token || '' };
 }
 
+export async function teamLogin(body: { email: string; password: string }): Promise<{ id: string; team_name: string; email: string; role: string; token: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/auth/login/team`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  const data = await res.json();
+  if (data.token && data.user) {
+    return { ...data.user, token: data.token };
+  }
+  return { ...data, token: data.token || '' };
+}
+
 export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/login/teacher`, {
