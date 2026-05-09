@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { connectLiveQuizScanner, fetchLiveQuizStatus, submitLiveQuizScan } from "@/api/client";
+import { useAppData } from "@/contexts/DataContext";
 import { toast } from "sonner";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -22,6 +23,7 @@ function getDeviceId() {
 const LiveQuizScan = () => {
   const [params] = useSearchParams();
   const sessionId = params.get("session") || "";
+  const { data } = useAppData();
   const [questionNo, setQuestionNo] = useState(1);
   const [scanRaw, setScanRaw] = useState("");
   const [status, setStatus] = useState<{ started: boolean; connectedDevices: number; questions: number; students: number; answersCaptured: number; attendanceReady?: boolean; attendanceDate?: string } | null>(null);
@@ -29,11 +31,41 @@ const LiveQuizScan = () => {
   const [logs, setLogs] = useState<Array<{ id: string; text: string; ok: boolean }>>([]);
 
   const [cameras, setCameras] = useState<Array<{ id: string, label: string }>>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
+  const [activeCameraIds, setActiveCameraIds] = useState<string[]>([]);
+  const [absentRollNos, setAbsentRollNos] = useState<string[]>([]);
+  const absentRollNosRef = useRef<string[]>([]);
+
+  const activeSession = useMemo(() => {
+    return data.liveSessions?.find((s: any) => String(s.id) === String(sessionId));
+  }, [data.liveSessions, sessionId]);
+
+  useEffect(() => {
+    absentRollNosRef.current = absentRollNos;
+  }, [absentRollNos]);
+
+  useEffect(() => {
+    if (!activeSession) return;
+    const fetchAttendance = async () => {
+      try {
+        const d = new Date();
+        const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const { getStudentAttendance } = await import('@/api/client');
+        const records = await getStudentAttendance(activeSession.classId, date);
+        if (records.length > 0) {
+          const absentIds = records.filter((r: any) => r.status.toLowerCase() === "absent").map((r: any) => String(r.student_id));
+          const absentRolls = data.students?.filter((s: any) => absentIds.includes(String(s.id))).map((s: any) => String(s.rollNo)) || [];
+          setAbsentRollNos(absentRolls);
+        }
+      } catch (err) {
+        console.error("Failed to fetch attendance:", err);
+      }
+    };
+    fetchAttendance();
+  }, [activeSession, data.students]);
 
   const expected = useMemo(() => (status ? status.questions * status.students : 0), [status]);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannersRef = useRef<Map<string, Html5Qrcode>>(new Map());
   const lastScannedRef = useRef<string>("");
   const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stateRef = useRef({ questionNo, sessionId });
@@ -79,79 +111,122 @@ const LiveQuizScan = () => {
         setCameras(devices);
         // Default to environment camera if available, otherwise first device
         const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
-        setSelectedCameraId(backCam ? backCam.id : devices[0].id);
+        setActiveCameraIds([backCam ? backCam.id : devices[0].id]);
       }
     }).catch(console.error);
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().then(() => {
-          scannerRef.current?.clear();
-        }).catch(console.error);
-      }
+      scannersRef.current.forEach(scanner => {
+        if (scanner.isScanning) {
+          scanner.stop().then(() => scanner.clear()).catch(console.error);
+        }
+      });
     };
   }, []);
 
   useEffect(() => {
-    if (!selectedCameraId) return;
-
-    const startScanner = async () => {
-      try {
-        if (!scannerRef.current) {
-          scannerRef.current = new Html5Qrcode("qr-reader");
-        } else if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
+    // Stop removed cameras
+    for (const [id, scanner] of scannersRef.current.entries()) {
+      if (!activeCameraIds.includes(id)) {
+        if (scanner.isScanning) {
+          scanner.stop().then(() => scanner.clear()).catch(console.error);
         }
-
-        await scannerRef.current.start(
-          selectedCameraId,
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          async (decodedText) => {
-            if (decodedText && decodedText !== lastScannedRef.current) {
-              lastScannedRef.current = decodedText;
-              setScanRaw(decodedText);
-              
-              const sRef = stateRef.current;
-              if (!sRef.sessionId) return;
-              
-              toast.success(`Scanned: ${decodedText}`);
-              
-              try {
-                const r = await submitLiveQuizScan(sRef.sessionId, { questionNo: sRef.questionNo, qrRaw: decodedText.trim() });
-                setLogs((prev) => [{ id: `${Date.now()}`, text: r.confirmation, ok: true }, ...prev].slice(0, 30));
-                
-                // Refresh status
-                fetchLiveQuizStatus(sRef.sessionId).then(s => {
-                  setStatus((prev: any) => ({ ...prev, ...s }));
-                }).catch(() => {});
-
-              } catch (e: any) {
-                const msg = e.message || "Scan failed";
-                toast.error(msg);
-                setLogs((prev) => [{ id: `${Date.now()}`, text: msg, ok: false }, ...prev].slice(0, 30));
-              }
-
-              // Allow re-scanning the same code after 2.5 seconds
-              if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
-              scanTimeoutRef.current = setTimeout(() => {
-                lastScannedRef.current = "";
-                setScanRaw("");
-              }, 2500);
-            }
-          },
-          () => {} // ignore continuous scan errors
-        );
-      } catch (err) {
-        console.error("Camera start error:", err);
-        toast.error("Failed to open the selected camera.");
+        scannersRef.current.delete(id);
       }
-    };
+    }
 
-    startScanner();
-  }, [selectedCameraId]);
+    // Start new cameras
+    activeCameraIds.forEach(id => {
+      if (!scannersRef.current.has(id)) {
+        const startScanner = async () => {
+          try {
+            const scanner = new Html5Qrcode(`qr-reader-${id}`);
+            scannersRef.current.set(id, scanner);
+            await scanner.start(
+              id,
+              { fps: 10, qrbox: { width: 250, height: 250 } },
+              async (decodedText) => {
+                if (decodedText && decodedText !== lastScannedRef.current) {
+                  lastScannedRef.current = decodedText;
+                  
+                  let scanRollNo = "";
+                  if (decodedText.startsWith("stu")) {
+                    scanRollNo = decodedText.substring(3).split('_')[0];
+                  } else {
+                    scanRollNo = decodedText.split('_')[0];
+                  }
+
+                  if (absentRollNosRef.current.includes(scanRollNo)) {
+                    toast.error(`Student #${scanRollNo} is marked absent.`);
+                    setLogs((prev) => [{ id: `${Date.now()}`, text: `Blocked absent student #${scanRollNo}`, ok: false }, ...prev].slice(0, 30));
+                    if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+                    scanTimeoutRef.current = setTimeout(() => {
+                      lastScannedRef.current = "";
+                      setScanRaw("");
+                    }, 2500);
+                    return;
+                  }
+
+                  setScanRaw(decodedText);
+                  
+                  const sRef = stateRef.current;
+                  if (!sRef.sessionId) return;
+                  
+                  toast.success(`Scanned: ${decodedText}`);
+                  
+                  try {
+                    const r = await submitLiveQuizScan(sRef.sessionId, { questionNo: sRef.questionNo, qrRaw: decodedText.trim() });
+                    setLogs((prev) => [{ id: `${Date.now()}`, text: r.confirmation, ok: true }, ...prev].slice(0, 30));
+                    
+                    fetchLiveQuizStatus(sRef.sessionId).then(s => {
+                      setStatus((prev: any) => ({ ...prev, ...s }));
+                    }).catch(() => {});
+
+                  } catch (e: any) {
+                    const msg = e.message || "Scan failed";
+                    toast.error(msg);
+                    setLogs((prev) => [{ id: `${Date.now()}`, text: msg, ok: false }, ...prev].slice(0, 30));
+                  }
+
+                  if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+                  scanTimeoutRef.current = setTimeout(() => {
+                    lastScannedRef.current = "";
+                    setScanRaw("");
+                  }, 2500);
+                }
+              },
+              () => {}
+            );
+          } catch (err) {
+            console.error("Camera start error for", id, err);
+            toast.error("Failed to open a camera.");
+            setActiveCameraIds(prev => prev.filter(c => c !== id));
+            scannersRef.current.delete(id);
+          }
+        };
+
+        // Delay starting slightly to ensure the div is rendered by React
+        setTimeout(startScanner, 50);
+      }
+    });
+  }, [activeCameraIds]);
 
   const handleSubmit = async () => {
     if (!sessionId || !scanRaw.trim()) return;
+
+    let scanRollNo = "";
+    if (scanRaw.startsWith("stu")) {
+      scanRollNo = scanRaw.substring(3).split('_')[0];
+    } else {
+      scanRollNo = scanRaw.split('_')[0];
+    }
+
+    if (absentRollNosRef.current.includes(scanRollNo)) {
+      toast.error(`Student #${scanRollNo} is marked absent.`);
+      setLogs((prev) => [{ id: `${Date.now()}`, text: `Blocked absent student #${scanRollNo}`, ok: false }, ...prev].slice(0, 30));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const r = await submitLiveQuizScan(sessionId, { questionNo, qrRaw: scanRaw.trim() });
@@ -200,22 +275,40 @@ const LiveQuizScan = () => {
           <CardContent className="space-y-4">
             {cameras.length > 0 && (
               <div>
-                <Label className="mb-2 block">Select Camera</Label>
-                <Select value={selectedCameraId} onValueChange={setSelectedCameraId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a camera" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cameras.map(cam => (
-                      <SelectItem key={cam.id} value={cam.id}>
+                <Label className="mb-2 block">Active Cameras</Label>
+                <div className="flex flex-wrap gap-2">
+                  {cameras.map(cam => {
+                    const isActive = activeCameraIds.includes(cam.id);
+                    return (
+                      <Button
+                        key={cam.id}
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          if (isActive) {
+                            setActiveCameraIds(prev => prev.filter(id => id !== cam.id));
+                          } else {
+                            setActiveCameraIds(prev => [...prev, cam.id]);
+                          }
+                        }}
+                      >
                         {cam.label || `Camera ${cam.id.substring(0, 8)}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </Button>
+                    );
+                  })}
+                </div>
               </div>
             )}
-            <div id="qr-reader" className="w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-black min-h-[250px]"></div>
+            <div className={`grid gap-4 ${activeCameraIds.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+              {activeCameraIds.map(id => (
+                <div key={id} id={`qr-reader-${id}`} className="w-full max-w-sm mx-auto overflow-hidden rounded-lg bg-black min-h-[250px]"></div>
+              ))}
+              {activeCameraIds.length === 0 && (
+                <div className="w-full max-w-sm mx-auto flex items-center justify-center rounded-lg bg-slate-100 min-h-[250px] text-muted-foreground text-sm">
+                  Select a camera to start scanning
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

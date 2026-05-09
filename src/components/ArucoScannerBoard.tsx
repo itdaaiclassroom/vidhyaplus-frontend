@@ -60,6 +60,7 @@ interface ScannedEntry {
 interface ArucoScannerBoardProps {
   quizSessionId: string;
   classStudents: Student[];
+  absentRollNos?: number[];
   currentQuestion: QuizQuestion;
   questionIndex: number;
   totalQuestions: number;
@@ -88,6 +89,7 @@ function playBeep() {
 const ArucoScannerBoard = ({
   quizSessionId,
   classStudents,
+  absentRollNos = [],
   currentQuestion,
   questionIndex,
   totalQuestions,
@@ -107,6 +109,12 @@ const ArucoScannerBoard = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scanLoopRef = useRef<number | null>(null);
   const pendingSubmitsRef = useRef<Set<number>>(new Set()); // rollNos being submitted
+  const warnedAbsentRef = useRef<Set<number>>(new Set());
+
+  // Reset warnings when question changes
+  useEffect(() => {
+    warnedAbsentRef.current.clear();
+  }, [questionIndex]);
 
   // Build rollNo → student lookup
   const rollNoToStudent = useMemo(() => {
@@ -115,15 +123,19 @@ const ArucoScannerBoard = ({
     return map;
   }, [classStudents]);
 
+  const activeClassStudents = useMemo(() => {
+    return classStudents.filter(s => !absentRollNos.includes(s.rollNo));
+  }, [classStudents, absentRollNos]);
+
   const scannedCount = scanned.size;
-  const totalCount = classStudents.length;
+  const totalCount = activeClassStudents.length;
   const thresholdCount = Math.ceil(totalCount * submitThreshold);
-  const isUnlocked = manualOverride || scannedCount >= thresholdCount;
+  const isUnlocked = manualOverride || (totalCount > 0 && scannedCount >= thresholdCount);
   const progressPercent = totalCount > 0 ? (scannedCount / totalCount) * 100 : 0;
 
   const pendingStudents = useMemo(
-    () => classStudents.filter((s) => !scanned.has(s.rollNo)),
-    [classStudents, scanned]
+    () => activeClassStudents.filter((s) => !scanned.has(s.rollNo)),
+    [activeClassStudents, scanned]
   );
 
   const scannedList = useMemo(
@@ -190,8 +202,18 @@ const ArucoScannerBoard = ({
 
         const rollNo = student.rollNo;
 
-        // Skip if already scanned or currently being submitted
-        if (scanned.has(rollNo) || pendingSubmitsRef.current.has(rollNo)) continue;
+        // Check if student is absent
+        if (absentRollNos.includes(rollNo)) {
+          if (!warnedAbsentRef.current.has(rollNo)) {
+            warnedAbsentRef.current.add(rollNo);
+            toast.error(`Student ${student.name} (#${rollNo}) is marked absent.`);
+          }
+          continue;
+        }
+
+        if (pendingSubmitsRef.current.has(rollNo)) continue;
+        const existingScan = scanned.get(rollNo);
+        if (existingScan && existingScan.answer === answer) continue;
 
         // Mark as pending to avoid duplicate API calls
         pendingSubmitsRef.current.add(rollNo);
@@ -229,7 +251,7 @@ const ArucoScannerBoard = ({
         }
       }
     },
-    [scanned, rollNoToStudent, soundEnabled, quizSessionId, questionIndex]
+    [scanned, classStudents, absentRollNos, soundEnabled, quizSessionId, questionIndex]
   );
 
   // Main scan loop

@@ -220,7 +220,7 @@ const LessonScreen = () => {
     // Ensure we have an entry for every student in the class
     const entries = classStudents.map(s => ({
       studentId: s.id,
-      status: sessionAttendance[s.id] || "absent"
+      status: sessionAttendance[s.id] || "present"
     }));
 
     if (entries.length === 0) {

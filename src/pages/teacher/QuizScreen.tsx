@@ -67,10 +67,46 @@ const QuizScreen = () => {
     return data.liveSessions.find((s: any) => String(s.id) === String(liveSessionId));
   }, [liveSessionId, data.liveSessions]);
 
-  const classStudents = useMemo(() => {
+  const [presentStudents, setPresentStudents] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!activeSession) return;
+    const fetchAttendance = async () => {
+      try {
+        const d = new Date();
+        const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        // Import getStudentAttendance dynamically or ensure it's imported at top
+        const { getStudentAttendance } = await import('@/api/client');
+        const records = await getStudentAttendance(activeSession.classId, date);
+        if (records.length > 0) {
+          const presentIds = records.filter((r: any) => r.status.toLowerCase() !== "absent").map((r: any) => String(r.student_id));
+          setPresentStudents(presentIds);
+        } else {
+          setPresentStudents(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch attendance for quiz:", err);
+      }
+    };
+    fetchAttendance();
+  }, [activeSession]);
+
+  const allClassStudents = useMemo(() => {
     if (!activeSession || !data.students) return [];
     return data.students.filter((s: any) => String(s.classId) === String(activeSession.classId));
   }, [activeSession, data.students]);
+
+  const classStudents = useMemo(() => {
+    if (!presentStudents) return allClassStudents;
+    return allClassStudents.filter((s: any) => presentStudents.includes(String(s.id)));
+  }, [allClassStudents, presentStudents]);
+
+  const absentRollNos = useMemo(() => {
+    if (presentStudents === null || !allClassStudents) return [];
+    return allClassStudents
+      .filter((s: any) => !presentStudents.includes(String(s.id)))
+      .map((s: any) => Number(s.rollNo));
+  }, [allClassStudents, presentStudents]);
 
   // Init Quiz
   useEffect(() => {
@@ -93,7 +129,6 @@ const QuizScreen = () => {
 
         setQuizSessionId(res.id);
         setQuestions(res.questions);
-        setTotalStudents(classStudents.length);
 
         if (mode === "qr") {
           setPhase("connecting");
@@ -442,7 +477,7 @@ const QuizScreen = () => {
           </Button>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-border text-sm font-medium">
-              <Users className="w-4 h-4 text-primary" /> {totalStudents} Students
+              <Users className="w-4 h-4 text-primary" /> {classStudents.length} Students
             </div>
             {mode === "qr" && (
               <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full shadow-sm border border-border text-sm font-medium">
@@ -502,7 +537,8 @@ const QuizScreen = () => {
         {mode === "aruco" && phase === "active" && currentQuestion && quizSessionId && (
           <ArucoScannerBoard
             quizSessionId={quizSessionId}
-            classStudents={classStudents.map((s: any) => ({ id: s.id, name: s.name, rollNo: s.rollNo }))}
+            classStudents={allClassStudents.map((s: any) => ({ id: String(s.id), name: s.name, rollNo: Number(s.rollNo) }))}
+            absentRollNos={absentRollNos}
             currentQuestion={currentQuestion}
             questionIndex={currentQIndex}
             totalQuestions={questions.length}
@@ -511,8 +547,9 @@ const QuizScreen = () => {
           />
         )}
 
-        {(phase === "active" || phase === "evaluating") && currentQuestion && mode !== "aruco" && (
+        {((phase === "active" && mode !== "aruco") || phase === "evaluating") && currentQuestion && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
             <div className="lg:col-span-8 space-y-6">
               <Card className="shadow-lg border-border relative overflow-hidden">
                 <div className="absolute top-0 left-0 h-1 bg-primary transition-all duration-500" style={{ width: `${((currentQIndex + 1) / questions.length) * 100}%` }} />
