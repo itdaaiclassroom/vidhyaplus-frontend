@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
 import GatingAdminPanel from "./GatingAdminPanel";
+import UserManagementPanel from "./UserManagementPanel";
 
 const ModernAdminDashboard = () => {
   const { data, loading, refetch } = useAppData();
@@ -565,40 +566,7 @@ const ModernAdminDashboard = () => {
 
           {/* User Management Content */}
           <TabsContent value="usermanagement" className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-slate-800">Admin User Management</h3>
-              <Button onClick={() => toast.info("Add Admin Modal to be implemented")}>
-                <Plus className="w-4 h-4 mr-2" /> Add Admin
-              </Button>
-            </div>
-            <Card className="border-0 shadow-sm rounded-2xl">
-              <CardContent className="p-0">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 border-b border-slate-100">
-                    <tr>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">ID</th>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Name</th>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Email</th>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Role</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {(data.admins || [])
-                      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
-                      .map(admin => (
-                      <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-medium text-primary">#{admin.id}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-slate-800">{admin.full_name}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{admin.email}</td>
-                        <td className="px-6 py-4 text-sm">
-                          <Badge variant="outline" className="rounded-full">{admin.role}</Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+            <UserManagementPanel />
           </TabsContent>
 
           {/* Logs Content */}
