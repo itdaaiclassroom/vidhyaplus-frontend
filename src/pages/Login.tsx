@@ -37,19 +37,35 @@ const Login = () => {
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
       }
-    } else if (role === "admin") {
+    } else if (role === "admin" || role === "team") {
       try {
-        const data = await adminLogin({ email: email.trim(), password });
-        login("admin", data.full_name, undefined, undefined, undefined, data.token);
+        let isTeam = role === "team";
+        let data: any;
+
+        if (isTeam) {
+          data = await teamLogin({ email: email.trim(), password });
+        } else {
+          try {
+            data = await adminLogin({ email: email.trim(), password });
+          } catch (err: any) {
+            // If admin login fails, try team login automatically
+            try {
+              data = await teamLogin({ email: email.trim(), password });
+              isTeam = true;
+            } catch (err2: any) {
+              throw err; // Throw the original error if both fail
+            }
+          }
+        }
+
+        if (isTeam) {
+          login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
+          if (data.role) localStorage.setItem("auth.teamRole", data.role);
+        } else {
+          login("admin", data.full_name, undefined, undefined, undefined, data.token);
+          localStorage.removeItem("auth.teamRole");
+        }
         navigate("/admin");
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Login failed");
-      }
-    } else if (role === "team") {
-      try {
-        const data = await teamLogin({ email: email.trim(), password });
-        login("team", data.team_name, undefined, undefined, undefined, data.token);
-        navigate("/admin"); // Or redirect to specific team dashboard later
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
       }
