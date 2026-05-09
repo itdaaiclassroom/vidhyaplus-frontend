@@ -30,7 +30,7 @@ import UserManagementPanel from "./UserManagementPanel";
 
 const ModernAdminDashboard = () => {
   const { data, loading, refetch } = useAppData();
-  const { userName, logout } = useAuth();
+  const { userName, logout, role } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -152,7 +152,7 @@ const ModernAdminDashboard = () => {
     navigate("/");
   };
 
-  const navItems = [
+  const rawNavItems = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "schools", label: "Schools", icon: School },
     { id: "teachers", label: "Teachers", icon: Users },
@@ -163,6 +163,27 @@ const ModernAdminDashboard = () => {
     { id: "profile", label: "Profile", icon: Settings },
     { id: "usermanagement", label: "User Management", icon: Shield },
   ];
+
+  const teamRole = localStorage.getItem("auth.teamRole")?.toLowerCase() || "";
+  const navItems = rawNavItems.filter(item => {
+    if (role === "admin") return true; // Super admin sees all
+    if (role === "team") {
+      if (teamRole.includes("material") && item.id === "materials") return true;
+      if (teamRole.includes("timetable") && item.id === "timetable") return true;
+      if (teamRole.includes("attendance") && item.id === "logs") return true;
+      if (teamRole.includes("syllabus") && item.id === "materials") return true;
+      if (item.id === "profile") return true; // Everyone sees profile
+      return false;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (role === "team" && activeTab === "overview") {
+      const firstTab = navItems[0]?.id;
+      if (firstTab) setActiveTab(firstTab);
+    }
+  }, [role, navItems, activeTab]);
 
   const resolveImageUrl = (path?: string | null) => {
     if (!path) return "";
