@@ -56,7 +56,7 @@ export interface AllDataResponse {
     textbookChunkPdfPath?: string | null;
   }>;
   topics: Array<{ id: string; chapterId: string; name: string; order: number; status: string; topicPptPath?: string | null; materials: Array<{ id: string; type: string; title: string; url: string }>; microLessons?: Array<{ id: string; periodNo: number; conceptText: string; planText: string }> }>;
-  studentQuizResults: Array<{ studentId: string; chapterId: string; score: number; total: number; date: string | null; answers: unknown[] }>;
+  studentQuizResults: Array<{ studentId: string; chapterId: string; assessmentType?: string; score: number; total: number; date: string | null; answers: unknown[] }>;
   activityLogs: Array<{ id: string; user: string; role: string; action: string; school: string; class: string; timestamp: string; gps: string }>;
   classStatus: Array<{ id: string; date: string; classId: string; subjectId?: string | null; status: string; teacherId: string; reason: string | null }>;
   leaveApplications: Array<{ id: string; teacherId: string; date: string; reason: string; status: string; appliedOn: string }>;
@@ -782,6 +782,21 @@ export async function adminLogin(body: { email: string; password: string }): Pro
   return { ...data, token: data.token || '' };
 }
 
+export async function teamLogin(body: { email: string; password: string }): Promise<{ id: string; team_name: string; email: string; role: string; token: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/auth/login/team`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  const data = await res.json();
+  if (data.token && data.user) {
+    return { ...data.user, token: data.token };
+  }
+  return { ...data, token: data.token || '' };
+}
+
 export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/login/teacher`, {
@@ -1080,12 +1095,7 @@ export async function fetchTeacherLogs(teacherId?: string): Promise<any[]> {
   return res.json();
 }
 
-export async function fetchAdmins(): Promise<any[]> {
-  if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/admin/management`, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
-}
+
 
 export async function bulkRegisterStudents(body: { students: any[] }): Promise<{ successful: any[]; failed: any[] }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
@@ -1364,3 +1374,130 @@ export async function fetchChapterOverrides(teacherId?: string, classId?: string
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
+
+// ─── Admin Management CRUD ────────────────────────────────────────────────────
+
+export interface AdminAccount {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+export interface TeamAccount {
+  id: number;
+  team_name: string;
+  email: string;
+  role: string;
+  district: string | null;
+  is_active: number;
+  created_by: number | null;
+  created_at: string;
+}
+
+/** GET /api/admin/management — list all admin accounts */
+export async function fetchAdmins(): Promise<AdminAccount[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/management`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** POST /api/admin/management — create a new admin account */
+export async function createAdminAccount(body: {
+  name: string;
+  email: string;
+  password: string;
+  role?: string;
+}): Promise<{ ok: boolean; id: string; name: string; email: string; role: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/management`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** PUT /api/admin/management/:id — update an admin account (password optional) */
+export async function updateAdminAccount(
+  id: number,
+  body: { name?: string; email?: string; password?: string; role?: string }
+): Promise<{ ok: boolean; id: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/management/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** DELETE /api/admin/management/:id — delete an admin account */
+export async function deleteAdminAccount(id: number): Promise<{ ok: boolean; deleted: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/management/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+// ─── Team Management CRUD ─────────────────────────────────────────────────────
+
+/** GET /api/admin/teams — list all department teams */
+export async function fetchTeams(): Promise<TeamAccount[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/teams`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** POST /api/admin/teams — create a new department team */
+export async function createTeamAccount(body: {
+  team_name: string;
+  email: string;
+  password: string;
+  role: string;
+  district?: string;
+}): Promise<{ ok: boolean; id: string; team_name: string; email: string; role: string; district?: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/teams`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** PUT /api/admin/teams/:id — update a team (password optional, is_active 0|1) */
+export async function updateTeamAccount(
+  id: number,
+  body: { team_name?: string; email?: string; password?: string; role?: string; district?: string; is_active?: number }
+): Promise<{ ok: boolean; id: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/teams/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** DELETE /api/admin/teams/:id — permanently delete a team */
+export async function deleteTeamAccount(id: number): Promise<{ ok: boolean; deleted: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/teams/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+

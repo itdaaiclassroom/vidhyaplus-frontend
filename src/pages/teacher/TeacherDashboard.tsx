@@ -184,6 +184,7 @@ const TeacherDashboard = () => {
   const leaveApplications = data.leaveApplications;
   const studentAttendance = data.studentAttendance;
   const studentQuizResults = data.studentQuizResults;
+  const teachers = data.teachers;
   const studyMaterials = data.studyMaterials;
   const liveSessionsFromApi = data.liveSessions as LiveSessionLike[];
   const chapterQuizzes = data.chapterQuizzes || [];
@@ -753,6 +754,25 @@ const TeacherDashboard = () => {
     try {
       await endLiveQuiz(liveQuizSession.id);
       liveQuizCheckpoint("end_quiz:api_ok");
+      
+      // Trigger AI Summary Generation
+      const summaryPromise = askAiAssistant({
+        question: "Please analyze the results of the live quiz session that just ended. Provide a concise summary including overall performance, student engagement, and any specific concepts that might need a revisit.",
+        topic: activeSession?.topicName,
+        subject: activeSession?.subjectName,
+        chapter: chapters.find(c => sameId(c.id, activeSession?.chapterId))?.name
+      });
+
+      toast.promise(summaryPromise, {
+        loading: 'Generating AI Session Summary...',
+        success: (data) => {
+          // In a real app, we'd open a summary dialog here
+          console.log("AI Session Analysis:", data.answer);
+          return "AI Analysis Complete!";
+        },
+        error: 'Failed to generate AI analysis'
+      });
+
       setLiveQuizSession(null);
       setLiveQuizLeaderboard([]);
       setLiveQuizTeacherQr(null);
@@ -762,7 +782,7 @@ const TeacherDashboard = () => {
       liveQuizCheckpoint("end_quiz:api_error", { message: e instanceof Error ? e.message : String(e) });
       console.error(e);
     }
-  }, [liveQuizSession, refetch, liveQuizCaptureMode]);
+  }, [liveQuizSession, refetch, liveQuizCaptureMode, activeSession, chapters]);
 
   const handleStartLiveQuizCapture = useCallback(async () => {
     if (!liveQuizSession) return;
@@ -1799,31 +1819,49 @@ const TeacherDashboard = () => {
                           <p className="text-xs text-muted-foreground">No present students found. Submit attendance first.</p>
                         )}
                       </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          Current question completion: {Object.keys(manualCurrentAnswers).length}/{manualEligibleStudents.length}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={manualQuestionNo <= 1}
-                            onClick={() => setManualQuestionNo((q) => Math.max(1, q - 1))}
-                          >
-                            Prev
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={manualQuestionNo >= (liveQuizSession?.questions.length || 1)}
-                            onClick={() => setManualQuestionNo((q) => Math.min((liveQuizSession?.questions.length || 1), q + 1))}
-                          >
-                            Next
-                          </Button>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-muted-foreground">
+                            Current question completion: {Object.keys(manualCurrentAnswers).length}/{manualEligibleStudents.length}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={manualQuestionNo <= 1}
+                              onClick={() => setManualQuestionNo((q) => Math.max(1, q - 1))}
+                            >
+                              Prev
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={manualQuestionNo >= (liveQuizSession?.questions.length || 1)}
+                              onClick={() => setManualQuestionNo((q) => Math.min((liveQuizSession?.questions.length || 1), q + 1))}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                        {/* Option Distribution Chart */}
+                        <div className="h-32 mt-4 bg-background p-2 rounded-lg border border-border">
+                          <p className="text-[10px] font-semibold text-center mb-2">Option Distribution</p>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={[
+                              { name: 'A', value: Object.values(manualCurrentAnswers).filter(v => v === 'A').length, fill: 'hsl(210 70% 55%)' },
+                              { name: 'B', value: Object.values(manualCurrentAnswers).filter(v => v === 'B').length, fill: 'hsl(174 62% 38%)' },
+                              { name: 'C', value: Object.values(manualCurrentAnswers).filter(v => v === 'C').length, fill: 'hsl(38 92% 55%)' },
+                              { name: 'D', value: Object.values(manualCurrentAnswers).filter(v => v === 'D').length, fill: 'hsl(0 72% 55%)' },
+                            ]}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                              <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} width={20} />
+                              <Tooltip cursor={{ fill: 'transparent' }} />
+                              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={20} />
+                            </BarChart>
+                          </ResponsiveContainer>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   <p className="text-xs text-muted-foreground">
                     Current question: <span className="font-medium text-foreground">{liveQuizStatus?.currentQuestionNo ?? 1}</span>
                     {liveQuizStatus?.progressByQuestion?.[String(liveQuizStatus?.currentQuestionNo ?? 1)] != null
@@ -2384,11 +2422,21 @@ const TeacherDashboard = () => {
                       <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadClassCsv()}>
                         <FileDown className="w-4 h-4" /> Download Students CSV
                       </Button>
-                      <Button variant="default" size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => {
+                      <Button variant="default" size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={async () => {
+                        const promise = fetch(`${getApiBase()}/api/ai/class-report`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ className: currentClass?.name, classId: selectedClass })
+                        }).then(res => res.json()).then(data => {
+                          // Could open a dialog, or just alert for now
+                          console.log("Class Report:", data.report);
+                          return data;
+                        });
+
                         toast.promise(
-                          new Promise(resolve => setTimeout(resolve, 2000)),
+                          promise,
                           {
-                            loading: 'Generating Class Report...',
+                            loading: 'Generating AI Class Report...',
                             success: 'Class Report Generated Successfully!',
                             error: 'Failed to generate report'
                           }
@@ -2421,11 +2469,16 @@ const TeacherDashboard = () => {
                       <tbody>
                         {classStudents.map(s => {
                           const att = studentAttendance.find(a => a.studentId === s.id);
-                          // Mocking data for the demonstration of the new features
-                          const mockFA1 = Math.floor(Math.random() * 20) + 5;
-                          const mockSA1 = Math.floor(Math.random() * 40) + 10;
-                          const mockQuiz = Math.floor(Math.random() * 20);
-                          const mockPerfIndex = Math.floor((mockFA1/25)*30 + (mockSA1/50)*40 + (mockQuiz/20)*20 + ((att?.percentage || 0)/100)*10);
+                          // Dynamic data from API context
+                          const fa1Result = studentQuizResults.find(r => r.studentId === s.id && r.assessmentType?.toLowerCase() === 'fa1');
+                          const sa1Result = studentQuizResults.find(r => r.studentId === s.id && r.assessmentType?.toLowerCase() === 'sa1');
+                          const quizResultsList = studentQuizResults.filter(r => r.studentId === s.id && (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
+                          
+                          const mockFA1 = fa1Result && fa1Result.total > 0 ? Math.round((fa1Result.score / fa1Result.total) * 100) : 0;
+                          const mockSA1 = sa1Result && sa1Result.total > 0 ? Math.round((sa1Result.score / sa1Result.total) * 100) : 0;
+                          const quizScore = quizResultsList.reduce((sum, r) => sum + r.score, 0);
+                          const totalQuizMax = quizResultsList.reduce((sum, r) => sum + r.total, 0) || 20;
+                          const mockPerfIndex = Math.floor((mockFA1/100)*30 + (mockSA1/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
                           
                           return (
                             <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
@@ -2439,18 +2492,36 @@ const TeacherDashboard = () => {
                                   </div>
                                 ) : <span className="text-xs text-muted-foreground">—</span>}
                               </td>
-                              <td className="p-2 text-center"><Input defaultValue={mockFA1} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={mockFA1 || ''} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
                               <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
                               <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
                               <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center"><Input defaultValue={mockSA1} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={mockSA1 || ''} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
                               <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center font-bold text-primary">{mockQuiz}/20</td>
+                              <td className="p-2 text-center font-bold text-primary">{quizScore}/{totalQuizMax}</td>
                               <td className="p-3 text-center bg-primary/5 font-black text-foreground">
                                 {mockPerfIndex} <span className="text-[9px] text-muted-foreground">/100</span>
                               </td>
                               <td className="p-3 text-center flex flex-col gap-2">
-                                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200" onClick={() => toast.success(`Generated Report Card for ${s.name}`)}>
+                                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200" onClick={async () => {
+                                  const promise = fetch(`${getApiBase()}/api/ai/report-card`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ studentName: s.name, studentId: s.id })
+                                  }).then(res => res.json()).then(data => {
+                                    console.log("Report Card:", data.report);
+                                    return data;
+                                  });
+
+                                  toast.promise(
+                                    promise,
+                                    {
+                                      loading: `Generating Report Card for ${s.name}...`,
+                                      success: `Report Card Generated for ${s.name}!`,
+                                      error: 'Failed to generate report card'
+                                    }
+                                  );
+                                }}>
                                   Generate Report
                                 </Button>
                                 <Input placeholder="Teacher feedback..." className="h-7 text-[10px] bg-transparent border-dashed" />
@@ -2797,20 +2868,32 @@ const TeacherDashboard = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                          <td className="p-3 text-foreground whitespace-nowrap">2026-05-15</td>
-                          <td className="p-3 text-foreground font-bold">Venkatesh Rao</td>
-                          <td className="p-3"><Badge variant="outline" className="bg-amber/10 text-amber border-amber/20">Staff Leave</Badge></td>
-                        </tr>
+                        {leaveApplications.filter(lv => lv.status === 'approved').slice(0, 5).map(lv => {
+                          const t = teachers.find(teacher => teacher.id === lv.teacherId);
+                          return (
+                            <tr key={lv.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                              <td className="p-3 text-foreground whitespace-nowrap">{lv.date}</td>
+                              <td className="p-3 text-foreground font-bold">{t?.name || `Teacher ${lv.teacherId}`}</td>
+                              <td className="p-3"><Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">Staff Leave</Badge></td>
+                            </tr>
+                          );
+                        })}
+                        {leaveApplications.filter(lv => lv.status === 'approved').length === 0 && (
+                          <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                            <td className="p-3 text-foreground whitespace-nowrap">2026-05-15</td>
+                            <td className="p-3 text-foreground font-bold">Venkatesh Rao</td>
+                            <td className="p-3"><Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">Staff Leave</Badge></td>
+                          </tr>
+                        )}
                         <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                           <td className="p-3 text-foreground whitespace-nowrap">2026-06-05</td>
                           <td className="p-3 text-foreground font-bold">World Environment Day</td>
-                          <td className="p-3"><Badge variant="outline" className="bg-teal-light/50 text-teal-medium border-teal-medium/20">Public Holiday</Badge></td>
+                          <td className="p-3"><Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-200">Public Holiday</Badge></td>
                         </tr>
                         <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                           <td className="p-3 text-foreground whitespace-nowrap">2026-08-15</td>
                           <td className="p-3 text-foreground font-bold">Independence Day</td>
-                          <td className="p-3"><Badge variant="outline" className="bg-teal-light/50 text-teal-medium border-teal-medium/20">Public Holiday</Badge></td>
+                          <td className="p-3"><Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-200">Public Holiday</Badge></td>
                         </tr>
                       </tbody>
                     </table>
