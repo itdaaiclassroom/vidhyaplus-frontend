@@ -6,13 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GraduationCap, ArrowLeft, KeyRound, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
-import { adminLogin, teacherLogin, studentLogin, principalLogin } from "@/api/client";
+import { adminLogin, teacherLogin, studentLogin, principalLogin, teamLogin } from "@/api/client";
 import { toast } from "sonner";
 
 const Login = () => {
   const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get("role") as "teacher" | "admin" | "student" | "principal" | null;
-  const role: "teacher" | "admin" | "student" | "principal" = roleParam === "student" ? "student" : roleParam === "teacher" ? "teacher" : roleParam === "principal" ? "principal" : "admin";
+  const roleParam = searchParams.get("role") as "teacher" | "admin" | "student" | "principal" | "team" | null;
+  const role: "teacher" | "admin" | "student" | "principal" | "team" = roleParam === "student" ? "student" : roleParam === "teacher" ? "teacher" : roleParam === "principal" ? "principal" : roleParam === "team" ? "team" : "admin";
 
 
   const [email, setEmail] = useState("");
@@ -42,6 +42,14 @@ const Login = () => {
         const data = await adminLogin({ email: email.trim(), password });
         login("admin", data.full_name, undefined, undefined, undefined, data.token);
         navigate("/admin");
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Login failed");
+      }
+    } else if (role === "team") {
+      try {
+        const data = await teamLogin({ email: email.trim(), password });
+        login("team", data.team_name, undefined, undefined, undefined, data.token);
+        navigate("/admin"); // Or redirect to specific team dashboard later
       } catch (err) {
         alert(err instanceof Error ? err.message : "Login failed");
       }
@@ -99,7 +107,7 @@ const Login = () => {
     toast.info("Password reset is handled by the administrator. Please contact support.");
   };
 
-  const roleLabels = { teacher: "Teacher", admin: "Admin", student: "Student", principal: "Principal" };
+  const roleLabels = { teacher: "Teacher", admin: "Admin", student: "Student", principal: "Principal", team: "Admin Team" };
 
 
   return (
@@ -124,6 +132,8 @@ const Login = () => {
                   ? teacherLoginMode === "id"
                     ? "Sign in with your Teacher ID and password"
                     : "Sign in with your registered email and password"
+                  : role === "team"
+                  ? "Sign in with your team email and password"
                   : "Sign in with your admin email and password"}
             </p>
           </div>
