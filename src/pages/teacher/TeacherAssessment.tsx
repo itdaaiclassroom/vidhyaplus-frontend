@@ -57,12 +57,16 @@ export function TeacherAssessmentDialog({
     passed: boolean;
     score: number;
     total: number;
+    scoredMarks: number;
+    totalMarks: number;
+    passingMarks: number;
     percentage: number;
     passThreshold: number;
     graded: Array<{ questionId: string; selectedOption: string; correctOption: string; isCorrect: boolean }>;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [source, setSource] = useState("");
+  const [assessmentConfig, setAssessmentConfig] = useState<{ totalMarks: number; passingMarks: number; questionCount: number }>({ totalMarks: 100, passingMarks: 70, questionCount: 10 });
 
   // Fetch questions when dialog opens
   useEffect(() => {
@@ -78,6 +82,11 @@ export function TeacherAssessmentDialog({
       .then((data) => {
         setQuestions(data.questions || []);
         setSource(data.source || "quiz_bank");
+        setAssessmentConfig({
+          totalMarks: data.totalMarks || 100,
+          passingMarks: data.passingMarks || 70,
+          questionCount: data.questionCount || 10,
+        });
       })
       .catch((err) => {
         toast.error("Failed to load assessment: " + err.message);
@@ -116,9 +125,9 @@ export function TeacherAssessmentDialog({
       setSubmitted(true);
       onAssessmentComplete(res.passed);
       if (res.passed) {
-        toast.success(`🎉 Assessment passed! Score: ${res.percentage}%`);
+        toast.success(`🎉 Assessment passed! Scored: ${res.scoredMarks ?? res.score}/${res.totalMarks ?? res.total} marks`);
       } else {
-        toast.error(`Assessment not passed. Score: ${res.percentage}% (Need ${res.passThreshold}%)`);
+        toast.error(`Assessment not passed. Scored: ${res.scoredMarks ?? res.score}/${res.totalMarks ?? res.total} marks (Need ${res.passingMarks ?? res.passThreshold})`);
       }
     } catch (err) {
       toast.error("Failed to submit: " + (err instanceof Error ? err.message : String(err)));
@@ -177,6 +186,10 @@ export function TeacherAssessmentDialog({
                 <span>{answeredCount}/{totalQuestions} answered</span>
               </div>
               <Progress value={(answeredCount / totalQuestions) * 100} className="h-1.5 bg-white/20" />
+              <div className="flex items-center justify-between mt-2 text-[10px] text-white/60">
+                <span>Total Marks: {assessmentConfig.totalMarks}</span>
+                <span>Passing Marks: {assessmentConfig.passingMarks}</span>
+              </div>
             </div>
           )}
         </div>
@@ -207,10 +220,10 @@ export function TeacherAssessmentDialog({
                     {result.passed ? "Assessment Passed! 🎉" : "Not Passed"}
                   </h3>
                   <p className="text-lg font-semibold mt-2">
-                    {result.score} / {result.total} ({result.percentage}%)
+                    {result.scoredMarks ?? result.score} / {result.totalMarks ?? result.total} marks ({result.percentage}%)
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Pass threshold: {result.passThreshold}%
+                    Passing marks: {result.passingMarks ?? result.passThreshold} / {result.totalMarks ?? result.total}
                   </p>
                   {result.passed && (
                     <p className="text-sm text-green-600 mt-3 font-medium">

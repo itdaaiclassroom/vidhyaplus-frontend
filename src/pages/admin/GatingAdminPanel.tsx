@@ -17,7 +17,8 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  BookOpen
 } from "lucide-react";
 import { 
   fetchGatingConfig, 
@@ -180,6 +181,63 @@ export default function GatingAdminPanel() {
                 <Badge variant="outline" className="h-10 px-4 rounded-xl border-slate-200">Required</Badge>
               </div>
               <p className="text-[10px] text-slate-400 italic">Class average needed to unlock next chapter assessment.</p>
+            </div>
+
+            {/* Assessment Configuration */}
+            <div className="pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800">Assessment Configuration</h4>
+                  <p className="text-[10px] text-slate-400">Controls for teacher chapter assessments</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-600">Questions per Chapter</Label>
+                  <Input 
+                    type="number" 
+                    value={config.assessment_question_count || "10"}
+                    onChange={(e) => setConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
+                    onBlur={(e) => handleUpdateConfig("assessment_question_count", e.target.value)}
+                    className="bg-slate-50 border-slate-200 rounded-xl"
+                    min="1"
+                    max="30"
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Number of MCQ questions in each teacher assessment (1–30).</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-600">Total Marks</Label>
+                  <Input 
+                    type="number" 
+                    value={config.assessment_total_marks || "100"}
+                    onChange={(e) => setConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
+                    onBlur={(e) => handleUpdateConfig("assessment_total_marks", e.target.value)}
+                    className="bg-slate-50 border-slate-200 rounded-xl"
+                    min="1"
+                    max="1000"
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Maximum marks for the assessment. Distributed equally across questions.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-600">Passing Marks</Label>
+                  <Input 
+                    type="number" 
+                    value={config.assessment_passing_marks || "70"}
+                    onChange={(e) => setConfig(prev => ({ ...prev, assessment_passing_marks: e.target.value }))}
+                    onBlur={(e) => handleUpdateConfig("assessment_passing_marks", e.target.value)}
+                    className="bg-slate-50 border-slate-200 rounded-xl"
+                    min="1"
+                    max="1000"
+                  />
+                  <p className="text-[10px] text-slate-400 italic">Minimum marks required for a teacher to pass the assessment.</p>
+                </div>
+              </div>
             </div>
 
             <div className="pt-4 border-t border-slate-50">
