@@ -1095,6 +1095,56 @@ export async function fetchTeacherLogs(teacherId?: string): Promise<any[]> {
   return res.json();
 }
 
+// ─── Audit Logs ──────────────────────────────────────────────────────────────
+
+export interface AuditLogEntry {
+  id: number;
+  actor_id: string;
+  actor_role: string;
+  actor_name: string | null;
+  action: "CREATE" | "UPDATE" | "DELETE";
+  entity: string;
+  entity_id: string | null;
+  meta: Record<string, any> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  status: "success" | "failure";
+  error_msg: string | null;
+  created_at: string;
+}
+
+export interface AuditLogResponse {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  data: AuditLogEntry[];
+}
+
+export async function fetchAuditLogs(params?: {
+  actor_role?: string;
+  actor_id?: string;
+  entity?: string;
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}): Promise<AuditLogResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const query = new URLSearchParams(
+    Object.entries(params || {})
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  const res = await fetch(
+    `${API_BASE}/api/admin/audit-logs${query ? `?${query}` : ""}`,
+    { headers: getAuthHeaders() }
+  );
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 
 
 export async function bulkRegisterStudents(body: { students: any[] }): Promise<{ successful: any[]; failed: any[] }> {
