@@ -1320,6 +1320,9 @@ export async function fetchAssessmentQuestions(chapterId: string): Promise<{
   source: string;
   questions: AssessmentQuestion[];
   totalQuestions: number;
+  totalMarks: number;
+  passingMarks: number;
+  questionCount: number;
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/chapter-gating/assessment/${chapterId}`, { headers: getAuthHeaders() });
@@ -1339,6 +1342,9 @@ export async function submitTeacherAssessment(payload: {
   passed: boolean;
   score: number;
   total: number;
+  scoredMarks: number;
+  totalMarks: number;
+  passingMarks: number;
   percentage: number;
   passThreshold: number;
   attemptNumber: number;
@@ -1386,9 +1392,49 @@ export async function updateGatingConfig(payload: {
   student_threshold_percentage?: string;
   gating_enabled?: string;
   allow_manual_override?: string;
+  assessment_question_count?: string;
+  assessment_total_marks?: string;
+  assessment_passing_marks?: string;
 }): Promise<{ updated: number; ok: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/chapter-gating/config`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export interface ChapterAssessmentConfigItem {
+  chapterId: number;
+  chapterName: string;
+  chapterOrder: number;
+  gradeId: number;
+  questionCount: number;
+  totalMarks: number;
+  passingMarks: number;
+  isCustom: boolean;
+}
+
+export async function fetchChapterAssessmentConfig(subjectId: string): Promise<{
+  subjectId: string;
+  globalDefaults: { questionCount: number; totalMarks: number; passingMarks: number };
+  chapters: ChapterAssessmentConfigItem[];
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/chapter-config/${subjectId}`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function upsertChapterAssessmentConfig(chapterId: string, payload: {
+  questionCount: number;
+  totalMarks: number;
+  passingMarks: number;
+}): Promise<{ ok: boolean; chapterId: string; questionCount: number; totalMarks: number; passingMarks: number }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/chapter-gating/chapter-config/${chapterId}`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),

@@ -18,7 +18,8 @@ import {
   submitAttendance,
   getStudentAttendance,
   fetchSubjectMaterials,
-  getApiBase
+  getApiBase,
+  fetchGatingConfig
 } from "@/api/client";
 
 import {
@@ -81,6 +82,16 @@ const LessonScreen = () => {
   const [isQuizSetupOpen, setIsQuizSetupOpen] = useState(false);
   const [quizSetupQuestions, setQuizSetupQuestions] = useState(10);
   const [quizSetupMode, setQuizSetupMode] = useState<"qr" | "teacher" | "aruco">("qr");
+
+  // Load admin-configured question count
+  useEffect(() => {
+    fetchGatingConfig()
+      .then((data) => {
+        const count = parseInt(data.config?.assessment_question_count);
+        if (count && count > 0) setQuizSetupQuestions(count);
+      })
+      .catch(() => { /* use default */ });
+  }, []);
 
   const [sessionAttendance, setSessionAttendance] = useState<Record<string, "present" | "absent">>({});
   const [sessionSubjectMaterials, setSessionSubjectMaterials] = useState<any[]>([]);
@@ -298,7 +309,7 @@ const LessonScreen = () => {
   const handleLaunchQuizConfirm = () => {
     if (!activeSession) return;
     setIsQuizSetupOpen(false);
-    navigate(`/teacher/quiz?sessionId=${activeSession.id}&questions=${quizSetupQuestions}&mode=${quizSetupMode}`);
+    navigate(`/teacher/quiz?sessionId=${activeSession.id}&mode=${quizSetupMode}`);
   };
 
   const handleNextPage = () => setPdfPage(p => p + 1);
@@ -778,14 +789,15 @@ const LessonScreen = () => {
           <div className="space-y-6 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Number of Questions</label>
-              <Input
-                type="number"
-                min={1}
-                max={30}
-                value={quizSetupQuestions}
-                onChange={(e) => setQuizSetupQuestions(parseInt(e.target.value) || 10)}
-              />
-              <p className="text-[10px] text-muted-foreground">Select how many questions the AI should generate (1-30).</p>
+              <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <span className="text-lg font-bold text-purple-600">{quizSetupQuestions}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">{quizSetupQuestions} Questions</p>
+                  <p className="text-[10px] text-slate-400">Configured by admin</p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

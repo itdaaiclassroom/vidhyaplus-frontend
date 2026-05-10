@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2 } from 'lucide-react';
-import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt } from '@/api/client';
+import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2, Settings2, ShieldCheck, BookOpen, Save } from 'lucide-react';
+import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, type ChapterAssessmentConfigItem } from '@/api/client';
 import { toast } from 'sonner';
 import QuestionBankPanel from './QuestionBankPanel';
 
@@ -24,6 +24,81 @@ export default function MaterialManagement() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Assessment Config State
+  const [assessConfig, setAssessConfig] = useState<Record<string, string>>({});
+  const [assessConfigLoading, setAssessConfigLoading] = useState(true);
+  const [assessConfigSaving, setAssessConfigSaving] = useState(false);
+
+  // Per-chapter assessment config
+  const [chapterConfigSubject, setChapterConfigSubject] = useState('');
+  const [chapterConfigs, setChapterConfigs] = useState<ChapterAssessmentConfigItem[]>([]);
+  const [chapterConfigEdits, setChapterConfigEdits] = useState<Record<number, { questionCount: number; totalMarks: number; passingMarks: number }>>({});
+  const [chapterConfigLoading, setChapterConfigLoading] = useState(false);
+  const [chapterConfigGlobalDefaults, setChapterConfigGlobalDefaults] = useState<{ questionCount: number; totalMarks: number; passingMarks: number }>({ questionCount: 10, totalMarks: 100, passingMarks: 70 });
+  const [savingChapterId, setSavingChapterId] = useState<number | null>(null);
+
+  const loadAssessConfig = async () => {
+    setAssessConfigLoading(true);
+    try {
+      const data = await fetchGatingConfig();
+      setAssessConfig(data.config || {});
+    } catch (err) {
+      console.error("Failed to load assessment config:", err);
+    } finally {
+      setAssessConfigLoading(false);
+    }
+  };
+
+  const handleUpdateAssessConfig = async (key: string, value: string) => {
+    setAssessConfigSaving(true);
+    try {
+      await updateGatingConfig({ [key]: value });
+      setAssessConfig(prev => ({ ...prev, [key]: value }));
+      toast.success("Assessment setting updated");
+    } catch (err) {
+      toast.error("Failed to update setting");
+    } finally {
+      setAssessConfigSaving(false);
+    }
+  };
+
+  const loadChapterConfigs = async (subjectId: string) => {
+    if (!subjectId) return;
+    setChapterConfigLoading(true);
+    try {
+      const data = await fetchChapterAssessmentConfig(subjectId);
+      setChapterConfigs(data.chapters || []);
+      setChapterConfigGlobalDefaults(data.globalDefaults);
+      // Initialize edits with current values
+      const edits: Record<number, { questionCount: number; totalMarks: number; passingMarks: number }> = {};
+      for (const ch of data.chapters) {
+        edits[ch.chapterId] = { questionCount: ch.questionCount, totalMarks: ch.totalMarks, passingMarks: ch.passingMarks };
+      }
+      setChapterConfigEdits(edits);
+    } catch (err) {
+      console.error("Failed to load chapter configs:", err);
+      toast.error("Failed to load chapter assessment configs");
+    } finally {
+      setChapterConfigLoading(false);
+    }
+  };
+
+  const handleSaveChapterConfig = async (chapterId: number) => {
+    const edit = chapterConfigEdits[chapterId];
+    if (!edit) return;
+    setSavingChapterId(chapterId);
+    try {
+      await upsertChapterAssessmentConfig(String(chapterId), edit);
+      toast.success("Chapter assessment config saved");
+      // Mark as custom in local state
+      setChapterConfigs(prev => prev.map(c => c.chapterId === chapterId ? { ...c, ...edit, isCustom: true } : c));
+    } catch (err) {
+      toast.error("Failed to save chapter config");
+    } finally {
+      setSavingChapterId(null);
+    }
+  };
+
   const loadData = async () => {
       try {
         const data = await fetchAll();
@@ -44,6 +119,7 @@ export default function MaterialManagement() {
 
   useEffect(() => {
     loadData();
+    loadAssessConfig();
   }, []);
 
   // When grade changes, update available subjects
@@ -445,6 +521,143 @@ export default function MaterialManagement() {
             </div>
           )}
         </div>
+      </div>
+      {/* Per-Chapter Assessment Settings */}
+      <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+              <Settings2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Chapter Assessment Settings</h2>
+              <p className="text-sm text-slate-500">Set number of questions, total marks, and passing marks per chapter.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl">
+            <ShieldCheck className="w-4 h-4 text-blue-500" />
+            <span className="text-[11px] text-blue-700 font-medium">Admin Only</span>
+          </div>
+        </div>
+
+        {/* Global Defaults Row */}
+        {!assessConfigLoading && (
+          <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2 mb-3">
+              <BookOpen className="w-4 h-4 text-slate-500" />
+              <span className="text-xs font-bold text-slate-500 uppercase">Global Defaults (applied when no chapter-specific config is set)</span>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold">Default Questions</label>
+                <input type="number" value={assessConfig.assessment_question_count || "10"}
+                  onChange={(e) => setAssessConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
+                  onBlur={(e) => handleUpdateAssessConfig("assessment_question_count", e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-purple-600 focus:ring-2 focus:ring-purple-500 outline-none" min={1} max={50} />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold">Default Total Marks</label>
+                <input type="number" value={assessConfig.assessment_total_marks || "100"}
+                  onChange={(e) => setAssessConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
+                  onBlur={(e) => handleUpdateAssessConfig("assessment_total_marks", e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none" min={1} max={1000} />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-semibold">Default Passing Marks</label>
+                <input type="number" value={assessConfig.assessment_passing_marks || "70"}
+                  onChange={(e) => setAssessConfig(prev => ({ ...prev, assessment_passing_marks: e.target.value }))}
+                  onBlur={(e) => handleUpdateAssessConfig("assessment_passing_marks", e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-emerald-600 focus:ring-2 focus:ring-emerald-500 outline-none" min={1} max={1000} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Subject Selector */}
+        <div className="mb-4">
+          <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Select Subject</label>
+          <select
+            className="w-full h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+            value={chapterConfigSubject}
+            onChange={(e) => {
+              setChapterConfigSubject(e.target.value);
+              loadChapterConfigs(e.target.value);
+            }}
+          >
+            <option value="">Choose a subject...</option>
+            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+
+        {/* Chapter List */}
+        {chapterConfigSubject && (
+          chapterConfigLoading ? (
+            <div className="flex justify-center p-8"><Loader className="w-8 h-8 text-purple-500 animate-spin" /></div>
+          ) : chapterConfigs.length === 0 ? (
+            <div className="text-center text-slate-400 py-8">No chapters found for this subject.</div>
+          ) : (
+            <div className="space-y-3">
+              {/* Table Header */}
+              <div className="grid grid-cols-12 gap-3 px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="col-span-1">#</div>
+                <div className="col-span-4">Chapter</div>
+                <div className="col-span-2 text-center">Questions</div>
+                <div className="col-span-2 text-center">Total Marks</div>
+                <div className="col-span-2 text-center">Passing Marks</div>
+                <div className="col-span-1"></div>
+              </div>
+              {chapterConfigs.map((ch, idx) => {
+                const edit = chapterConfigEdits[ch.chapterId] || { questionCount: ch.questionCount, totalMarks: ch.totalMarks, passingMarks: ch.passingMarks };
+                const hasChanges = edit.questionCount !== ch.questionCount || edit.totalMarks !== ch.totalMarks || edit.passingMarks !== ch.passingMarks;
+                return (
+                  <div key={ch.chapterId} className={`grid grid-cols-12 gap-3 items-center px-4 py-3 rounded-xl border transition-all ${
+                    ch.isCustom ? 'bg-purple-50/50 border-purple-200' : 'bg-white border-slate-100 hover:border-slate-200'
+                  }`}>
+                    <div className="col-span-1 text-sm font-bold text-slate-400">{idx + 1}</div>
+                    <div className="col-span-4">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{ch.chapterName}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[10px] text-slate-400">Grade {ch.gradeId}</span>
+                        {ch.isCustom && <span className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded-full font-bold">Custom</span>}
+                        {!ch.isCustom && <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded-full">Default</span>}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <input type="number" value={edit.questionCount}
+                        onChange={(e) => setChapterConfigEdits(prev => ({ ...prev, [ch.chapterId]: { ...edit, questionCount: parseInt(e.target.value) || 1 } }))}
+                        className="w-full border border-slate-200 rounded-lg p-2 text-sm font-bold text-center text-purple-600 focus:ring-2 focus:ring-purple-400 outline-none"
+                        min={1} max={50} />
+                    </div>
+                    <div className="col-span-2">
+                      <input type="number" value={edit.totalMarks}
+                        onChange={(e) => setChapterConfigEdits(prev => ({ ...prev, [ch.chapterId]: { ...edit, totalMarks: parseInt(e.target.value) || 1 } }))}
+                        className="w-full border border-slate-200 rounded-lg p-2 text-sm font-bold text-center text-indigo-600 focus:ring-2 focus:ring-indigo-400 outline-none"
+                        min={1} max={1000} />
+                    </div>
+                    <div className="col-span-2">
+                      <input type="number" value={edit.passingMarks}
+                        onChange={(e) => setChapterConfigEdits(prev => ({ ...prev, [ch.chapterId]: { ...edit, passingMarks: parseInt(e.target.value) || 1 } }))}
+                        className="w-full border border-slate-200 rounded-lg p-2 text-sm font-bold text-center text-emerald-600 focus:ring-2 focus:ring-emerald-400 outline-none"
+                        min={1} max={1000} />
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      <button
+                        onClick={() => handleSaveChapterConfig(ch.chapterId)}
+                        disabled={savingChapterId === ch.chapterId || (!hasChanges && ch.isCustom)}
+                        className={`p-2 rounded-lg transition-all ${
+                          hasChanges ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-sm' : 'bg-slate-100 text-slate-400'
+                        }`}
+                        title="Save chapter config"
+                      >
+                        {savingChapterId === ch.chapterId ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
       </div>
       
       <QuestionBankPanel subjects={subjects} />
