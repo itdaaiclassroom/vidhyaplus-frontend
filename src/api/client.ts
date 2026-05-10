@@ -986,9 +986,10 @@ export async function askAiAssistant(payload: {
   return res.json();
 }
 
-export async function fetchSubjectMaterials(subjectId: string): Promise<Array<{ id: string; subject_id: string; title: string; file_path: string; uploaded_by: string; created_at: string }>> {
+export async function fetchSubjectMaterials(subjectId: string, gradeId?: string): Promise<Array<{ id: string; subject_id: string; grade_id?: number; title: string; file_path: string; uploaded_by: string; created_at: string }>> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/materials`, {
+  const q = gradeId ? `?grade_id=${gradeId}` : "";
+  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/materials${q}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));

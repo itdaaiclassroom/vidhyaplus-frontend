@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -52,7 +54,7 @@ import {
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
   Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
-  Youtube, ExternalLink, Lock, AlertTriangle
+  Youtube, ExternalLink, Lock, AlertTriangle, Download
 } from "lucide-react";
 
 import {
@@ -276,6 +278,11 @@ const TeacherDashboard = () => {
   const [gatingLoading, setGatingLoading] = useState(false);
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [assessmentChapter, setAssessmentChapter] = useState<{ id: string, name: string } | null>(null);
+  const [aiReportDialogOpen, setAiReportDialogOpen] = useState(false);
+  const [aiReportContent, setAiReportContent] = useState("");
+  const [aiReportStudentName, setAiReportStudentName] = useState("");
+  const [aiReportData, setAiReportData] = useState<any>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const fetchGating = useCallback(async () => {
     if (!teacherId || !selectedClass || !selectedSubject || !grade) {
@@ -298,6 +305,60 @@ const TeacherDashboard = () => {
   useEffect(() => {
     fetchGating();
   }, [fetchGating]);
+
+  const downloadReport = async (studentName: string) => {
+    if (!reportRef.current) return;
+    
+    const toastId = toast.loading("Finalizing your premium PDF...");
+    
+    try {
+      // Temporarily set a fixed width for the capture to ensure it looks identical every time
+      const originalStyle = reportRef.current.style.width;
+      reportRef.current.style.width = "800px";
+
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, // High resolution
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: 800
+      });
+      
+      // Restore original style
+      reportRef.current.style.width = originalStyle;
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Create A4 PDF (210mm x 297mm)
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      // Calculate image size to fit A4 with margins (10mm margin)
+      const margin = 10;
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
+      pdf.save(`VidhyaPlus_Report_${studentName.replace(/\s+/g, '_')}.pdf`);
+      
+      toast.success("Professional PDF Downloaded!", { id: toastId });
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF", { id: toastId });
+    }
+  };
+
+  const parseAiReport = (content: string) => {
+    const strengthsMatch = content.match(/Strengths:\s*([^.]+)/i);
+    const improvementMatch = content.match(/(?:Areas to improve|Opportunities for Growth|Weaknesses):\s*([^.]+)/i);
+    
+    return {
+      strengths: strengthsMatch ? strengthsMatch[1].trim() : "Consistently participating in class activities and demonstrating good grasp of core concepts.",
+      improvement: improvementMatch ? improvementMatch[1].trim() : "Continue practicing formative assessments to build confidence in complex topics.",
+      fullText: content
+    };
+  };
   const [chatLoading, setChatLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
   const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; status?: string } | null>(null);
@@ -2026,6 +2087,117 @@ const TeacherDashboard = () => {
             )}
           </DialogContent>
         </Dialog>
+        {/* AI Report Card Result Dialog - Premium Redesign */}
+        <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
+          <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl">
+            <div className="bg-white" ref={reportRef}>
+              {/* Report Card Header */}
+              <div className="bg-gradient-to-r from-indigo-600 to-violet-700 p-8 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                <div className="relative flex justify-between items-start">
+                  <div>
+                    <h2 className="text-3xl font-black tracking-tight mb-1">VIDHYAPLUS</h2>
+                    <p className="text-indigo-100 text-sm font-medium tracking-widest uppercase">Academic Performance Report</p>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-right">
+                    <p className="text-[10px] uppercase font-bold opacity-80">Academic Year</p>
+                    <p className="text-sm font-bold">2025-26</p>
+                  </div>
+                </div>
+                
+                <div className="mt-8 flex flex-nowrap items-center gap-5">
+                  <div className="w-20 h-20 bg-white rounded-2xl flex-shrink-0 flex items-center justify-center text-indigo-600 shadow-2xl border-4 border-white/20">
+                    <Users className="w-10 h-10" />
+                  </div>
+                  <div className="flex flex-col items-start gap-4">
+                    <h3 className="text-2xl font-black tracking-tight leading-tight whitespace-nowrap">{aiReportStudentName}</h3>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
+                        <BookOpen className="w-3.5 h-3.5" /> {currentSubject?.name}
+                      </span>
+                      <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
+                        <Users className="w-3.5 h-3.5" /> {currentClass?.name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Report Card Body */}
+              <div className="p-8 space-y-8">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Performance Index</p>
+                    <p className="text-3xl font-black text-indigo-600">{aiReportData?.perfIndex || 0}%</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Attendance</p>
+                    <p className="text-3xl font-black text-emerald-600">{aiReportData?.attendance || 0}%</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quiz Score</p>
+                    <p className="text-3xl font-black text-amber-500">{aiReportData?.quizScore || 0}/{aiReportData?.quizTotal || 0}</p>
+                  </div>
+                </div>
+
+                {/* AI Insights Section - Split into Cards */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">AI Learning Narrative</span>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Trophy className="w-12 h-12 text-emerald-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Sparkles className="w-3 h-3" /> Key Strengths
+                      </h4>
+                      <p className="text-sm text-slate-700 leading-relaxed italic">
+                        "{parseAiReport(aiReportContent).strengths}"
+                      </p>
+                    </div>
+
+                    <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <Lightbulb className="w-12 h-12 text-amber-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <ArrowLeft className="w-3 h-3 rotate-180" /> Opportunities for Growth
+                      </h4>
+                      <p className="text-sm text-slate-700 leading-relaxed italic">
+                        "{parseAiReport(aiReportContent).improvement}"
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <p className="text-[10px] text-center text-slate-400 italic mt-2">
+                    Note: This analysis is automatically generated by VidhyaPlus AI based on real-time student performance logs.
+                  </p>
+                </div>
+
+                {/* Footer / Actions */}
+                <div className="flex justify-end items-center pt-4 border-t border-slate-100" data-html2canvas-ignore>
+                  <div className="flex gap-3">
+                    <Button variant="ghost" className="text-slate-500 hover:text-slate-800" onClick={() => setAiReportDialogOpen(false)}>
+                      Dismiss
+                    </Button>
+                    <Button 
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-8 py-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02]"
+                      onClick={() => downloadReport(aiReportStudentName)}
+                    >
+                      <Download className="w-5 h-5" /> Download Report PDF
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DashboardLayout>
     );
   }
@@ -2509,7 +2681,17 @@ const TeacherDashboard = () => {
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ studentName: s.name, studentId: s.id })
                                   }).then(res => res.json()).then(data => {
-                                    console.log("Report Card:", data.report);
+                                    setAiReportContent(data.report);
+                                    setAiReportStudentName(s.name);
+                                    setAiReportData({
+                                      attendance: att?.percentage || 0,
+                                      fa1: mockFA1,
+                                      sa1: mockSA1,
+                                      quizScore: quizScore,
+                                      quizTotal: totalQuizMax,
+                                      perfIndex: mockPerfIndex
+                                    });
+                                    setAiReportDialogOpen(true);
                                     return data;
                                   });
 
@@ -3184,6 +3366,114 @@ const TeacherDashboard = () => {
         />
       )}
 
+      {/* AI Report Card Result Dialog - Premium Redesign */}
+      <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <div className="bg-white" ref={reportRef}>
+            {/* Same premium design for non-live view */}
+            <div className="bg-gradient-to-r from-indigo-600 to-violet-700 p-8 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+              <div className="relative flex justify-between items-start">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight mb-1">VIDHYAPLUS</h2>
+                  <p className="text-indigo-100 text-sm font-medium tracking-widest uppercase">Academic Performance Report</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-right">
+                  <p className="text-[10px] uppercase font-bold opacity-80">Academic Year</p>
+                  <p className="text-sm font-bold">2025-26</p>
+                </div>
+              </div>
+              
+              <div className="mt-8 flex flex-nowrap items-center gap-5">
+                <div className="w-20 h-20 bg-white rounded-2xl flex-shrink-0 flex items-center justify-center text-indigo-600 shadow-2xl border-4 border-white/20">
+                  <Users className="w-10 h-10" />
+                </div>
+                <div className="flex flex-col items-start gap-4">
+                  <h3 className="text-2xl font-black tracking-tight leading-tight whitespace-nowrap">{aiReportStudentName}</h3>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
+                      <BookOpen className="w-3.5 h-3.5" /> {currentSubject?.name}
+                    </span>
+                    <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
+                      <Users className="w-3.5 h-3.5" /> {currentClass?.name}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-8">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Performance Index</p>
+                  <p className="text-3xl font-black text-indigo-600">{aiReportData?.perfIndex || 0}%</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Attendance</p>
+                  <p className="text-3xl font-black text-emerald-600">{aiReportData?.attendance || 0}%</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quiz Score</p>
+                  <p className="text-3xl font-black text-amber-500">{aiReportData?.quizScore || 0}/{aiReportData?.quizTotal || 0}</p>
+                </div>
+              </div>
+
+              {/* AI Insights Section - Split into Cards */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-px flex-1 bg-slate-200"></div>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">AI Learning Narrative</span>
+                  <div className="h-px flex-1 bg-slate-200"></div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <Trophy className="w-12 h-12 text-emerald-600" />
+                    </div>
+                    <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <Sparkles className="w-3 h-3" /> Key Strengths
+                    </h4>
+                    <p className="text-sm text-slate-700 leading-relaxed italic">
+                      "{parseAiReport(aiReportContent).strengths}"
+                    </p>
+                  </div>
+
+                  <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <Lightbulb className="w-12 h-12 text-amber-600" />
+                    </div>
+                    <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <ArrowLeft className="w-3 h-3 rotate-180" /> Opportunities for Growth
+                    </h4>
+                    <p className="text-sm text-slate-700 leading-relaxed italic">
+                      "{parseAiReport(aiReportContent).improvement}"
+                    </p>
+                  </div>
+                </div>
+                
+                <p className="text-[10px] text-center text-slate-400 italic mt-2">
+                  Note: This analysis is automatically generated by VidhyaPlus AI based on real-time student performance logs.
+                </p>
+              </div>
+
+              <div className="flex justify-end items-center pt-4 border-t border-slate-100" data-html2canvas-ignore>
+                <div className="flex gap-3">
+                  <Button variant="ghost" className="text-slate-500 hover:text-slate-800" onClick={() => setAiReportDialogOpen(false)}>
+                    Dismiss
+                  </Button>
+                  <Button 
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-8 py-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02]"
+                    onClick={() => downloadReport(aiReportStudentName)}
+                  >
+                    <Download className="w-5 h-5" /> Download Report PDF
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

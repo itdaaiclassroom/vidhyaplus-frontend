@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { connectLiveQuizScanner, fetchLiveQuizStatus, submitLiveQuizScan } from "@/api/client";
+import { connectLiveQuizScanner, fetchLiveQuizStatus, submitLiveQuizScan, getStudentAttendance } from "@/api/client";
 import { useAppData } from "@/contexts/DataContext";
 import { toast } from "sonner";
 import { Html5Qrcode } from "html5-qrcode";
@@ -49,7 +49,6 @@ const LiveQuizScan = () => {
       try {
         const d = new Date();
         const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const { getStudentAttendance } = await import('@/api/client');
         const records = await getStudentAttendance(activeSession.classId, date);
         if (records.length > 0) {
           const absentIds = records.filter((r: any) => r.status.toLowerCase() === "absent").map((r: any) => String(r.student_id));

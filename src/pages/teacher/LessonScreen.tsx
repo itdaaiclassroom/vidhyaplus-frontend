@@ -135,17 +135,26 @@ const LessonScreen = () => {
     }
   }, [activeSession]);
 
+  const grade = useMemo(() => {
+    if (!activeSession || !data.classes) return 10;
+    const cls = data.classes.find((c: any) => sameId(c.id, activeSession.classId));
+    if (!cls) return 10;
+    const gradeStr = String(cls.grade || cls.name || "");
+    const match = gradeStr.match(/\d+/);
+    return match ? parseInt(match[0]) : 10;
+  }, [activeSession, data.classes]);
+
   // Direct fetch for subject materials to ensure they are available even if global context is delayed
   useEffect(() => {
-    if (activeSession?.subjectId) {
-      fetchSubjectMaterials(activeSession.subjectId)
+    if (activeSession?.subjectId && grade) {
+      fetchSubjectMaterials(activeSession.subjectId, String(grade))
         .then(mats => {
-          console.log("Directly fetched subject materials:", mats);
+          console.log("Directly fetched subject materials (filtered by grade):", mats);
           setSessionSubjectMaterials(mats || []);
         })
         .catch(err => console.error("Error fetching subject materials:", err));
     }
-  }, [activeSession?.subjectId]);
+  }, [activeSession?.subjectId, grade]);
 
   useEffect(() => {
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -158,14 +167,7 @@ const LessonScreen = () => {
     return data.students.filter((s: any) => sameId(s.classId, activeSession.classId));
   }, [data.students, activeSession]);
 
-  const grade = useMemo(() => {
-    if (!activeSession || !data.classes) return 10;
-    const cls = data.classes.find((c: any) => sameId(c.id, activeSession.classId));
-    if (!cls) return 10;
-    const gradeStr = String(cls.grade || cls.name || "");
-    const match = gradeStr.match(/\d+/);
-    return match ? parseInt(match[0]) : 10;
-  }, [activeSession, data.classes]);
+
 
   useEffect(() => {
     if (!activeSession || sessionPaused) return;
@@ -671,15 +673,13 @@ const LessonScreen = () => {
                   return;
                 }
 
-                // Priority 2: Subject materials fetched for this session or from global data
+                // Priority 2: Subject materials filtered by subject ID and current grade
                 const subMaterial = sessionSubjectMaterials?.find((m: any) =>
-                  sameId(m.subject_id || m.subjectId, activeSession.subjectId)
+                  sameId(m.subject_id || m.subjectId, activeSession.subjectId) &&
+                  (!m.grade_id || sameId(m.grade_id, grade))
                 ) || data.subjectMaterials?.find((m: any) =>
-                  sameId(m.subject_id || m.subjectId, activeSession.subjectId)
-                ) || sessionSubjectMaterials?.find((m: any) =>
-                  String(m.title || "").toLowerCase().includes(String(activeSession.subjectName || "").toLowerCase())
-                ) || data.subjectMaterials?.find((m: any) =>
-                  String(m.title || "").toLowerCase().includes(String(activeSession.subjectName || "").toLowerCase())
+                  sameId(m.subject_id || m.subjectId, activeSession.subjectId) &&
+                  (!m.grade_id || sameId(m.grade_id, grade))
                 );
 
                 console.log("Subject Materials (Session):", sessionSubjectMaterials);
@@ -714,9 +714,9 @@ const LessonScreen = () => {
                 // Priority 1: Chapter-specific PPT from studyMaterials
                 const chapterPpt = data.studyMaterials?.find((m: any) => sameId(m.chapterId, activeSession.chapterId) && isPptxPath(m.url));
 
-                // Priority 2: Global subject PPT from subjectMaterials
-                const subjectPpt = sessionSubjectMaterials?.find((m: any) => isPptxPath(m.url || m.file_path)) ||
-                  data.subjectMaterials?.find((m: any) => sameId(m.subject_id || m.subjectId, activeSession.subjectId) && isPptxPath(m.url));
+                // Priority 2: Global subject PPT from subjectMaterials (filtered by grade)
+                const subjectPpt = sessionSubjectMaterials?.find((m: any) => isPptxPath(m.url || m.file_path) && (!m.grade_id || sameId(m.grade_id, grade))) ||
+                  data.subjectMaterials?.find((m: any) => sameId(m.subject_id || m.subjectId, activeSession.subjectId) && isPptxPath(m.url) && (!m.grade_id || sameId(m.grade_id, grade)));
 
                 const ppt = chapterPpt || subjectPpt;
 
