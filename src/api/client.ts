@@ -1551,3 +1551,134 @@ export async function deleteTeamAccount(id: number): Promise<{ ok: boolean; dele
   return res.json();
 }
 
+// ─── Question Bank ─────────────────────────────────────────────────────────────
+
+export interface QuestionBankEntry {
+  id: number;
+  subject_id: number;
+  subject_name: string;
+  chapter: string | null;
+  grade: number | null;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: "A" | "B" | "C" | "D";
+  explanation: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface QuestionBankResponse {
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  filters: { subject_id: number | null; grade: string | null; chapter: string | null };
+  data: QuestionBankEntry[];
+}
+
+export interface BulkUploadQuestionsResponse {
+  ok: boolean;
+  subject: string;
+  uploaded: number;
+  failed: number;
+  errors: Array<{ row: number; reason: string }>;
+}
+
+export interface CreateQuestionBody {
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: "A" | "B" | "C" | "D";
+  explanation?: string;
+  chapter?: string;
+  grade?: number;
+}
+
+/** GET /api/subjects/question-bank — system-wide question bank with optional filters */
+export async function fetchQuestionBank(params?: {
+  subject_id?: number;
+  grade?: number;
+  chapter?: string;
+  page?: number;
+  limit?: number;
+}): Promise<QuestionBankResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const query = new URLSearchParams(
+    Object.entries(params || {})
+      .filter(([, v]) => v !== undefined && v !== "" && v !== 0)
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  const res = await fetch(
+    `${API_BASE}/api/subjects/question-bank${query ? `?${query}` : ""}`,
+    { headers: getAuthHeaders() }
+  );
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** POST /api/subjects/:id/question-bank — create a single MCQ question */
+export async function createQuestion(
+  subjectId: number,
+  body: CreateQuestionBody
+): Promise<{ ok: boolean; id: string; subject_id: number }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/question-bank`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** PUT /api/subjects/question-bank/:qid — update an existing question (partial) */
+export async function updateQuestion(
+  qid: number,
+  body: Partial<CreateQuestionBody>
+): Promise<{ ok: boolean; id: string; updated: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/question-bank/${qid}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** DELETE /api/subjects/question-bank/:qid — delete a question */
+export async function deleteQuestion(qid: number): Promise<{ ok: boolean; deleted: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/question-bank/${qid}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** POST /api/subjects/:id/question-bank/bulk — bulk upload from base64 Excel/CSV */
+export async function bulkUploadQuestions(
+  subjectId: number,
+  file: File
+): Promise<BulkUploadQuestionsResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/question-bank/bulk`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ file: base64 }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
