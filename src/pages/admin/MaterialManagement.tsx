@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2 } from 'lucide-react';
 import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt } from '@/api/client';
 import { toast } from 'sonner';
+import QuestionBankPanel from './QuestionBankPanel';
 
 export default function MaterialManagement() {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -410,6 +411,8 @@ export default function MaterialManagement() {
           )}
         </div>
       </div>
+      
+      <QuestionBankPanel subjects={subjects} />
     </div>
   );
 }
