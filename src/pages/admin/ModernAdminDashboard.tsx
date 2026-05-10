@@ -23,7 +23,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
-import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool } from "@/api/client";
+import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool, fetchAuditLogs } from "@/api/client";
+import type { AuditLogEntry } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
 import GatingAdminPanel from "./GatingAdminPanel";
 import UserManagementPanel from "./UserManagementPanel";
@@ -38,6 +39,15 @@ const ModernAdminDashboard = () => {
   const [analytics, setAnalytics] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
+  // ── Audit Logs state ──────────────────────────────────────────────────────
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotalPages, setAuditTotalPages] = useState(1);
+  const [auditFilters, setAuditFilters] = useState({ actor_role: "", entity: "", action: "", from: "", to: "" });
+  const [auditPendingFilters, setAuditPendingFilters] = useState({ actor_role: "", entity: "", action: "", from: "", to: "" });
+  const [expandedLog, setExpandedLog] = useState<number | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showLiveMonitor, setShowLiveMonitor] = useState(false);
   const [schoolFormOpen, setSchoolFormOpen] = useState(false);
@@ -76,6 +86,33 @@ const ModernAdminDashboard = () => {
     fetchAdminAnalytics().then(setAnalytics).catch(console.error);
     fetchTeacherLogs().then(setLogs).catch(console.error);
   }, []);
+
+  // Fetch audit logs whenever filters or page change
+  useEffect(() => {
+    if (activeTab !== "logs") return;
+    setAuditLoading(true);
+    setExpandedLog(null);
+    fetchAuditLogs({
+      actor_role: auditFilters.actor_role || undefined,
+      entity: auditFilters.entity || undefined,
+      action: auditFilters.action || undefined,
+      from: auditFilters.from || undefined,
+      to: auditFilters.to || undefined,
+      page: auditPage,
+      limit: 20,
+    })
+      .then((res) => {
+        setAuditLogs(res.data);
+        setAuditTotal(res.total);
+        setAuditTotalPages(res.total_pages || 1);
+      })
+      .catch(() => {
+        setAuditLogs([]);
+        setAuditTotal(0);
+        setAuditTotalPages(1);
+      })
+      .finally(() => setAuditLoading(false));
+  }, [auditFilters, auditPage, activeTab]);
 
   const { schools, teachers, students, liveSessions, classes, subjects } = data;
 
@@ -591,41 +628,297 @@ const ModernAdminDashboard = () => {
           </TabsContent>
 
           {/* Logs Content */}
-          <TabsContent value="logs" className="space-y-6">
-            <h3 className="text-xl font-bold text-slate-800">Teacher Activity Logs</h3>
+          <TabsContent value="logs" className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  <Shield className="w-6 h-6 text-primary" /> System Audit Logs
+                </h2>
+                <p className="text-slate-400 text-sm mt-0.5">Immutable trail of all Create / Update / Delete operations</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-primary/10 text-primary border-0 px-4 py-1.5 text-sm font-bold rounded-full">
+                  {auditTotal.toLocaleString()} events
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl gap-2"
+                  onClick={() => { setAuditFilters({ ...auditFilters }); }}
+                >
+                  <Activity className="w-4 h-4" /> Refresh
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
             <Card className="border-0 shadow-sm rounded-2xl">
-              <CardContent className="p-0">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 border-b border-slate-100">
-                    <tr>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Teacher</th>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Action</th>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Details</th>
-                      <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {[...logs]
-                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                      .map((log, i) => (
-                      <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-medium text-slate-800">{log.teacher_name}</td>
-                        <td className="px-6 py-4 text-sm">
-                          <Badge variant="outline">{log.action}</Badge>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{log.details || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-slate-400">{new Date(log.created_at).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                    {logs.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400">No activity logs found</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <CardContent className="p-5">
+                <div className="flex flex-wrap gap-3 items-end">
+                  {/* Role */}
+                  <div className="space-y-1.5 w-40">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Actor Role</Label>
+                    <select
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={auditPendingFilters.actor_role}
+                      onChange={(e) => setAuditPendingFilters(f => ({ ...f, actor_role: e.target.value }))}
+                    >
+                      <option value="">All Roles</option>
+                      <option value="admin">Admin</option>
+                      <option value="principal">Principal</option>
+                      <option value="teacher">Teacher</option>
+                      <option value="team">Team</option>
+                      <option value="student">Student</option>
+                    </select>
+                  </div>
+                  {/* Entity */}
+                  <div className="space-y-1.5 w-48">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Entity</Label>
+                    <select
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={auditPendingFilters.entity}
+                      onChange={(e) => setAuditPendingFilters(f => ({ ...f, entity: e.target.value }))}
+                    >
+                      <option value="">All Entities</option>
+                      <option value="admin">Admin</option>
+                      <option value="team">Team</option>
+                      <option value="teacher">Teacher</option>
+                      <option value="teacher_bulk">Teacher Bulk</option>
+                      <option value="teacher_attendance">Teacher Attendance</option>
+                      <option value="teacher_assignment">Teacher Assignment</option>
+                      <option value="teacher_subjects">Teacher Subjects</option>
+                      <option value="student">Student</option>
+                      <option value="school">School</option>
+                      <option value="subject">Subject</option>
+                      <option value="section">Section</option>
+                      <option value="announcement">Announcement</option>
+                    </select>
+                  </div>
+                  {/* Action */}
+                  <div className="space-y-1.5 w-36">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Action</Label>
+                    <select
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={auditPendingFilters.action}
+                      onChange={(e) => setAuditPendingFilters(f => ({ ...f, action: e.target.value }))}
+                    >
+                      <option value="">All Actions</option>
+                      <option value="CREATE">CREATE</option>
+                      <option value="UPDATE">UPDATE</option>
+                      <option value="DELETE">DELETE</option>
+                    </select>
+                  </div>
+                  {/* From date */}
+                  <div className="space-y-1.5 w-40">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">From</Label>
+                    <input
+                      type="date"
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={auditPendingFilters.from}
+                      onChange={(e) => setAuditPendingFilters(f => ({ ...f, from: e.target.value }))}
+                    />
+                  </div>
+                  {/* To date */}
+                  <div className="space-y-1.5 w-40">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">To</Label>
+                    <input
+                      type="date"
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                      value={auditPendingFilters.to}
+                      onChange={(e) => setAuditPendingFilters(f => ({ ...f, to: e.target.value }))}
+                    />
+                  </div>
+                  {/* Buttons */}
+                  <div className="flex gap-2 pb-0.5">
+                    <Button
+                      className="rounded-xl h-10 px-6"
+                      onClick={() => { setAuditFilters({ ...auditPendingFilters }); setAuditPage(1); }}
+                    >
+                      Apply
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-xl h-10"
+                      onClick={() => {
+                        const empty = { actor_role: "", entity: "", action: "", from: "", to: "" };
+                        setAuditPendingFilters(empty);
+                        setAuditFilters(empty);
+                        setAuditPage(1);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Summary Pills */}
+            {auditLogs.length > 0 && (
+              <div className="flex gap-3 flex-wrap">
+                {(["CREATE", "UPDATE", "DELETE"] as const).map((act) => {
+                  const count = auditLogs.filter(l => l.action === act).length;
+                  const styles: Record<string, string> = {
+                    CREATE: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                    UPDATE: "bg-amber-50 text-amber-700 border border-amber-200",
+                    DELETE: "bg-red-50 text-red-700 border border-red-200",
+                  };
+                  return (
+                    <span key={act} className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold ${styles[act]}`}>
+                      <span className={`w-2 h-2 rounded-full ${act === "CREATE" ? "bg-emerald-500" : act === "UPDATE" ? "bg-amber-500" : "bg-red-500"}`} />
+                      {act}: {count}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Table */}
+            <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+              <CardContent className="p-0">
+                {auditLoading ? (
+                  <div className="flex items-center justify-center py-20 gap-3">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="text-slate-400 text-sm">Loading audit logs…</span>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-100">
+                        <tr>
+                          <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase tracking-wider w-16">ID</th>
+                          <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase tracking-wider">Actor</th>
+                          <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase tracking-wider w-28">Action</th>
+                          <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase tracking-wider">Entity</th>
+                          <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase tracking-wider w-44">Time (IST)</th>
+                          <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase tracking-wider w-16 text-center">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {auditLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-16 text-center">
+                              <div className="flex flex-col items-center gap-3 text-slate-400">
+                                <ClipboardList className="w-10 h-10 opacity-30" />
+                                <p className="text-sm font-medium">No audit logs found</p>
+                                <p className="text-xs">Try adjusting your filters or date range</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : auditLogs.map((log) => {
+                          const actionStyles: Record<string, string> = {
+                            CREATE: "bg-emerald-100 text-emerald-700 border-emerald-200",
+                            UPDATE: "bg-amber-100 text-amber-700 border-amber-200",
+                            DELETE: "bg-red-100 text-red-700 border-red-200",
+                          };
+                          const roleStyles: Record<string, string> = {
+                            admin: "bg-purple-100 text-purple-700",
+                            principal: "bg-blue-100 text-blue-700",
+                            teacher: "bg-teal-100 text-teal-700",
+                            team: "bg-orange-100 text-orange-700",
+                            student: "bg-indigo-100 text-indigo-700",
+                          };
+                          const timeIST = new Intl.DateTimeFormat("en-IN", {
+                            dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata"
+                          }).format(new Date(log.created_at));
+                          const isExpanded = expandedLog === log.id;
+                          return (
+                            <>
+                              <tr
+                                key={log.id}
+                                className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isExpanded ? "bg-slate-50" : ""}`}
+                                onClick={() => setExpandedLog(isExpanded ? null : log.id)}
+                              >
+                                <td className="px-5 py-3.5 text-xs text-slate-400 font-mono">#{log.id}</td>
+                                <td className="px-5 py-3.5">
+                                  <p className="text-sm font-semibold text-slate-800">{log.actor_name || `ID ${log.actor_id}`}</p>
+                                  <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${roleStyles[log.actor_role] || "bg-slate-100 text-slate-500"}`}>
+                                    {log.actor_role}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3.5">
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${actionStyles[log.action] || "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                                    {log.action}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3.5">
+                                  <p className="text-sm text-slate-700 font-medium">{log.entity}</p>
+                                  {log.entity_id && <p className="text-xs text-slate-400 font-mono">/{log.entity_id}</p>}
+                                </td>
+                                <td className="px-5 py-3.5 text-xs text-slate-500">{timeIST}</td>
+                                <td className="px-5 py-3.5 text-center">
+                                  <button className={`w-7 h-7 rounded-lg flex items-center justify-center mx-auto transition-all ${isExpanded ? "bg-primary text-white" : "bg-slate-100 text-slate-400 hover:bg-primary/10 hover:text-primary"}`}>
+                                    <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr key={`${log.id}-expanded`} className="bg-slate-50/80">
+                                  <td colSpan={6} className="px-6 py-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                      <div className="space-y-1">
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${log.status === "success" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                          {log.status}
+                                        </span>
+                                        {log.error_msg && <p className="text-red-500 mt-1">{log.error_msg}</p>}
+                                      </div>
+                                      <div className="space-y-1">
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider">IP / User Agent</p>
+                                        <p className="text-slate-600 font-mono">{log.ip_address || "—"}</p>
+                                        <p className="text-slate-400 truncate max-w-xs" title={log.user_agent || ""}>{log.user_agent ? log.user_agent.slice(0, 60) + (log.user_agent.length > 60 ? "…" : "") : "—"}</p>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider">Meta Payload</p>
+                                        {log.meta ? (
+                                          <pre className="bg-slate-800 text-emerald-400 rounded-lg p-3 text-[10px] overflow-x-auto max-h-32 leading-relaxed">
+                                            {JSON.stringify(log.meta, null, 2)}
+                                          </pre>
+                                        ) : (
+                                          <p className="text-slate-400">No metadata</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Pagination */}
+            {auditTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 py-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={auditPage <= 1}
+                  onClick={() => setAuditPage(p => Math.max(1, p - 1))}
+                >
+                  ← Prev
+                </Button>
+                <span className="text-sm text-slate-500 font-medium">
+                  Page <span className="font-bold text-slate-800">{auditPage}</span> of <span className="font-bold text-slate-800">{auditTotalPages}</span>
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={auditPage >= auditTotalPages}
+                  onClick={() => setAuditPage(p => Math.min(auditTotalPages, p + 1))}
+                >
+                  Next →
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           {/* Gating Controls Content */}
