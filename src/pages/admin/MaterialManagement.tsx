@@ -9,6 +9,7 @@ export default function MaterialManagement() {
   const [chapters, setChapters] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
   
+  const [selectedGrade, setSelectedGrade] = useState('10');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
@@ -30,8 +31,11 @@ export default function MaterialManagement() {
         setChapters(data.chapters || []);
         setTopics(data.topics || []);
         
-        if (data.subjects && data.subjects.length > 0 && !selectedSubject) {
-          setSelectedSubject(data.subjects[0].id);
+        // Find first subject for Grade 10 by default
+        const grade10Subs = (data.subjects || []).filter((s: any) => (s.grades || []).includes(10));
+        if (grade10Subs.length > 0 && !selectedSubject) {
+          setSelectedGrade('10');
+          setSelectedSubject(grade10Subs[0].id);
         }
       } catch (err) {
         console.error("Error loading data:", err);
@@ -42,18 +46,33 @@ export default function MaterialManagement() {
     loadData();
   }, []);
 
+  // When grade changes, update available subjects
+  useEffect(() => {
+    const gradeSubs = subjects.filter(s => (s.grades || []).includes(parseInt(selectedGrade)));
+    if (gradeSubs.length > 0) {
+      if (!gradeSubs.find(s => String(s.id) === String(selectedSubject))) {
+        setSelectedSubject(gradeSubs[0].id);
+      }
+    } else {
+      setSelectedSubject('');
+    }
+  }, [selectedGrade, subjects]);
+
   useEffect(() => {
     if (!selectedSubject) return;
-    loadMaterials(selectedSubject);
+    loadMaterials(selectedSubject, selectedGrade);
     
-    // Filter chapters for this subject
-    const subChapters = chapters.filter(c => String(c.subjectId) === String(selectedSubject));
+    // Filter chapters for this subject AND grade
+    const subChapters = chapters.filter(c => 
+      String(c.subjectId) === String(selectedSubject) && 
+      String(c.grade) === String(selectedGrade)
+    );
     if (subChapters.length > 0) {
       setSelectedChapter(subChapters[0].id);
     } else {
       setSelectedChapter('');
     }
-  }, [selectedSubject, chapters]);
+  }, [selectedSubject, selectedGrade, chapters]);
 
   useEffect(() => {
     if (!selectedChapter) {
@@ -69,10 +88,10 @@ export default function MaterialManagement() {
     }
   }, [selectedChapter, topics]);
 
-  const loadMaterials = async (subId: string) => {
+  const loadMaterials = async (subId: string, grade: string) => {
     setLoading(true);
     try {
-      const data = await fetchSubjectMaterials(subId);
+      const data = await fetchSubjectMaterials(subId, grade);
       setMaterials(data || []);
     } catch (err) {
       console.error("Error loading materials:", err);
@@ -121,8 +140,9 @@ export default function MaterialManagement() {
         await uploadSubjectMaterial(selectedSubject, {
           title,
           file: dataUrl,
-          contentType: file.type || 'application/pdf'
-        });
+          contentType: file.type || 'application/pdf',
+          grade_id: selectedGrade
+        } as any);
         setSuccessMsg("Subject material uploaded successfully!");
       } else {
         await uploadTopicPpt(selectedTopic, {
@@ -137,7 +157,7 @@ export default function MaterialManagement() {
       toast.success("Upload successful!");
       setFile(null);
       setTitle('');
-      if (uploadScope === 'subject') loadMaterials(selectedSubject);
+      if (uploadScope === 'subject') loadMaterials(selectedSubject, selectedGrade);
     } catch (err: any) {
       console.error("Upload error:", err);
       setErrorMsg(err.message || "Failed to upload.");
@@ -152,7 +172,7 @@ export default function MaterialManagement() {
     try {
       await deleteSubjectMaterial(id);
       toast.success("Material deleted successfully");
-      loadMaterials(selectedSubject);
+      loadMaterials(selectedSubject, selectedGrade);
     } catch (err: any) {
       toast.error(err.message || "Failed to delete");
     }
@@ -169,7 +189,10 @@ export default function MaterialManagement() {
     }
   };
 
-  const filteredChapters = chapters.filter(c => String(c.subjectId) === String(selectedSubject));
+  const filteredChapters = chapters.filter(c => 
+    String(c.subjectId) === String(selectedSubject) && 
+    String(c.grade) === String(selectedGrade)
+  );
   const filteredTopics = topics.filter(t => String(t.chapterId) === String(selectedChapter));
   const activeTopic = topics.find(t => String(t.id) === String(selectedTopic));
 
@@ -207,6 +230,18 @@ export default function MaterialManagement() {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Select Class</label>
+              <select
+                value={selectedGrade}
+                onChange={(e) => setSelectedGrade(e.target.value)}
+                className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all mb-4"
+                required
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => (
+                  <option key={g} value={g}>Class {g}</option>
+                ))}
+              </select>
+
               <label className="block text-sm font-medium text-slate-700 mb-1">Select Subject</label>
               <select
                 value={selectedSubject}
@@ -214,7 +249,7 @@ export default function MaterialManagement() {
                 className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 required
               >
-                {subjects.map(s => (
+                {subjects.filter(s => (s.grades || []).includes(parseInt(selectedGrade))).map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
