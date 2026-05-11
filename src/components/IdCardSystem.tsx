@@ -164,7 +164,7 @@ export const StudentMainCard = ({ data }: { data: StudentData }) => {
 // 2. Student Option Card (Vertical)
 export type OptionLetter = "A" | "B" | "C" | "D";
 
-export const StudentOptionCard = ({ data, option }: { data: StudentData, option: OptionLetter }) => {
+export const StudentOptionCard = ({ data, option, printLayout = "4-in-1" }: { data: StudentData, option: OptionLetter, printLayout?: "4-in-1" | "1-per-page" }) => {
   const configs = {
     A: { color: "teal", theme: "bg-teal-600", text: "text-teal-600", light: "bg-teal-50", border: "border-teal-200", hex: "#0d9488" },
     B: { color: "green", theme: "bg-emerald-600", text: "text-emerald-600", light: "bg-emerald-50", border: "border-emerald-200", hex: "#059669" },
@@ -177,7 +177,12 @@ export const StudentOptionCard = ({ data, option }: { data: StudentData, option:
 
   return (
     <div 
-      className="w-[280px] h-[480px] print:w-[85mm] print:h-[120mm] bg-white rounded-[24px] print:rounded-xl shadow-xl print:shadow-none overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl"
+      className={cn(
+        "bg-white rounded-[24px] overflow-hidden flex flex-col border border-slate-100 relative group transition-all duration-300 hover:shadow-2xl",
+        printLayout === "4-in-1" 
+          ? "w-[280px] h-[480px] print:w-[85mm] print:h-[120mm] print:rounded-xl shadow-xl print:shadow-none"
+          : "w-[280px] h-[480px] print-scale-180 shadow-xl print:shadow-none print:border-2 print:border-slate-300"
+      )}
       style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as any}
     >
       {/* Background decoration */}
