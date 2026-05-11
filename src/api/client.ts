@@ -542,7 +542,7 @@ export async function registerStudent(body: {
   [key: string]: unknown;
 }): Promise<{ ok: boolean; student_id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/principals/students`, {
+  const res = await fetch(`${API_BASE}/api/principal/students`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -561,7 +561,7 @@ export async function registerTeacher(body: {
   [key: string]: unknown;
 }): Promise<{ ok: boolean; teacher_id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/principals/teachers`, {
+  const res = await fetch(`${API_BASE}/api/principal/teachers`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),

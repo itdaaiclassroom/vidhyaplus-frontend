@@ -30,6 +30,7 @@ export default function MaterialManagement() {
   const [assessConfigSaving, setAssessConfigSaving] = useState(false);
 
   // Per-chapter assessment config
+  const [chapterConfigGrade, setChapterConfigGrade] = useState('10');
   const [chapterConfigSubject, setChapterConfigSubject] = useState('');
   const [chapterConfigs, setChapterConfigs] = useState<ChapterAssessmentConfigItem[]>([]);
   const [chapterConfigEdits, setChapterConfigEdits] = useState<Record<number, { questionCount: number; totalMarks: number; passingMarks: number }>>({});
@@ -573,29 +574,54 @@ export default function MaterialManagement() {
           </div>
         )}
 
-        {/* Subject Selector */}
-        <div className="mb-4">
-          <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Select Subject</label>
-          <select
-            className="w-full h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
-            value={chapterConfigSubject}
-            onChange={(e) => {
-              setChapterConfigSubject(e.target.value);
-              loadChapterConfigs(e.target.value);
-            }}
-          >
-            <option value="">Choose a subject...</option>
-            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+        {/* Class and Subject Selectors */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Select Class</label>
+            <select
+              className="w-full h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+              value={chapterConfigGrade}
+              onChange={(e) => {
+                setChapterConfigGrade(e.target.value);
+                setChapterConfigSubject('');
+                setChapterConfigs([]);
+              }}
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => (
+                <option key={g} value={g}>Class {g}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Select Subject</label>
+            <select
+              className="w-full h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+              value={chapterConfigSubject}
+              onChange={(e) => {
+                setChapterConfigSubject(e.target.value);
+                loadChapterConfigs(e.target.value);
+              }}
+              disabled={!chapterConfigGrade}
+            >
+              <option value="">Choose a subject...</option>
+              {subjects
+                .filter(s => (s.grades || []).includes(parseInt(chapterConfigGrade)))
+                .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* Chapter List */}
-        {chapterConfigSubject && (
-          chapterConfigLoading ? (
-            <div className="flex justify-center p-8"><Loader className="w-8 h-8 text-purple-500 animate-spin" /></div>
-          ) : chapterConfigs.length === 0 ? (
-            <div className="text-center text-slate-400 py-8">No chapters found for this subject.</div>
-          ) : (
+        {chapterConfigSubject && (() => {
+          const filteredChapters = chapterConfigs.filter(ch => String(ch.gradeId) === String(chapterConfigGrade));
+          
+          if (chapterConfigLoading) {
+            return <div className="flex justify-center p-8"><Loader className="w-8 h-8 text-purple-500 animate-spin" /></div>;
+          }
+          if (filteredChapters.length === 0) {
+            return <div className="text-center text-slate-400 py-8">No chapters found for this subject and class.</div>;
+          }
+          return (
             <div className="space-y-3">
               {/* Table Header */}
               <div className="grid grid-cols-12 gap-3 px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -606,7 +632,7 @@ export default function MaterialManagement() {
                 <div className="col-span-2 text-center">Passing Marks</div>
                 <div className="col-span-1"></div>
               </div>
-              {chapterConfigs.map((ch, idx) => {
+              {filteredChapters.map((ch, idx) => {
                 const edit = chapterConfigEdits[ch.chapterId] || { questionCount: ch.questionCount, totalMarks: ch.totalMarks, passingMarks: ch.passingMarks };
                 const hasChanges = edit.questionCount !== ch.questionCount || edit.totalMarks !== ch.totalMarks || edit.passingMarks !== ch.passingMarks;
                 return (
@@ -656,8 +682,8 @@ export default function MaterialManagement() {
                 );
               })}
             </div>
-          )
-        )}
+          );
+        })()}
       </div>
       
       <QuestionBankPanel subjects={subjects} />
