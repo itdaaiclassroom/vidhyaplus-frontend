@@ -65,7 +65,7 @@ interface ArucoScannerBoardProps {
   questionIndex: number;
   totalQuestions: number;
   submitThreshold?: number; // fraction, e.g. 0.9 for 90%
-  onComplete: () => void;
+  onComplete: (scanned: Map<number, ScannedEntry>) => void;
   onCancel: () => void;
 }
 
@@ -294,7 +294,7 @@ const ArucoScannerBoard = ({
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      onComplete();
+      onComplete(scanned);
     } finally {
       setSubmitting(false);
     }

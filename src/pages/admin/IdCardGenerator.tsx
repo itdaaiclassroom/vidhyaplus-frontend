@@ -28,6 +28,7 @@ import {
   OptionLetter
 } from "@/components/IdCardSystem";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const IdCardGenerator = () => {
   const { data: globalData } = useAppData();
@@ -51,6 +52,7 @@ const IdCardGenerator = () => {
   const [selectedGrade, setSelectedGrade] = useState<string>("all");
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"main" | "options">("main");
+  const [printLayout, setPrintLayout] = useState<"4-in-1" | "1-per-page">("4-in-1");
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
 
   React.useEffect(() => {
@@ -222,7 +224,7 @@ const IdCardGenerator = () => {
           )}
 
           {/* View Mode Tabs - Hidden on print */}
-          <div className="flex justify-between items-center print:hidden">
+          <div className="flex justify-between items-center print:hidden mb-4">
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="w-full max-w-md">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="main" className="gap-2">
@@ -236,9 +238,25 @@ const IdCardGenerator = () => {
               </TabsList>
             </Tabs>
             
-            <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
-              <Users className="w-4 h-4" />
-              <span>{studentsToPrint.length} Students found</span>
+            <div className="flex items-center gap-4">
+              {viewMode === "options" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Layout:</span>
+                  <Select value={printLayout} onValueChange={(v: any) => setPrintLayout(v)}>
+                    <SelectTrigger className="h-9 text-sm w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="4-in-1">4 Cards per Page</SelectItem>
+                      <SelectItem value="1-per-page">1 Card per Page</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+                <Users className="w-4 h-4" />
+                <span>{studentsToPrint.length} Students found</span>
+              </div>
             </div>
           </div>
 
@@ -286,20 +304,27 @@ const IdCardGenerator = () => {
                       photoUrl: s.profile_image_url
                     };
                     return (
-                      <div key={s.id} className="print:break-after-page print:w-full print:max-w-[210mm] print:flex print:flex-col print:justify-start print:items-center print:mx-auto print:pt-0">
-                        <div className="flex items-center gap-4 border-b pb-2 print:hidden">
-                          <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700">
-                             {displayName.charAt(0)}
+                      <div key={s.id} className="print:w-full print:flex print:flex-col print:justify-start print:items-center print:mx-auto print:pt-0">
+                        {printLayout === "4-in-1" && (
+                          <div className="flex items-center gap-4 border-b pb-2 print:hidden mb-4">
+                            <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700">
+                               {displayName.charAt(0)}
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-slate-800">{displayName}</h3>
+                              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Option Cards Set</p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-bold text-slate-800">{displayName}</h3>
-                            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Option Cards Set</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-2 print:p-0">
+                        )}
+                        <div className={cn(
+                          "grid gap-6",
+                          printLayout === "4-in-1" 
+                            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-2 print:break-after-page print:p-0"
+                            : "grid-cols-1 lg:grid-cols-4 print:flex print:flex-col print:gap-y-32"
+                        )}>
                           {(["A", "B", "C", "D"] as OptionLetter[]).map((opt) => (
-                            <div key={opt} className="flex justify-center">
-                              <StudentOptionCard data={studentData} option={opt} />
+                            <div key={opt} className={cn("flex justify-center", printLayout === "1-per-page" && "print:break-after-page print:mt-10")}>
+                              <StudentOptionCard data={studentData} option={opt} printLayout={printLayout} />
                             </div>
                           ))}
                         </div>
@@ -349,6 +374,8 @@ const IdCardGenerator = () => {
               .print\\:pt-0 { padding-top: 5mm !important; }
               .print\\:w-full { width: 100% !important; }
               .print\\:max-w-\\[210mm\\] { max-width: 210mm !important; }
+
+              .print-scale-180 { transform: scale(1.8) !important; transform-origin: top center !important; margin-top: 10mm !important; margin-bottom: 80mm !important; }
 
               /* Hide everything else except the printable area */
               body > * {

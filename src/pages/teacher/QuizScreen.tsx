@@ -189,9 +189,17 @@ const QuizScreen = () => {
     }
   };
 
-  const handleEvaluate = async () => {
+  const handleEvaluate = async (scannedData?: Map<number, any> | React.MouseEvent) => {
     if (!quizSessionId) return;
     try {
+      if (scannedData && scannedData instanceof Map) {
+        const dist: Record<string, string> = {};
+        scannedData.forEach((entry) => {
+          dist[entry.studentId] = entry.answer;
+        });
+        setStudentResponses(dist);
+      }
+
       setPhase("evaluating");
       const currentQ = questions[currentQIndex];
       setCorrectOption(currentQ.correctOption);
@@ -424,7 +432,7 @@ const QuizScreen = () => {
 
   // Phase 1: Question Analytics Function
   const getQuestionAnalytics = () => {
-    if (mode === "teacher") {
+    if (mode === "teacher" || mode === "aruco") {
       const dist = { A: 0, B: 0, C: 0, D: 0 };
       Object.values(studentResponses).forEach((val) => {
         if (val === 'A' || val === 'B' || val === 'C' || val === 'D') {
