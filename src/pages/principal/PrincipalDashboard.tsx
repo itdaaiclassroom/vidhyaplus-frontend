@@ -31,7 +31,7 @@ import {
   PrincipalGrade, PrincipalSection, getApiBase, updateStudent,
   deleteStudent, deleteTeacher,
   fetchTeacherAttendanceSummary, fetchStudentAttendanceSummary,
-  fetchPrincipalSubjects
+  fetchPrincipalSubjects, fetchSchoolRanking, fetchBroadcastMessages
 } from "@/api/client";
 import { toast } from "sonner";
 import { Edit2, Save, XCircle } from "lucide-react";
@@ -55,7 +55,8 @@ const navigationGroups = [
   {
     title: "Dashboard",
     items: [
-      { value: "overview", label: "Overview", icon: BarChart3 }
+      { value: "overview", label: "Overview", icon: BarChart3 },
+      { value: "teacher-view", label: "Switch to Teacher View", icon: BookOpen, action: true }
     ]
   },
   {
@@ -138,6 +139,9 @@ const PrincipalDashboardInner: React.FC = () => {
   const [drillDownStatus, setDrillDownStatus] = useState<string | null>(null);
   const [drillDownClass, setDrillDownClass] = useState<string | null>(null);
 
+  const [schoolRanking, setSchoolRanking] = useState<{rank: number, total: number} | null>(null);
+  const [broadcastMessages, setBroadcastMessages] = useState<any[]>([]);
+
 
 
   const loadSchoolData = () => {
@@ -151,12 +155,16 @@ const PrincipalDashboardInner: React.FC = () => {
     Promise.all([
       fetchPrincipalSubjects().catch(() => []),
       fetchTeacherAttendanceSummary(schoolId).catch(() => null),
-      fetchStudentAttendanceSummary(schoolId).catch(() => null)
-    ]).then(([subData, tStats, sStats]) => {
+      fetchStudentAttendanceSummary(schoolId).catch(() => null),
+      fetchSchoolRanking().catch(() => null),
+      fetchBroadcastMessages().catch(() => [])
+    ]).then(([subData, tStats, sStats, ranking, msgs]) => {
       setSubjectsList(Array.isArray(subData) ? subData : []);
       setTeacherStats(tStats);
       setStudentStats(sStats);
-      console.log("PRINCIPAL DASHBOARD STATS LOADED:", { tStats, sStats });
+      setSchoolRanking(ranking);
+      setBroadcastMessages(msgs);
+      console.log("PRINCIPAL DASHBOARD STATS LOADED:", { tStats, sStats, ranking, msgs });
     }).catch(console.error).finally(() => setIsStatsLoading(false));
   };
 
@@ -239,7 +247,7 @@ const PrincipalDashboardInner: React.FC = () => {
 
   if (loading || (isStatsLoading && !teacherStats)) {
     return (
-      <DashboardLayout title="Principal Dashboard">
+      <DashboardLayout title={profile?.school_name || "Principal Dashboard"}>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           <p className="text-muted-foreground animate-pulse font-medium">Loading school data...</p>
@@ -249,7 +257,7 @@ const PrincipalDashboardInner: React.FC = () => {
   }
 
   return (
-    <DashboardLayout title="Principal Dashboard">
+    <DashboardLayout title={profile?.school_name || "Principal Dashboard"}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col md:flex-row gap-6 relative">
           
@@ -283,6 +291,13 @@ const PrincipalDashboardInner: React.FC = () => {
                                 <TabsTrigger 
                                   key={item.value} 
                                   value={item.value} 
+                                  onClick={() => {
+                                    if (item.value === "teacher-view") {
+                                      navigate("/teacher/setup");
+                                    } else {
+                                      setActiveTab(item.value);
+                                    }
+                                  }}
                                   className="w-full flex items-center justify-start gap-3 rounded-lg px-4 py-2.5 transition-colors data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary"
                                 >
                                   <item.icon className="w-5 h-5 opacity-80" />
@@ -333,6 +348,13 @@ const PrincipalDashboardInner: React.FC = () => {
                             <TabsTrigger 
                               key={item.value} 
                               value={item.value} 
+                              onClick={() => {
+                                if (item.value === "teacher-view") {
+                                  navigate("/teacher/setup");
+                                } else {
+                                  setActiveTab(item.value);
+                                }
+                              }}
                               className={cn(
                                 "w-full flex items-center gap-3 rounded-lg transition-colors data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary",
                                 isSidebarCollapsed ? "justify-center px-0 py-3" : "justify-start px-4 py-2.5"
@@ -358,7 +380,7 @@ const PrincipalDashboardInner: React.FC = () => {
             <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" /> Overview
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               <Card className="gradient-primary text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1" onClick={() => setActiveTab("student-info")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xs font-medium uppercase opacity-80">Total Students</CardTitle>
@@ -394,7 +416,36 @@ const PrincipalDashboardInner: React.FC = () => {
                   <div className="text-3xl font-bold">{sections.length}</div>
                 </CardContent>
               </Card>
+
+              <Card className="bg-gradient-to-br from-pink-500 to-rose-600 text-white border-0 cursor-pointer hover:shadow-lg transition-all transform hover:-translate-y-1">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium uppercase opacity-80">School Ranking</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{schoolRanking ? `${schoolRanking.rank} / ${schoolRanking.total}` : 'N/A'}</div>
+                </CardContent>
+              </Card>
             </div>
+
+            {broadcastMessages.length > 0 && (
+              <Card className="mt-6 border-info bg-info/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-info">
+                    <CheckCircle2 className="w-4 h-4" /> Admin Announcements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {broadcastMessages.map((msg, idx) => (
+                      <div key={idx} className="p-3 bg-white rounded-lg border shadow-sm">
+                        <p className="text-sm text-foreground">{msg.message}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{new Date(msg.created_at).toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               {/* Teacher Attendance Summary Card */}

@@ -1192,6 +1192,15 @@ export async function fetchTeacherAssignments(teacherId: string): Promise<{ assi
   return res.json();
 }
 
+export async function fetchTeacherAssessments(teacherId: string): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/assessments`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 export async function markTeacherSelfAttendance(teacherId: string, status: "present" | "absent" | "leave"): Promise<{ ok: boolean; status: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/attendance`, {
@@ -1613,6 +1622,7 @@ export interface QuestionBankEntry {
   option_d: string;
   correct_option: "A" | "B" | "C" | "D";
   explanation: string | null;
+  assigned_for: "student" | "teacher" | "both";
   uploaded_by: string | null;
   created_at: string;
 }
@@ -1644,6 +1654,7 @@ export interface CreateQuestionBody {
   explanation?: string;
   chapter?: string;
   grade?: number;
+  assigned_for?: "student" | "teacher" | "both";
 }
 
 /** GET /api/subjects/question-bank — system-wide question bank with optional filters */
@@ -1725,6 +1736,25 @@ export async function bulkUploadQuestions(
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ file: base64 }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchSchoolRanking(): Promise<{rank: number, total: number}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/dashboard/school-ranking`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchBroadcastMessages(): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const rolePrefix = localStorage.getItem('role') === 'teacher' ? 'teacher' : 'principal';
+  const res = await fetch(`${API_BASE}/api/${rolePrefix}/dashboard/broadcast-messages`, {
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();

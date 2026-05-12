@@ -35,7 +35,7 @@ const Login = () => {
         login("student", data.full_name, data.id, undefined, undefined, data.token);
         navigate("/student");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Login failed");
+        toast.error(err instanceof Error ? err.message : "Login failed");
       }
     } else if (role === "admin" || role === "team") {
       try {
@@ -62,12 +62,12 @@ const Login = () => {
           login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
           if (data.role) localStorage.setItem("auth.teamRole", data.role);
         } else {
-          login("admin", data.full_name, undefined, undefined, undefined, data.token);
+          login(data.role || "admin", data.full_name, undefined, undefined, undefined, data.token);
           localStorage.removeItem("auth.teamRole");
         }
         navigate("/admin");
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Login failed");
+        toast.error(err instanceof Error ? err.message : "Login failed");
       }
     } else if (role === "teacher") {
       if (teacherLoginMode === "id") {
@@ -84,26 +84,26 @@ const Login = () => {
         }
         try {
           const data = await teacherLogin({ email: storedEmail, password });
-          login("teacher", data.full_name, undefined, data.id, undefined, data.token);
+          login(data.role || "teacher", data.full_name, undefined, data.id, undefined, data.token);
           navigate("/teacher/setup");
         } catch (err) {
-          alert(err instanceof Error ? err.message : "Login failed");
+          toast.error(err instanceof Error ? err.message : "Login failed");
         }
       } else {
         try {
           const data = await teacherLogin({ email: email.trim(), password });
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
-          login("teacher", data.full_name, undefined, data.id, data.school_id, data.token);
+          login(data.role || "teacher", data.full_name, undefined, data.id, data.school_id, data.token);
           navigate("/teacher/setup");
         } catch (err) {
-          alert(err instanceof Error ? err.message : "Login failed");
+          toast.error(err instanceof Error ? err.message : "Login failed");
         }
       }
     } else if (role === "principal") {
       try {
         const data = await principalLogin({ email: email.trim(), password });
-        const actualRole = (data.role as any) || "principal";
+        const actualRole = data.role || "principal";
         login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
         navigate("/principal");
       } catch (err) {
@@ -113,7 +113,7 @@ const Login = () => {
           : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
             ? "Invalid email or password. Please try again."
             : `Login failed: ${msg}`;
-        alert(friendlyMsg);
+        toast.error(friendlyMsg);
       }
     }
   };

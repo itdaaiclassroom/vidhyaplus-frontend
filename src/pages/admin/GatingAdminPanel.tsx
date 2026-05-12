@@ -43,6 +43,7 @@ export default function GatingAdminPanel() {
   const [overridesLoading, setOverridesLoading] = useState(false);
   
   // New override form
+  const [targetSchoolId, setTargetSchoolId] = useState("");
   const [targetTeacherId, setTargetTeacherId] = useState("");
   const [targetClassId, setTargetClassId] = useState("");
   const [targetChapterId, setTargetChapterId] = useState("");
@@ -73,7 +74,18 @@ export default function GatingAdminPanel() {
     setSaving(true);
     try {
       await updateGatingConfig({ [key]: value });
-      setConfig(prev => ({ ...prev, [key]: value }));
+      
+      // If we update one of the pass thresholds, update both in local state
+      if (key === "teacher_pass_percentage" || key === "assessment_passing_marks") {
+        setConfig(prev => ({ 
+          ...prev, 
+          teacher_pass_percentage: value,
+          assessment_passing_marks: value 
+        }));
+      } else {
+        setConfig(prev => ({ ...prev, [key]: value }));
+      }
+      
       toast.success("Configuration updated");
     } catch (err) {
       toast.error("Failed to update configuration");
@@ -155,7 +167,11 @@ export default function GatingAdminPanel() {
                 <Input 
                   type="number" 
                   value={config.teacher_pass_percentage || "70"}
-                  onChange={(e) => setConfig(prev => ({ ...prev, teacher_pass_percentage: e.target.value }))}
+                  onChange={(e) => setConfig(prev => ({ 
+                    ...prev, 
+                    teacher_pass_percentage: e.target.value,
+                    assessment_passing_marks: e.target.value
+                  }))}
                   onBlur={(e) => handleUpdateConfig("teacher_pass_percentage", e.target.value)}
                   className="bg-slate-50 border-slate-200 rounded-xl"
                   min="0"
@@ -229,7 +245,11 @@ export default function GatingAdminPanel() {
                   <Input 
                     type="number" 
                     value={config.assessment_passing_marks || "70"}
-                    onChange={(e) => setConfig(prev => ({ ...prev, assessment_passing_marks: e.target.value }))}
+                    onChange={(e) => setConfig(prev => ({ 
+                      ...prev, 
+                      assessment_passing_marks: e.target.value,
+                      teacher_pass_percentage: e.target.value
+                    }))}
                     onBlur={(e) => handleUpdateConfig("assessment_passing_marks", e.target.value)}
                     className="bg-slate-50 border-slate-200 rounded-xl"
                     min="1"
@@ -263,14 +283,37 @@ export default function GatingAdminPanel() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select School</Label>
+                  <select 
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                    value={targetSchoolId}
+                    onChange={(e) => {
+                      setTargetSchoolId(e.target.value);
+                      setTargetTeacherId("");
+                      setTargetClassId("");
+                      setTargetChapterId("");
+                    }}
+                  >
+                    <option value="">Choose School...</option>
+                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Teacher</Label>
                   <select 
                     className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     value={targetTeacherId}
-                    onChange={(e) => setTargetTeacherId(e.target.value)}
+                    onChange={(e) => {
+                      setTargetTeacherId(e.target.value);
+                      setTargetClassId("");
+                      setTargetChapterId("");
+                    }}
                   >
                     <option value="">Choose Teacher...</option>
-                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name} ({schools.find(s => s.id === t.schoolId)?.name || 'Unknown School'})</option>)}
+                    {teachers
+                      .filter(t => !targetSchoolId || String(t.schoolId) === targetSchoolId)
+                      .map(t => <option key={t.id} value={t.id}>{t.name} ({schools.find(s => s.id === t.schoolId)?.name || 'Unknown School'})</option>)}
                   </select>
                 </div>
 
@@ -300,7 +343,20 @@ export default function GatingAdminPanel() {
                     onChange={(e) => setTargetChapterId(e.target.value)}
                   >
                     <option value="">Choose Chapter...</option>
-                    {chapters.sort((a,b) => (a.order || 0) - (b.order || 0)).map(ch => <option key={ch.id} value={ch.id}>{ch.name} (G{ch.grade})</option>)}
+                    {chapters
+                      .sort((a,b) => (a.order || 0) - (b.order || 0))
+                      .filter(ch => {
+                        if (!targetTeacherId) return true;
+                        const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
+                        if (!teacher?.subjects || teacher.subjects.length === 0) return true;
+                        // Match by subject name (from chaptersRow mapping in index.js)
+                        // In index.js, chapters have subjectId. Let's find the subject name for that ID.
+                        return teacher.subjects.some(subName => {
+                          const sub = data.subjects?.find(s => s.name === subName);
+                          return sub && String(sub.id) === String(ch.subjectId);
+                        });
+                      })
+                      .map(ch => <option key={ch.id} value={ch.id}>{ch.name} (G{ch.grade})</option>)}
                   </select>
                 </div>
               </div>
