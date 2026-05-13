@@ -18,7 +18,7 @@ import {
   BarChart3, Trophy, ChevronDown, CheckCircle2, Clock, User, QrCode, X, 
   LayoutGrid, FileSpreadsheet, Printer, Users, CalendarCheck,
   UserPlus, FileUp, Layers, Contact, Menu, PanelLeftOpen, PanelLeftClose,
-  Trash2
+  Trash2, BookOpen
 } from "lucide-react";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";

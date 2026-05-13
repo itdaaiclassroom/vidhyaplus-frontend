@@ -290,6 +290,20 @@ const TeacherDashboard = () => {
   const [assessmentsData, setAssessmentsData] = useState<any[]>([]);
   const [loadingAssessments, setLoadingAssessments] = useState(true);
 
+  // Assignment data states
+  const [assignData, setAssignData] = useState<{ assigned_subject_ids: number[]; assigned_class_ids: number[]; assigned_section_ids: number[] } | null>(null);
+  const [loadingAssign, setLoadingAssign] = useState(true);
+
+  useEffect(() => {
+    if (teacherId) {
+      setLoadingAssign(true);
+      fetchTeacherAssignments(teacherId)
+        .then(setAssignData)
+        .catch(() => setAssignData(null))
+        .finally(() => setLoadingAssign(false));
+    }
+  }, [teacherId]);
+
   const fetchAssessments = useCallback(async () => {
     if (!teacherId) return;
     setLoadingAssessments(true);
@@ -2726,18 +2740,6 @@ const TeacherDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   {(() => {
-                    const [assignData, setAssignData] = useState<{ assigned_subject_ids: number[]; assigned_class_ids: number[]; assigned_section_ids: number[] } | null>(null);
-                    const [loadingAssign, setLoadingAssign] = useState(true);
-                    useEffect(() => {
-                      if (teacherId) {
-                        setLoadingAssign(true);
-                        fetchTeacherAssignments(teacherId)
-                          .then(setAssignData)
-                          .catch(() => setAssignData(null))
-                          .finally(() => setLoadingAssign(false));
-                      }
-                    }, [teacherId]);
-
                     if (loadingAssign) return <p className="text-sm text-muted-foreground py-4">Loading assignments...</p>;
                     if (!assignData) return <p className="text-sm text-muted-foreground py-4">No assignments found.</p>;
 

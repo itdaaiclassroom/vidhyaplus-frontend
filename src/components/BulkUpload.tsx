@@ -10,8 +10,6 @@ import {
   registerTeacher, 
   fetchPrincipalGrades, 
   fetchPrincipalSections,
-  bulkRegisterStudents,
-  bulkRegisterTeachers,
   PrincipalGrade,
   PrincipalSection
 } from "@/api/client";
@@ -191,7 +189,7 @@ const BulkUpload: React.FC = () => {
         });
 
         setProgress(30);
-        const res = await bulkRegisterStudents({ students: studentPayload });
+        const res = await import("@/api/client").then(m => m.bulkRegisterStudents({ students: studentPayload }));
         setProgress(100);
 
         newLogs = [];
@@ -238,7 +236,7 @@ const BulkUpload: React.FC = () => {
         });
 
         setProgress(30);
-        const res = await bulkRegisterTeachers({ teachers: teacherPayload });
+        const res = await import("@/api/client").then(m => m.bulkRegisterTeachers({ teachers: teacherPayload }));
         setProgress(100);
 
         newLogs = [];

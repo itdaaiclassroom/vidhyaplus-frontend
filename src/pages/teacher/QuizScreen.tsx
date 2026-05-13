@@ -16,8 +16,7 @@ import {
   startLiveQuizCapture, 
   getLiveQuizLeaderboard, 
   endLiveQuiz,
-  submitLiveQuizAnswer,
-  getStudentAttendance
+  submitLiveQuizAnswer
 } from "@/api/client";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -76,6 +75,8 @@ const QuizScreen = () => {
       try {
         const d = new Date();
         const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        // Import getStudentAttendance dynamically or ensure it's imported at top
+        const { getStudentAttendance } = await import('@/api/client');
         const records = await getStudentAttendance(activeSession.classId, date);
         if (records.length > 0) {
           const presentIds = records.filter((r: any) => r.status.toLowerCase() !== "absent").map((r: any) => String(r.student_id));
