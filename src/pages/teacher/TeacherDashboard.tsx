@@ -38,9 +38,11 @@ import {
   markTeacherSelfAttendance, 
   fetchTeacherAssignments,
   fetchChapterGatingStatus,
+  fetchTeacherAssessments,
   type GatingStatusResponse
 } from "@/api/client";
 import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel } from "./TeacherAssessment";
+import StudentReportCard from "@/components/StudentReportCard";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -207,7 +209,7 @@ const TeacherDashboard = () => {
   const currentSubject = useMemo(() => subjects.find((s) => s.id === selectedSubject), [subjects, selectedSubject]);
 
   useEffect(() => {
-    if (role !== "teacher") return;
+    if (role !== "teacher" && role !== "principal") return;
     if (!selectedClass || !selectedSubject || !currentClass || !currentSubject) {
       navigate("/teacher/setup", { replace: true });
     }
@@ -278,11 +280,41 @@ const TeacherDashboard = () => {
   const [gatingLoading, setGatingLoading] = useState(false);
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [assessmentChapter, setAssessmentChapter] = useState<{ id: string, name: string } | null>(null);
+  const [aiReportData, setAiReportData] = useState<any>(null);
   const [aiReportDialogOpen, setAiReportDialogOpen] = useState(false);
   const [aiReportContent, setAiReportContent] = useState("");
   const [aiReportStudentName, setAiReportStudentName] = useState("");
-  const [aiReportData, setAiReportData] = useState<any>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // My Assessments State
+  const [assessmentsData, setAssessmentsData] = useState<any[]>([]);
+  const [loadingAssessments, setLoadingAssessments] = useState(true);
+
+  const fetchAssessments = useCallback(async () => {
+    if (!teacherId) return;
+    setLoadingAssessments(true);
+    try {
+      const data = await fetchTeacherAssessments(teacherId);
+      setAssessmentsData(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to fetch assessments:", err);
+      setAssessmentsData([]);
+    } finally {
+      setLoadingAssessments(false);
+    }
+  }, [teacherId]);
+
+  useEffect(() => {
+    fetchAssessments();
+  }, [fetchAssessments]);
+
+  // Expose to window for dialog callbacks
+  useEffect(() => {
+    (window as any).refreshAssessments = fetchAssessments;
+    return () => {
+      delete (window as any).refreshAssessments;
+    };
+  }, [fetchAssessments]);
 
   const fetchGating = useCallback(async () => {
     if (!teacherId || !selectedClass || !selectedSubject || !grade) {
@@ -1242,7 +1274,6 @@ const TeacherDashboard = () => {
     } finally {
       setRecoLoading(false);
     }
-
   }, [activeSession, grade, chapters]);
 
    const handleChapterStatusChange = (chId: string, newStatus: string) => {
@@ -1250,11 +1281,18 @@ const TeacherDashboard = () => {
     setChapterStatusState((prev) => ({ ...prev, [chId]: newStatus }));
   };
 
-  if (role === "teacher" && !activeSession && (!selectedClass || !selectedSubject || !currentClass || !currentSubject)) {
+  if ((role === "teacher" || role === "principal") && !activeSession && (!selectedClass || !selectedSubject || !currentClass || !currentSubject)) {
     return (
-      <DashboardLayout title="Teacher Dashboard">
-        <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">Loading…</div>
-      </DashboardLayout>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-sm max-w-md w-full border border-slate-100">
+          <GraduationCap className="w-12 h-12 text-primary mx-auto mb-4 opacity-50" />
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Class Not Selected</h2>
+          <p className="text-slate-500 mb-6">Please select a class and subject to view the dashboard.</p>
+          <Button onClick={() => navigate("/teacher/setup")} className="w-full">
+            Go to Setup
+          </Button>
+        </div>
+      </div>
     );
   }
 
@@ -2089,112 +2127,19 @@ const TeacherDashboard = () => {
         </Dialog>
         {/* AI Report Card Result Dialog - Premium Redesign */}
         <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
-          <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl">
-            <div className="bg-white" ref={reportRef}>
-              {/* Report Card Header */}
-              <div className="bg-gradient-to-r from-indigo-600 to-violet-700 p-8 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-                <div className="relative flex justify-between items-start">
-                  <div>
-                    <h2 className="text-3xl font-black tracking-tight mb-1">VIDHYAPLUS</h2>
-                    <p className="text-indigo-100 text-sm font-medium tracking-widest uppercase">Academic Performance Report</p>
-                  </div>
-                  <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-right">
-                    <p className="text-[10px] uppercase font-bold opacity-80">Academic Year</p>
-                    <p className="text-sm font-bold">2025-26</p>
-                  </div>
-                </div>
-                
-                <div className="mt-8 flex flex-nowrap items-center gap-5">
-                  <div className="w-20 h-20 bg-white rounded-2xl flex-shrink-0 flex items-center justify-center text-indigo-600 shadow-2xl border-4 border-white/20">
-                    <Users className="w-10 h-10" />
-                  </div>
-                  <div className="flex flex-col items-start gap-4">
-                    <h3 className="text-2xl font-black tracking-tight leading-tight whitespace-nowrap">{aiReportStudentName}</h3>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
-                        <BookOpen className="w-3.5 h-3.5" /> {currentSubject?.name}
-                      </span>
-                      <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
-                        <Users className="w-3.5 h-3.5" /> {currentClass?.name}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Report Card Body */}
-              <div className="p-8 space-y-8">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Performance Index</p>
-                    <p className="text-3xl font-black text-indigo-600">{aiReportData?.perfIndex || 0}%</p>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Attendance</p>
-                    <p className="text-3xl font-black text-emerald-600">{aiReportData?.attendance || 0}%</p>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quiz Score</p>
-                    <p className="text-3xl font-black text-amber-500">{aiReportData?.quizScore || 0}/{aiReportData?.quizTotal || 0}</p>
-                  </div>
-                </div>
-
-                {/* AI Insights Section - Split into Cards */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-px flex-1 bg-slate-200"></div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">AI Learning Narrative</span>
-                    <div className="h-px flex-1 bg-slate-200"></div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Trophy className="w-12 h-12 text-emerald-600" />
-                      </div>
-                      <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Sparkles className="w-3 h-3" /> Key Strengths
-                      </h4>
-                      <p className="text-sm text-slate-700 leading-relaxed italic">
-                        "{parseAiReport(aiReportContent).strengths}"
-                      </p>
-                    </div>
-
-                    <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Lightbulb className="w-12 h-12 text-amber-600" />
-                      </div>
-                      <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <ArrowLeft className="w-3 h-3 rotate-180" /> Opportunities for Growth
-                      </h4>
-                      <p className="text-sm text-slate-700 leading-relaxed italic">
-                        "{parseAiReport(aiReportContent).improvement}"
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-[10px] text-center text-slate-400 italic mt-2">
-                    Note: This analysis is automatically generated by VidhyaPlus AI based on real-time student performance logs.
-                  </p>
-                </div>
-
-                {/* Footer / Actions */}
-                <div className="flex justify-end items-center pt-4 border-t border-slate-100" data-html2canvas-ignore>
-                  <div className="flex gap-3">
-                    <Button variant="ghost" className="text-slate-500 hover:text-slate-800" onClick={() => setAiReportDialogOpen(false)}>
-                      Dismiss
-                    </Button>
-                    <Button 
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-8 py-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02]"
-                      onClick={() => downloadReport(aiReportStudentName)}
-                    >
-                      <Download className="w-5 h-5" /> Download Report PDF
-                    </Button>
-                  </div>
-                </div>
-              </div>
+          <DialogContent className="max-w-6xl w-[95vw] h-[95vh] p-0 overflow-y-auto border-none shadow-2xl bg-slate-50/50">
+            <div ref={reportRef}>
+              <StudentReportCard
+                studentName={aiReportStudentName}
+                className={currentClass?.name || "N/A"}
+                rollNumber="23"
+                schoolName="VidhyaPlus Academy"
+                attendance={aiReportData?.attendance || 0}
+                perfIndex={aiReportData?.perfIndex || 0}
+                aiReportContent={aiReportContent}
+                onClose={() => setAiReportDialogOpen(false)}
+                onDownload={() => downloadReport(aiReportStudentName)}
+              />
             </div>
           </DialogContent>
         </Dialog>
@@ -2216,6 +2161,7 @@ const TeacherDashboard = () => {
               {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
               <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
               <TabsTrigger value="my-assignments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assignments</TabsTrigger>
+              <TabsTrigger value="my-assessments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assessments</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
               <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
             </TabsList>
@@ -2689,7 +2635,8 @@ const TeacherDashboard = () => {
                                       sa1: mockSA1,
                                       quizScore: quizScore,
                                       quizTotal: totalQuizMax,
-                                      perfIndex: mockPerfIndex
+                                      perfIndex: mockPerfIndex,
+                                      rollNumber: s.rollNo
                                     });
                                     setAiReportDialogOpen(true);
                                     return data;
@@ -2832,6 +2779,167 @@ const TeacherDashboard = () => {
                       </div>
                     );
                   })()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* MY ASSESSMENTS TAB */}
+            <TabsContent value="my-assessments" className="space-y-4">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-primary" /> My Assessments
+              </h3>
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Teacher Chapter Assessments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingAssessments ? (
+                    <p className="text-sm text-muted-foreground py-4">Loading assessments...</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredChapters.map((ch) => {
+                        const chId = String(ch.id);
+                        const assessment = assessmentsData.find(a => String(a.chapter_id) === chId);
+                        const gs = gatingStatus?.chapters?.find((g: any) => String(g.chapterId) === chId);
+                        const isLocked = gatingStatus?.gatingEnabled && gs?.isLocked;
+                        
+                        return (
+                          <div key={ch.id} className="border border-border rounded-xl p-4 bg-secondary/20 transition-all hover:shadow-md">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-bold text-md text-foreground">{ch.name}</h4>
+                                <p className="text-xs text-muted-foreground">{currentSubject?.name}</p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5">
+                                {isLocked ? (
+                                  <Badge variant="outline" className="bg-muted text-muted-foreground"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
+                                ) : (gs?.teacherPassed || assessment?.passed) ? (
+                                  <Badge className="bg-success text-success-foreground border-none">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" /> PASSED
+                                  </Badge>
+                                ) : assessment ? (
+                                  <Badge variant="destructive" className="border-none">
+                                    <XCircle className="w-3 h-3 mr-1" /> FAILED
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">AVAILABLE</Badge>
+                                )}
+                                {assessment && (
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <span className="text-[10px] font-bold text-slate-700">
+                                      {assessment.score} / {assessment.total} ({assessment.percentage}%)
+                                    </span>
+                                    <span className="text-[9px] text-muted-foreground uppercase tracking-tight">
+                                      Pass: {assessment.passing_marks || (assessment.percentage >= 20 ? 'Met' : '20%')} | {assessment.attempt_number > 1 ? `${assessment.attempt_number} Attempts` : "1st Attempt"}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {isLocked && (
+                              <p className="text-sm text-muted-foreground mb-4 bg-muted/50 p-3 rounded-md border border-border/50">
+                                <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground mb-0.5" />
+                                {gs?.lockReason || "Locked until previous requirements are met."}
+                              </p>
+                            )}
+
+                            {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
+                              <div className="mb-4 bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center shadow-sm">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-semibold text-primary">
+                                    {assessment ? "Retake Assessment" : "Assessment Ready"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Pass threshold: {gatingStatus?.teacherPassThreshold || 70}%
+                                  </p>
+                                </div>
+                                <Button 
+                                  size="sm" 
+                                  className="shadow-lg bg-primary hover:bg-primary/90"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAssessmentChapter({ id: ch.id, name: ch.name });
+                                    setAssessmentOpen(true);
+                                  }}
+                                >
+                                  {assessment ? "Retry Assessment" : "Take Assessment"}
+                                </Button>
+                              </div>
+                            )}
+
+                            {assessment && (
+                              <>
+                                <div className="grid grid-cols-4 gap-2 mb-4 text-sm bg-background p-3 rounded-lg border border-border shadow-inner">
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Score</p>
+                                    <p className="font-display font-bold text-foreground">{assessment.score} / {assessment.total}</p>
+                                  </div>
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Pass %</p>
+                                    <p className="font-display font-bold text-foreground">{gatingStatus?.teacherPassThreshold || 70}%</p>
+                                  </div>
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Your %</p>
+                                    <p className={`font-display font-bold ${assessment.passed ? "text-success" : "text-destructive"}`}>
+                                      {assessment.percentage}%
+                                    </p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Attempts</p>
+                                    <p className="font-display font-bold text-foreground">#{assessment.attempt_number}</p>
+                                  </div>
+                                </div>
+
+                                {assessment.graded_summary && (
+                                  <details className="text-sm group">
+                                    <summary className="cursor-pointer font-medium text-primary hover:underline outline-none flex items-center gap-1.5 py-1">
+                                      <FileText className="w-4 h-4" /> View Full Assessment Summary
+                                    </summary>
+                                    <div className="mt-3 space-y-3 bg-background border border-border rounded-lg p-3 max-h-[300px] overflow-y-auto">
+                                      {(() => {
+                                        try {
+                                          const graded = typeof assessment.graded_summary === 'string' 
+                                            ? JSON.parse(assessment.graded_summary) 
+                                            : assessment.graded_summary;
+                                          return graded.map((g: any, i: number) => (
+                                            <div key={i} className={`p-2.5 rounded-lg border transition-colors ${g.isCorrect ? 'bg-success/5 border-success/20' : 'bg-destructive/5 border-destructive/20'}`}>
+                                              <div className="flex justify-between items-start gap-2 mb-1.5">
+                                                <p className="font-bold text-xs leading-tight text-foreground">{g.questionText || `Question ${i + 1}`}</p>
+                                                {g.isCorrect ? (
+                                                  <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                                                ) : (
+                                                  <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                                                )}
+                                              </div>
+                                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-medium">
+                                                <span className="flex items-center gap-1">
+                                                  <span className="text-muted-foreground">Selected:</span>
+                                                  <span className={g.isCorrect ? "text-success" : "text-destructive"}>{g.selectedOption}</span>
+                                                </span>
+                                                {!g.isCorrect && (
+                                                  <span className="flex items-center gap-1">
+                                                    <span className="text-muted-foreground">Correct:</span>
+                                                    <span className="text-success">{g.correctOption}</span>
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ));
+                                        } catch (e) {
+                                          return <p className="text-xs text-muted-foreground">Unable to parse summary.</p>;
+                                        }
+                                      })()}
+                                    </div>
+                                  </details>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -3357,120 +3465,31 @@ const TeacherDashboard = () => {
           subjectId={selectedSubject}
           gradeId={grade}
           classId={selectedClass}
-          onAssessmentComplete={(passed) => {
-            if (passed) {
-              fetchGating(); // Refetch gating status to unlock chapters
-              refetch(); // Global data refetch if needed
-            }
+          onAssessmentComplete={() => {
+            fetchGating();
+            fetchAssessments();
           }}
         />
       )}
 
       {/* AI Report Card Result Dialog - Premium Redesign */}
       <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-white" ref={reportRef}>
-            {/* Same premium design for non-live view */}
-            <div className="bg-gradient-to-r from-indigo-600 to-violet-700 p-8 text-white relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-              <div className="relative flex justify-between items-start">
-                <div>
-                  <h2 className="text-3xl font-black tracking-tight mb-1">VIDHYAPLUS</h2>
-                  <p className="text-indigo-100 text-sm font-medium tracking-widest uppercase">Academic Performance Report</p>
-                </div>
-                <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg border border-white/30 text-right">
-                  <p className="text-[10px] uppercase font-bold opacity-80">Academic Year</p>
-                  <p className="text-sm font-bold">2025-26</p>
-                </div>
-              </div>
-              
-              <div className="mt-8 flex flex-nowrap items-center gap-5">
-                <div className="w-20 h-20 bg-white rounded-2xl flex-shrink-0 flex items-center justify-center text-indigo-600 shadow-2xl border-4 border-white/20">
-                  <Users className="w-10 h-10" />
-                </div>
-                <div className="flex flex-col items-start gap-4">
-                  <h3 className="text-2xl font-black tracking-tight leading-tight whitespace-nowrap">{aiReportStudentName}</h3>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
-                      <BookOpen className="w-3.5 h-3.5" /> {currentSubject?.name}
-                    </span>
-                    <span className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-white/20 whitespace-nowrap">
-                      <Users className="w-3.5 h-3.5" /> {currentClass?.name}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-8 space-y-8">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                  <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Performance Index</p>
-                  <p className="text-3xl font-black text-indigo-600">{aiReportData?.perfIndex || 0}%</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                  <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Attendance</p>
-                  <p className="text-3xl font-black text-emerald-600">{aiReportData?.attendance || 0}%</p>
-                </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
-                  <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quiz Score</p>
-                  <p className="text-3xl font-black text-amber-500">{aiReportData?.quizScore || 0}/{aiReportData?.quizTotal || 0}</p>
-                </div>
-              </div>
-
-              {/* AI Insights Section - Split into Cards */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-px flex-1 bg-slate-200"></div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">AI Learning Narrative</span>
-                  <div className="h-px flex-1 bg-slate-200"></div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Trophy className="w-12 h-12 text-emerald-600" />
-                    </div>
-                    <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <Sparkles className="w-3 h-3" /> Key Strengths
-                    </h4>
-                    <p className="text-sm text-slate-700 leading-relaxed italic">
-                      "{parseAiReport(aiReportContent).strengths}"
-                    </p>
-                  </div>
-
-                  <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                      <Lightbulb className="w-12 h-12 text-amber-600" />
-                    </div>
-                    <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-                      <ArrowLeft className="w-3 h-3 rotate-180" /> Opportunities for Growth
-                    </h4>
-                    <p className="text-sm text-slate-700 leading-relaxed italic">
-                      "{parseAiReport(aiReportContent).improvement}"
-                    </p>
-                  </div>
-                </div>
-                
-                <p className="text-[10px] text-center text-slate-400 italic mt-2">
-                  Note: This analysis is automatically generated by VidhyaPlus AI based on real-time student performance logs.
-                </p>
-              </div>
-
-              <div className="flex justify-end items-center pt-4 border-t border-slate-100" data-html2canvas-ignore>
-                <div className="flex gap-3">
-                  <Button variant="ghost" className="text-slate-500 hover:text-slate-800" onClick={() => setAiReportDialogOpen(false)}>
-                    Dismiss
-                  </Button>
-                  <Button 
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 px-8 py-6 rounded-2xl shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02]"
-                    onClick={() => downloadReport(aiReportStudentName)}
-                  >
-                    <Download className="w-5 h-5" /> Download Report PDF
-                  </Button>
-                </div>
-              </div>
-            </div>
+        <DialogContent className="max-w-6xl w-[95vw] h-[95vh] p-0 overflow-y-auto border-none shadow-2xl bg-slate-50/50">
+          <div ref={reportRef}>
+            <StudentReportCard
+              studentName={aiReportStudentName}
+              className={currentClass?.name || "N/A"}
+              subjectName={currentSubject?.name}
+              rollNumber={aiReportData?.rollNumber || "N/A"}
+              schoolName="VidhyaPlus Academy"
+              attendance={aiReportData?.attendance || 0}
+              perfIndex={aiReportData?.perfIndex || 0}
+              quizScore={aiReportData?.quizScore || 0}
+              quizTotal={aiReportData?.quizTotal || 20}
+              aiReportContent={aiReportContent}
+              onClose={() => setAiReportDialogOpen(false)}
+              onDownload={() => downloadReport(aiReportStudentName)}
+            />
           </div>
         </DialogContent>
       </Dialog>
