@@ -41,7 +41,7 @@ import {
   fetchTeacherAssessments,
   type GatingStatusResponse
 } from "@/api/client";
-import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel } from "./TeacherAssessment";
+import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel, TeacherAssessmentHistoryDialog } from "./TeacherAssessment";
 import StudentReportCard from "@/components/StudentReportCard";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
@@ -285,6 +285,10 @@ const TeacherDashboard = () => {
   const [aiReportContent, setAiReportContent] = useState("");
   const [aiReportStudentName, setAiReportStudentName] = useState("");
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // Assessment History Dialog State
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewData, setReviewData] = useState<{ summary: any[], chapterName: string, score: number, total: number, passed: boolean } | null>(null);
 
   // My Assessments State
   const [assessmentsData, setAssessmentsData] = useState<any[]>([]);
@@ -2894,46 +2898,32 @@ const TeacherDashboard = () => {
                                 </div>
 
                                 {assessment.graded_summary && (
-                                  <details className="text-sm group">
-                                    <summary className="cursor-pointer font-medium text-primary hover:underline outline-none flex items-center gap-1.5 py-1">
-                                      <FileText className="w-4 h-4" /> View Full Assessment Summary
-                                    </summary>
-                                    <div className="mt-3 space-y-3 bg-background border border-border rounded-lg p-3 max-h-[300px] overflow-y-auto">
-                                      {(() => {
+                                  <div className="mt-4 pt-4 border-t border-border flex justify-center">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 font-semibold"
+                                      onClick={() => {
                                         try {
                                           const graded = typeof assessment.graded_summary === 'string' 
                                             ? JSON.parse(assessment.graded_summary) 
                                             : assessment.graded_summary;
-                                          return graded.map((g: any, i: number) => (
-                                            <div key={i} className={`p-2.5 rounded-lg border transition-colors ${g.isCorrect ? 'bg-success/5 border-success/20' : 'bg-destructive/5 border-destructive/20'}`}>
-                                              <div className="flex justify-between items-start gap-2 mb-1.5">
-                                                <p className="font-bold text-xs leading-tight text-foreground">{g.questionText || `Question ${i + 1}`}</p>
-                                                {g.isCorrect ? (
-                                                  <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
-                                                ) : (
-                                                  <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />
-                                                )}
-                                              </div>
-                                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-medium">
-                                                <span className="flex items-center gap-1">
-                                                  <span className="text-muted-foreground">Selected:</span>
-                                                  <span className={g.isCorrect ? "text-success" : "text-destructive"}>{g.selectedOption}</span>
-                                                </span>
-                                                {!g.isCorrect && (
-                                                  <span className="flex items-center gap-1">
-                                                    <span className="text-muted-foreground">Correct:</span>
-                                                    <span className="text-success">{g.correctOption}</span>
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ));
+                                          setReviewData({
+                                            summary: graded,
+                                            chapterName: ch.name,
+                                            score: assessment.score,
+                                            total: assessment.total,
+                                            passed: assessment.passed
+                                          });
+                                          setReviewDialogOpen(true);
                                         } catch (e) {
-                                          return <p className="text-xs text-muted-foreground">Unable to parse summary.</p>;
+                                          toast.error("Unable to open assessment review");
                                         }
-                                      })()}
-                                    </div>
-                                  </details>
+                                      }}
+                                    >
+                                      <FileText className="w-4 h-4" /> View Questions Summary
+                                    </Button>
+                                  </div>
                                 )}
                               </>
                             )}
@@ -3495,6 +3485,17 @@ const TeacherDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+      {reviewData && (
+        <TeacherAssessmentHistoryDialog 
+          open={reviewDialogOpen}
+          onOpenChange={setReviewDialogOpen}
+          gradedSummary={reviewData.summary}
+          chapterName={reviewData.chapterName}
+          score={reviewData.score}
+          total={reviewData.total}
+          passed={reviewData.passed}
+        />
+      )}
     </DashboardLayout>
   );
 };

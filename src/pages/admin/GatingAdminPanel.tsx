@@ -75,16 +75,7 @@ export default function GatingAdminPanel() {
     try {
       await updateGatingConfig({ [key]: value });
       
-      // If we update one of the pass thresholds, update both in local state
-      if (key === "teacher_pass_percentage" || key === "assessment_passing_marks") {
-        setConfig(prev => ({ 
-          ...prev, 
-          teacher_pass_percentage: value,
-          assessment_passing_marks: value 
-        }));
-      } else {
-        setConfig(prev => ({ ...prev, [key]: value }));
-      }
+      setConfig(prev => ({ ...prev, [key]: value }));
       
       toast.success("Configuration updated");
     } catch (err) {
@@ -169,8 +160,7 @@ export default function GatingAdminPanel() {
                   value={config.teacher_pass_percentage || "70"}
                   onChange={(e) => setConfig(prev => ({ 
                     ...prev, 
-                    teacher_pass_percentage: e.target.value,
-                    assessment_passing_marks: e.target.value
+                    teacher_pass_percentage: e.target.value
                   }))}
                   onBlur={(e) => handleUpdateConfig("teacher_pass_percentage", e.target.value)}
                   className="bg-slate-50 border-slate-200 rounded-xl"
@@ -247,8 +237,7 @@ export default function GatingAdminPanel() {
                     value={config.assessment_passing_marks || "70"}
                     onChange={(e) => setConfig(prev => ({ 
                       ...prev, 
-                      assessment_passing_marks: e.target.value,
-                      teacher_pass_percentage: e.target.value
+                      assessment_passing_marks: e.target.value
                     }))}
                     onBlur={(e) => handleUpdateConfig("assessment_passing_marks", e.target.value)}
                     className="bg-slate-50 border-slate-200 rounded-xl"
