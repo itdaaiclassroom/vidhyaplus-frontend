@@ -84,7 +84,7 @@ const Login = () => {
         }
         try {
           const data = await teacherLogin({ email: storedEmail, password });
-          login(data.role || "teacher", data.full_name, undefined, data.id, undefined, data.token);
+          login((data.role || "teacher") as any, data.full_name, undefined, data.id, undefined, data.token);
           navigate("/teacher/setup");
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Login failed");
@@ -94,7 +94,7 @@ const Login = () => {
           const data = await teacherLogin({ email: email.trim(), password });
           // Save email for future Teacher ID login
           localStorage.setItem("teacher.lastEmail", email.trim());
-          login(data.role || "teacher", data.full_name, undefined, data.id, data.school_id, data.token);
+          login((data.role || "teacher") as any, data.full_name, undefined, data.id, data.school_id, data.token);
           navigate("/teacher/setup");
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Login failed");
@@ -104,7 +104,7 @@ const Login = () => {
       try {
         const data = await principalLogin({ email: email.trim(), password });
         const actualRole = data.role || "principal";
-        login(actualRole, data.full_name, undefined, data.id, data.school_id, data.token);
+        login(actualRole as any, data.full_name, undefined, data.id, data.school_id, data.token);
         navigate("/principal");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Login failed";
