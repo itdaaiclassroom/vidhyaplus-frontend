@@ -17,7 +17,7 @@ const TeacherSetup = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>("");
 
   useEffect(() => {
-    if (role !== "teacher" || !teacherId) {
+    if (role !== "teacher" && role !== "principal") {
       navigate("/login?role=teacher", { replace: true });
       return;
     }
@@ -50,7 +50,7 @@ const TeacherSetup = () => {
     }
   };
 
-  if (role !== "teacher" || !teacherId) {
+  if ((role !== "teacher" && role !== "principal") || !teacherId) {
     return null;
   }
 

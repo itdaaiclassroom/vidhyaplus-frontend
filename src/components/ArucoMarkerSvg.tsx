@@ -14,13 +14,38 @@ interface ArucoMarkerSvgProps {
  * Renders an ArUco marker as inline SVG.
  * Drop-in replacement for QRCodeSVG on option cards.
  */
-export const ArucoMarkerSvg = ({ id, size = 110, className }: ArucoMarkerSvgProps) => {
-  const svgHtml = useMemo(() => generateArucoSvg(id, size), [id, size]);
+// export const ArucoMarkerSvg = ({ id, size = 110, className }: ArucoMarkerSvgProps) => {
+//   const svgHtml = useMemo(() => generateArucoSvg(id, size), [id, size]);
+
+//   return (
+//     <div
+//       className={className}
+//       style={{ width: size, height: size, lineHeight: 0 }}
+//       dangerouslySetInnerHTML={{ __html: svgHtml }}
+//     />
+//   );
+// };
+
+export const ArucoMarkerSvg = ({
+  id,
+  size = 500,
+  className
+}: ArucoMarkerSvgProps) => {
+
+  const svgHtml = useMemo(() => {
+    return generateArucoSvg(id, size)
+      .replace(/width="[^"]*"/, 'width="100%"')
+      .replace(/height="[^"]*"/, 'height="100%"');
+  }, [id, size]);
 
   return (
     <div
       className={className}
-      style={{ width: size, height: size, lineHeight: 0 }}
+      style={{
+        width: "100%",
+        height: "100%",
+        lineHeight: 0,
+      }}
       dangerouslySetInnerHTML={{ __html: svgHtml }}
     />
   );

@@ -304,7 +304,7 @@ const IdCardGenerator = () => {
                       photoUrl: s.profile_image_url
                     };
                     return (
-                      <div key={s.id} className="print:w-full print:flex print:flex-col print:justify-start print:items-center print:mx-auto print:pt-0">
+                      <div key={s.id}>
                         {printLayout === "4-in-1" && (
                           <div className="flex items-center gap-4 border-b pb-2 print:hidden mb-4">
                             <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center font-bold text-teal-700">
@@ -320,10 +320,10 @@ const IdCardGenerator = () => {
                           "grid gap-6",
                           printLayout === "4-in-1" 
                             ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-2 print:break-after-page print:p-0"
-                            : "grid-cols-1 lg:grid-cols-4 print:flex print:flex-col print:gap-y-32"
+                            : "grid-cols-1 lg:grid-cols-4"
                         )}>
                           {(["A", "B", "C", "D"] as OptionLetter[]).map((opt) => (
-                            <div key={opt} className={cn("flex justify-center", printLayout === "1-per-page" && "print:break-after-page print:mt-10")}>
+                            <div key={opt} className={cn("flex justify-center", printLayout === "1-per-page" && "page-card-wrapper")}>
                               <StudentOptionCard data={studentData} option={opt} printLayout={printLayout} />
                             </div>
                           ))}
@@ -360,7 +360,20 @@ const IdCardGenerator = () => {
               .text-white { color: white !important; }
 
               .print\\:hidden { display: none !important; }
-              .printable-area { position: relative; width: 100%; display: block !important; margin: 0 auto !important; }
+              .printable-area { 
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important; 
+                width: 100% !important; 
+                display: block !important; 
+                margin: 0 !important; 
+                padding: 0 !important;
+                z-index: 9999;
+              }
+              /* Strip all spacing from printable-area and its children in print */
+              .printable-area > * { margin: 0 !important; padding: 0 !important; }
+              .printable-area > * > * { margin: 0 !important; }
+
               .print\\:grid { display: grid !important; }
               .print\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
               .print\\:gap-10 { gap: 2.5rem !important; }
@@ -371,25 +384,37 @@ const IdCardGenerator = () => {
               .print\\:justify-start { justify-content: flex-start !important; }
               .print\\:items-center { align-items: center !important; }
               .print\\:mx-auto { margin-left: auto; margin-right: auto; }
-              .print\\:pt-0 { padding-top: 5mm !important; }
+              .print\\:pt-0 { padding-top: 0 !important; }
               .print\\:w-full { width: 100% !important; }
-              .print\\:max-w-\\[210mm\\] { max-width: 210mm !important; }
 
-              .print-scale-180 { transform: scale(1.8) !important; transform-origin: top center !important; margin-top: 10mm !important; margin-bottom: 80mm !important; }
+              /* 1-per-page card wrapper: each card centered on its own A4 page */
+              .page-card-wrapper {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                padding: 0 !important;
+                break-after: page !important;
+                page-break-after: always !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+              }
 
               /* Hide everything else except the printable area */
               body > * {
                 visibility: hidden !important;
               }
+              
+              /* Strip all layout offsets from ancestors so absolute positioning anchors to the actual page */
+              body *:not(.printable-area):not(.printable-area *) {
+                position: static !important;
+                padding: 0 !important;
+                margin: 0 !important;
+              }
+
               .printable-area, .printable-area * {
                 visibility: visible !important;
-              }
-              .printable-area {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                z-index: 9999;
               }
           }
         `}} />

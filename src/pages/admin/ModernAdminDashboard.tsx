@@ -36,6 +36,7 @@ const ModernAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [announcement, setAnnouncement] = useState("");
+  const [announcementTarget, setAnnouncementTarget] = useState<string>("all");
   const [analytics, setAnalytics] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -121,8 +122,12 @@ const ModernAdminDashboard = () => {
   const handleSendAnnouncement = async () => {
     if (!announcement.trim()) return;
     try {
-      await createAnnouncement({ title: "Admin Announcement", message: announcement });
-      toast.success("Announcement sent to all teachers");
+      await createAnnouncement({ 
+        title: "Admin Announcement", 
+        message: announcement,
+        target_role: announcementTarget 
+      });
+      toast.success(`Announcement sent to ${announcementTarget === 'all' ? 'everyone' : announcementTarget}`);
       setAnnouncement("");
     } catch (err) {
       toast.error("Failed to send announcement");
@@ -1038,9 +1043,21 @@ const ModernAdminDashboard = () => {
                 <MessageSquare className="w-5 h-5 text-primary" /> Announcements
               </h3>
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-500">Target Audience</Label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                    value={announcementTarget}
+                    onChange={(e) => setAnnouncementTarget(e.target.value)}
+                  >
+                    <option value="all">All Users</option>
+                    <option value="teachers">Teachers Only</option>
+                    <option value="principals">Principals Only</option>
+                  </select>
+                </div>
                 <textarea 
                   className="w-full h-32 p-4 bg-slate-50 border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
-                  placeholder="Broadcast a message to all teachers..."
+                  placeholder="Broadcast a message..."
                   value={announcement}
                   onChange={(e) => setAnnouncement(e.target.value)}
                 />
@@ -1361,23 +1378,21 @@ const ModernAdminDashboard = () => {
               <Label htmlFor="school-active" className="cursor-pointer">Active</Label>
             </div>
 
-            {!editingSchool && (
-              <div className="space-y-3 mt-2 pt-4 border-t border-border">
-                <p className="text-sm font-semibold text-primary">Principal Credentials</p>
-                <div>
-                  <Label>Principal Name</Label>
-                  <Input value={schoolForm.principalName} onChange={(e) => setSchoolForm(f => ({ ...f, principalName: e.target.value }))} placeholder="Dr. Maheshwar Rao" />
-                </div>
-                <div>
-                  <Label>Principal Email</Label>
-                  <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
-                </div>
-                <div>
-                  <Label>Principal Password</Label>
-                  <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
-                </div>
+            <div className="space-y-3 mt-2 pt-4 border-t border-border">
+              <p className="text-sm font-semibold text-primary">{editingSchool ? "Edit Principal Credentials" : "Principal Credentials"}</p>
+              <div>
+                <Label>Principal Name</Label>
+                <Input value={schoolForm.principalName} onChange={(e) => setSchoolForm(f => ({ ...f, principalName: e.target.value }))} placeholder="Dr. Maheshwar Rao" />
               </div>
-            )}
+              <div>
+                <Label>Principal Email</Label>
+                <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
+              </div>
+              <div>
+                <Label>Principal Password {editingSchool && "(leave blank to keep current)"}</Label>
+                <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2 mt-4">
               <Button type="button" variant="outline" onClick={() => setSchoolFormOpen(false)}>Cancel</Button>
