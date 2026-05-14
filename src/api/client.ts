@@ -1605,6 +1605,8 @@ export interface QuestionBankEntry {
   subject_id: number;
   subject_name: string;
   chapter: string | null;
+  topic_name: string | null;
+  level: "Easy" | "Medium" | "Hard" | null;
   grade: number | null;
   question_text: string;
   option_a: string;
@@ -1622,13 +1624,18 @@ export interface QuestionBankResponse {
   page: number;
   limit: number;
   total_pages: number;
-  filters: { subject_id: number | null; grade: string | null; chapter: string | null };
+  filters: { 
+    subject_id: number | null; 
+    grade: string | null; 
+    chapter: string | null;
+    topic_name: string | null;
+    level: string | null;
+  };
   data: QuestionBankEntry[];
 }
 
 export interface BulkUploadQuestionsResponse {
   ok: boolean;
-  subject: string;
   uploaded: number;
   failed: number;
   errors: Array<{ row: number; reason: string }>;
@@ -1643,6 +1650,8 @@ export interface CreateQuestionBody {
   correct_option: "A" | "B" | "C" | "D";
   explanation?: string;
   chapter?: string;
+  topic_name?: string;
+  level?: "Easy" | "Medium" | "Hard";
   grade?: number;
 }
 
@@ -1651,6 +1660,8 @@ export async function fetchQuestionBank(params?: {
   subject_id?: number;
   grade?: number;
   chapter?: string;
+  topic_name?: string;
+  level?: string;
   page?: number;
   limit?: number;
 }): Promise<QuestionBankResponse> {
@@ -1709,9 +1720,8 @@ export async function deleteQuestion(qid: number): Promise<{ ok: boolean; delete
   return res.json();
 }
 
-/** POST /api/subjects/:id/question-bank/bulk — bulk upload from base64 Excel/CSV */
+/** POST /api/subjects/question-bank/bulk — global bulk upload from base64 Excel/CSV */
 export async function bulkUploadQuestions(
-  subjectId: number,
   file: File
 ): Promise<BulkUploadQuestionsResponse> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
@@ -1721,7 +1731,7 @@ export async function bulkUploadQuestions(
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/question-bank/bulk`, {
+  const res = await fetch(`${API_BASE}/api/subjects/question-bank/bulk`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify({ file: base64 }),
