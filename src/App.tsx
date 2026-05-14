@@ -31,7 +31,6 @@ import MvpSubmissionHub from "./pages/MvpSubmissionHub";
 import PrincipalDashboard from "./pages/principal/PrincipalDashboard";
 import IdCardGenerator from "./pages/admin/IdCardGenerator";
 
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -42,35 +41,34 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/mvp" element={<MvpSubmissionHub />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/activities" element={<Activities />} />
-            <Route path="/teacher/setup" element={<TeacherSetup />} />
-            <Route path="/teacher" element={<TeacherDashboard />} />
-            <Route path="/teacher/lesson" element={<LessonScreen />} />
-            <Route path="/teacher/quiz" element={<QuizScreen />} />
-            <Route path="/teacher/live-quiz-scan" element={<LiveQuizScan />} />
-            <Route path="/admin" element={<ModernAdminDashboard />} />
-            <Route path="/admin/id-cards" element={<IdCardGenerator />} />
-            <Route path="/admin/schools-analytics" element={<SchoolsAnalytics />} />
-            <Route path="/admin/students-filter" element={<StudentsFilter />} />
-            <Route path="/admin/students-analytics" element={<StudentsAnalytics />} />
-            <Route path="/admin/register/student" element={<StudentRegistration />} />
-            <Route path="/admin/register/teacher" element={<TeacherRegistration />} />
-            <Route path="/student" element={<StudentDashboard />} />
-            <Route path="/student/subjects" element={<StudentSubjects />} />
-            <Route path="/student/quiz" element={<StudentQuiz />} />
-            <Route path="/student/quiz-results" element={<StudentQuizResults />} />
-            <Route path="/student/live-quiz/:sessionId" element={<StudentLiveQuiz />} />
-            <Route path="/student/qr/:token" element={<StudentQrProfile />} />
-            <Route path="/principal" element={<PrincipalDashboard />} />
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/activities" element={<Activities />} />
+              <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/teacher/setup" element={<TeacherSetup />} />
+              <Route path="/teacher/lesson" element={<LessonScreen />} />
+              <Route path="/teacher/quiz" element={<QuizScreen />} />
+              <Route path="/teacher/scan" element={<LiveQuizScan />} />
+              <Route path="/admin" element={<ModernAdminDashboard />} />
+              <Route path="/admin/schools" element={<SchoolsAnalytics />} />
+              <Route path="/admin/students" element={<StudentsFilter />} />
+              <Route path="/admin/analytics" element={<StudentsAnalytics />} />
+              <Route path="/admin/registration/student" element={<StudentRegistration />} />
+              <Route path="/admin/registration/teacher" element={<TeacherRegistration />} />
+              <Route path="/admin/id-cards" element={<IdCardGenerator />} />
+              <Route path="/student" element={<StudentDashboard />} />
+              <Route path="/student/subjects" element={<StudentSubjects />} />
+              <Route path="/student/quiz" element={<StudentQuiz />} />
+              <Route path="/student/results" element={<StudentQuizResults />} />
+              <Route path="/student/live-quiz" element={<StudentLiveQuiz />} />
+              <Route path="/student/qr-profile" element={<StudentQrProfile />} />
+              <Route path="/principal" element={<PrincipalDashboard />} />
+              <Route path="/mvp-submission" element={<MvpSubmissionHub />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </DataProvider>
       </AuthProvider>
     </TooltipProvider>

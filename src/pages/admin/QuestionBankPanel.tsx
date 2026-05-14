@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { HelpCircle, Plus, Edit2, X, ChevronLeft, ChevronRight, Trash2, Upload, AlertCircle, CheckCircle, Loader, List } from 'lucide-react';
+import { HelpCircle, Plus, Edit2, X, ChevronLeft, ChevronRight, Trash2, Upload, AlertCircle, CheckCircle, Loader, List, Download } from 'lucide-react';
+import * as XLSX from "xlsx";
 import { 
-  fetchQuestionBank, createQuestion, updateQuestion, deleteQuestion, bulkUploadQuestions,
+  fetchQuestionBank, createQuestion, updateQuestion, deleteQuestion, bulkUploadQuestions, fetchSubjectTopics,
   QuestionBankEntry, QuestionBankResponse, BulkUploadQuestionsResponse, CreateQuestionBody 
 } from '@/api/client';
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,16 +46,68 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
   
   const initialFormState: CreateQuestionBody = {
     question_text: "", option_a: "", option_b: "", option_c: "", option_d: "",
+<<<<<<< HEAD
     correct_option: "A", explanation: "", chapter: "", topic_name: "", level: "Medium", grade: undefined
+=======
+    correct_option: "A", explanation: "", chapter: "", grade: undefined, assigned_for: "both"
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
   };
   const [qbForm, setQbForm] = useState<CreateQuestionBody>(initialFormState);
   const [modalSubjectId, setModalSubjectId] = useState<number | "">("");
+  const [modalTopicId, setModalTopicId] = useState<number | "">("");
+  const [modalTopics, setModalTopics] = useState<any[]>([]);
+  const [loadingModalTopics, setLoadingModalTopics] = useState(false);
 
   // Bulk Upload State
   const [bulkOpen, setBulkOpen] = useState(false);
+<<<<<<< HEAD
+=======
+  const [bulkSubjectId, setBulkSubjectId] = useState<number | "">("");
+  const [bulkGrade, setBulkGrade] = useState<string>("");
+  const [bulkTopicId, setBulkTopicId] = useState<number | "">("");
+  const [topics, setTopics] = useState<any[]>([]);
+  const [loadingTopics, setLoadingTopics] = useState(false);
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
   const [bulkFile, setBulkFile] = useState<File | null>(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkResult, setBulkResult] = useState<BulkUploadQuestionsResponse | null>(null);
+
+  const downloadSampleTemplate = () => {
+    const data = [
+      ["Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer", "Explanation", "Chapter", "Grade", "Assigned For"],
+      ["What is the powerhouse of the cell?", "Nucleus", "Mitochondria", "Ribosome", "Golgi Body", "B", "Mitochondria generates ATP.", "Introduction to Cells", "9", "both"],
+      ["Which planet is known as the Red Planet?", "Earth", "Mars", "Jupiter", "Venus", "B", "Mars has iron oxide on its surface.", "Solar System", "8", "student"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "QuestionsTemplate");
+    XLSX.writeFile(wb, "quiz_questions_template.xlsx");
+  };
+
+
+  useEffect(() => {
+    if (bulkSubjectId && bulkOpen) {
+      setLoadingTopics(true);
+      fetchSubjectTopics(Number(bulkSubjectId), bulkGrade ? Number(bulkGrade) : undefined)
+        .then(setTopics)
+        .catch(() => setTopics([]))
+        .finally(() => setLoadingTopics(false));
+    } else {
+      setTopics([]);
+    }
+  }, [bulkSubjectId, bulkGrade, bulkOpen]);
+
+  useEffect(() => {
+    if (modalSubjectId && qbModalOpen) {
+      setLoadingModalTopics(true);
+      fetchSubjectTopics(Number(modalSubjectId), qbForm.grade)
+        .then(setModalTopics)
+        .catch(() => setModalTopics([]))
+        .finally(() => setLoadingModalTopics(false));
+    } else {
+      setModalTopics([]);
+    }
+  }, [modalSubjectId, qbForm.grade, qbModalOpen]);
 
   const loadQuestions = async () => {
     setQbLoading(true);
@@ -109,13 +162,15 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
   const handleOpenAddModal = () => {
     setEditingQuestion(null);
     setQbForm(initialFormState);
-    setModalSubjectId(qbSubjectId);
+    setModalSubjectId(qbSubjectId || "");
+    setModalTopicId("");
     setQbModalOpen(true);
   };
 
   const handleOpenEditModal = (q: QuestionBankEntry) => {
     setEditingQuestion(q);
     setModalSubjectId(q.subject_id);
+    setModalTopicId(""); // We don't have topic_id in subject_quiz_bank yet
     setQbForm({
       question_text: q.question_text,
       option_a: q.option_a,
@@ -125,9 +180,14 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
       correct_option: q.correct_option,
       explanation: q.explanation || "",
       chapter: q.chapter || "",
+<<<<<<< HEAD
       topic_name: q.topic_name || "",
       level: (q.level as any) || "Medium",
       grade: q.grade || undefined
+=======
+      grade: q.grade || undefined,
+      assigned_for: q.assigned_for || "both"
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
     });
     setQbModalOpen(true);
   };
@@ -144,7 +204,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
         await updateQuestion(editingQuestion.id, qbForm);
         toast.success("Question updated!");
       } else {
-        await createQuestion(Number(modalSubjectId), qbForm);
+        await createQuestion(Number(modalSubjectId), { ...qbForm, topic_id: modalTopicId !== "" ? Number(modalTopicId) : undefined } as any);
         toast.success("Question created!");
       }
       setQbModalOpen(false);
@@ -175,7 +235,11 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
     setBulkUploading(true);
     setBulkResult(null);
     try {
+<<<<<<< HEAD
       const res = await bulkUploadQuestions(bulkFile);
+=======
+      const res = await bulkUploadQuestions(Number(bulkSubjectId), bulkFile, bulkTopicId !== "" ? Number(bulkTopicId) : undefined);
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
       setBulkResult(res);
       toast.success("Bulk upload processed!");
       if (res.uploaded > 0) {
@@ -208,7 +272,14 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
           </div>
         </div>
         <div className="flex gap-2">
+<<<<<<< HEAD
           <Button variant="outline" className="rounded-xl" onClick={() => { setBulkFile(null); setBulkResult(null); setBulkOpen(true); }}>
+=======
+          <Button variant="outline" className="rounded-xl" onClick={downloadSampleTemplate}>
+            <Download className="w-4 h-4 mr-2" /> Download Template
+          </Button>
+          <Button variant="outline" className="rounded-xl" onClick={() => { setBulkFile(null); setBulkResult(null); setBulkSubjectId(qbSubjectId); setBulkOpen(true); }}>
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
             <Upload className="w-4 h-4 mr-2" /> Upload Excel
           </Button>
           <Button className="rounded-xl" onClick={handleOpenAddModal}>
@@ -274,14 +345,15 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Grade</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Level</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-center">Correct</th>
+                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-center">Assigned For</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {qbLoading ? (
-                <tr><td colSpan={6} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                <tr><td colSpan={7} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
               ) : questions.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-500">No questions found</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-slate-500">No questions found</td></tr>
               ) : (
                 questions.map(q => {
                   const isExp = expandedRow === q.id;
@@ -309,6 +381,14 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                             'bg-red-100 text-red-700'
                           }`}>{q.correct_option}</span>
                         </td>
+                        <td className="px-5 py-3 text-center">
+                          <Badge variant="outline" className={
+                            q.assigned_for === 'student' ? 'text-blue-600 bg-blue-50' : 
+                            q.assigned_for === 'teacher' ? 'text-purple-600 bg-purple-50' : 'text-slate-600 bg-slate-50'
+                          }>
+                            {q.assigned_for === 'student' ? 'Students' : q.assigned_for === 'teacher' ? 'Teachers' : 'Both'}
+                          </Badge>
+                        </td>
                         <td className="px-5 py-3 text-right space-x-2">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-primary" onClick={(e) => { e.stopPropagation(); handleOpenEditModal(q); }}>
                             <Edit2 className="w-4 h-4" />
@@ -320,7 +400,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                       </tr>
                       {isExp && (
                         <tr className="bg-slate-50/50">
-                          <td colSpan={6} className="px-10 py-4">
+                          <td colSpan={7} className="px-10 py-4">
                             <div className="grid grid-cols-2 gap-4 max-w-3xl">
                               <OptionBadge option="A" text={q.option_a} isCorrect={q.correct_option === 'A'} />
                               <OptionBadge option="B" text={q.option_b} isCorrect={q.correct_option === 'B'} />
@@ -392,6 +472,25 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                 </select>
               </div>
             </div>
+
+            <div className="space-y-1">
+              <Label>Assign to Topic <span className="text-slate-400 text-[10px] font-normal">(Required for Teacher Assessments)</span></Label>
+              <select 
+                className="w-full h-10 px-3 border rounded-xl" 
+                value={modalTopicId} 
+                onChange={e => setModalTopicId(e.target.value ? Number(e.target.value) : "")}
+                disabled={loadingModalTopics || !modalSubjectId || !!editingQuestion}
+              >
+                <option value="">Select Topic (Optional)...</option>
+                {modalTopics.map(t => (
+                  <option key={t.id} value={t.id}>
+                    [{t.chapter_name}] {t.name}
+                  </option>
+                ))}
+              </select>
+              {loadingModalTopics && <p className="text-[10px] text-blue-500 animate-pulse">Loading topics...</p>}
+              {editingQuestion && <p className="text-[10px] text-amber-500 italic">Topic assignment is only available during creation.</p>}
+            </div>
             
             <div className="space-y-1">
               <Label>Question Text <span className="text-red-500">*</span></Label>
@@ -418,6 +517,15 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
             </div>
 
             <div className="space-y-1">
+              <Label>Assigned For</Label>
+              <select className="w-full h-10 px-3 border rounded-xl" value={qbForm.assigned_for || "both"} onChange={e => setQbForm(f => ({ ...f, assigned_for: e.target.value as "student" | "teacher" | "both" }))}>
+                <option value="both">Both</option>
+                <option value="student">Students</option>
+                <option value="teacher">Teachers</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
               <Label>Explanation (optional)</Label>
               <textarea className="w-full p-3 border rounded-xl" rows={2} value={qbForm.explanation} onChange={e => setQbForm(f => ({ ...f, explanation: e.target.value }))} />
             </div>
@@ -434,12 +542,53 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="max-w-xl rounded-3xl">
           <DialogHeader>
-            <DialogTitle>Bulk Upload Questions</DialogTitle>
+            <DialogTitle className="flex justify-between items-center pr-8">
+              Bulk Upload Questions
+              <Button variant="ghost" size="sm" onClick={downloadSampleTemplate} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 gap-2">
+                <Download className="w-4 h-4" /> Download Template
+              </Button>
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-4">
+<<<<<<< HEAD
             <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-800">
               <p className="font-bold mb-1 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Master Global Upload</p>
               <p>You can now upload questions for multiple subjects in a single file. The system will automatically map them based on the <strong>Subject</strong> column in your Excel.</p>
+=======
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Subject <span className="text-red-500">*</span></Label>
+                <select className="w-full h-10 px-3 border rounded-xl" value={bulkSubjectId} onChange={e => { setBulkSubjectId(e.target.value ? Number(e.target.value) : ""); setBulkTopicId(""); }}>
+                  <option value="">Select Subject...</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Grade (Optional filter)</Label>
+                <select className="w-full h-10 px-3 border rounded-xl" value={bulkGrade} onChange={e => { setBulkGrade(e.target.value); setBulkTopicId(""); }}>
+                  <option value="">All Grades</option>
+                  {[6,7,8,9,10].map(g => <option key={g} value={g}>Class {g}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Assign to Topic <span className="text-slate-400 text-[10px] font-normal">(Required for Teacher Assessments)</span></Label>
+              <select 
+                className="w-full h-10 px-3 border rounded-xl" 
+                value={bulkTopicId} 
+                onChange={e => setBulkTopicId(e.target.value ? Number(e.target.value) : "")}
+                disabled={loadingTopics || !bulkSubjectId}
+              >
+                <option value="">Select Topic (Optional)...</option>
+                {topics.map(t => (
+                  <option key={t.id} value={t.id}>
+                    [{t.chapter_name}] {t.name}
+                  </option>
+                ))}
+              </select>
+              {loadingTopics && <p className="text-[10px] text-blue-500 animate-pulse">Loading topics...</p>}
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
             </div>
 
             <div className="relative border-2 border-dashed border-slate-300 rounded-xl p-8 hover:bg-slate-50 transition-colors text-center cursor-pointer">
@@ -450,9 +599,17 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
               ) : (
                 <>
                   <p className="font-medium text-slate-700">Drop your .xlsx or .csv file here</p>
+<<<<<<< HEAD
                   <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                     Required Columns: <strong>Subject, Question, Option A, Option B, Option C, Option D, Correct Answer</strong><br/>
                     Optional: Topic Name, Level, Grade, Chapter, Explanation
+=======
+                  <p className="text-[10px] text-slate-500 mt-1 max-w-[80%] mx-auto">
+                    Columns: Question, Option A, Option B, Option C, Option D, Correct Answer, Explanation (opt), Chapter (opt), Grade (opt), Assigned For (opt)
+                  </p>
+                  <p className="text-[10px] text-indigo-500 mt-2 font-semibold">
+                    Note: If you don't select a Topic above, questions will only be saved in the general subject bank.
+>>>>>>> 707cb222bf8423629a856af2446b80952b84a189
                   </p>
                 </>
               )}

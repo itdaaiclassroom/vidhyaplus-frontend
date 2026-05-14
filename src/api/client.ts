@@ -1192,6 +1192,15 @@ export async function fetchTeacherAssignments(teacherId: string): Promise<{ assi
   return res.json();
 }
 
+export async function fetchTeacherAssessments(teacherId: string): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/assessments`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 export async function markTeacherSelfAttendance(teacherId: string, status: "present" | "absent" | "leave"): Promise<{ ok: boolean; status: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/${teacherId}/attendance`, {
@@ -1615,6 +1624,7 @@ export interface QuestionBankEntry {
   option_d: string;
   correct_option: "A" | "B" | "C" | "D";
   explanation: string | null;
+  assigned_for: "student" | "teacher" | "both";
   uploaded_by: string | null;
   created_at: string;
 }
@@ -1624,9 +1634,9 @@ export interface QuestionBankResponse {
   page: number;
   limit: number;
   total_pages: number;
-  filters: { 
-    subject_id: number | null; 
-    grade: string | null; 
+  filters: {
+    subject_id: number | null;
+    grade: string | null;
     chapter: string | null;
     topic_name: string | null;
     level: string | null;
@@ -1653,6 +1663,7 @@ export interface CreateQuestionBody {
   topic_name?: string;
   level?: "Easy" | "Medium" | "Hard";
   grade?: number;
+  assigned_for?: "student" | "teacher" | "both";
 }
 
 /** GET /api/subjects/question-bank — system-wide question bank with optional filters */
@@ -1722,7 +1733,8 @@ export async function deleteQuestion(qid: number): Promise<{ ok: boolean; delete
 
 /** POST /api/subjects/question-bank/bulk — global bulk upload from base64 Excel/CSV */
 export async function bulkUploadQuestions(
-  file: File
+  file: File,
+  topicId?: number
 ): Promise<BulkUploadQuestionsResponse> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const base64 = await new Promise<string>((resolve, reject) => {
@@ -1734,7 +1746,36 @@ export async function bulkUploadQuestions(
   const res = await fetch(`${API_BASE}/api/subjects/question-bank/bulk`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ file: base64 }),
+    body: JSON.stringify({ file: base64, topic_id: topicId }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchSchoolRanking(): Promise<{ rank: number, total: number }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/dashboard/school-ranking`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchBroadcastMessages(): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const rolePrefix = localStorage.getItem('role') === 'teacher' ? 'teacher' : 'principal';
+  const res = await fetch(`${API_BASE}/api/${rolePrefix}/dashboard/broadcast-messages`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchSubjectTopics(subjectId: number, grade?: number): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const url = grade ? `${API_BASE}/api/subjects/${subjectId}/topics?grade=${grade}` : `${API_BASE}/api/subjects/${subjectId}/topics`;
+  const res = await fetch(url, {
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
