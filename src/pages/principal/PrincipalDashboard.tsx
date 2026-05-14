@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -86,6 +87,7 @@ const navigationGroups = [
 ];
 
 const PrincipalDashboardInner: React.FC = () => {
+  const navigate = useNavigate();
   const { schoolId } = useAuth();
   const { students: realStudents, teachers: realTeachers, grades, sections, profile, loading, refetch } = usePrincipal();
   
