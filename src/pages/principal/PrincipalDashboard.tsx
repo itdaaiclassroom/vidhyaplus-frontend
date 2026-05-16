@@ -944,7 +944,7 @@ const PrincipalDashboardInner: React.FC = () => {
             <BulkUpload />
           </TabsContent>
           <TabsContent value="id-cards" className="space-y-4">
-             <IdCardGenerator />
+             <IdCardGenerator isEmbedded={true} />
           </TabsContent>
         </section>
       </div>

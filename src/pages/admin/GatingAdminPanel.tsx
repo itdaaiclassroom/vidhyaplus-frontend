@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ShieldCheck, 
-  Settings2, 
-  History, 
-  Unlock, 
-  Lock, 
-  Search, 
+import {
+  ShieldCheck,
+  Settings2,
+  History,
+  Unlock,
+  Lock,
+  Search,
   Filter,
   CheckCircle2,
   XCircle,
@@ -20,12 +20,12 @@ import {
   RefreshCw,
   BookOpen
 } from "lucide-react";
-import { 
-  fetchGatingConfig, 
-  updateGatingConfig, 
-  fetchChapterOverrides, 
+import {
+  fetchGatingConfig,
+  updateGatingConfig,
+  fetchChapterOverrides,
   createChapterOverride,
-  fetchPrincipalSubjects 
+  fetchPrincipalSubjects
 } from "@/api/client";
 import { toast } from "sonner";
 import { useAppData } from "@/contexts/DataContext";
@@ -37,11 +37,11 @@ export default function GatingAdminPanel() {
   const [config, setConfig] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   // Overrides state
   const [overrides, setOverrides] = useState<any[]>([]);
   const [overridesLoading, setOverridesLoading] = useState(false);
-  
+
   // New override form
   const [targetSchoolId, setTargetSchoolId] = useState("");
   const [targetTeacherId, setTargetTeacherId] = useState("");
@@ -74,9 +74,9 @@ export default function GatingAdminPanel() {
     setSaving(true);
     try {
       await updateGatingConfig({ [key]: value });
-      
+
       setConfig(prev => ({ ...prev, [key]: value }));
-      
+
       toast.success("Configuration updated");
     } catch (err) {
       toast.error("Failed to update configuration");
@@ -115,7 +115,7 @@ export default function GatingAdminPanel() {
     const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
     if (!teacher) return false;
     // Basic filtering logic - in a real app you'd filter by teacher's subject/grade
-    return true; 
+    return true;
   });
 
   if (loading) {
@@ -129,8 +129,8 @@ export default function GatingAdminPanel() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
         {/* Global Settings */}
         <Card className="border-0 shadow-sm rounded-2xl overflow-hidden lg:col-span-1">
           <CardHeader className="bg-white border-b border-slate-50">
@@ -145,7 +145,7 @@ export default function GatingAdminPanel() {
                 <Label className="text-sm font-semibold">Enable Gating System</Label>
                 <p className="text-xs text-slate-500">Enable or disable strict progression across the app.</p>
               </div>
-              <Switch 
+              <Switch
                 checked={config.gating_enabled === "true"}
                 onCheckedChange={(checked) => handleUpdateConfig("gating_enabled", checked ? "true" : "false")}
                 disabled={saving}
@@ -155,11 +155,11 @@ export default function GatingAdminPanel() {
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Teacher Pass Threshold (%)</Label>
               <div className="flex items-center gap-3">
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={config.teacher_pass_percentage || "70"}
-                  onChange={(e) => setConfig(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
                     teacher_pass_percentage: e.target.value
                   }))}
                   onBlur={(e) => handleUpdateConfig("teacher_pass_percentage", e.target.value)}
@@ -175,8 +175,8 @@ export default function GatingAdminPanel() {
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Student Threshold (%)</Label>
               <div className="flex items-center gap-3">
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   value={config.student_threshold_percentage || "60"}
                   onChange={(e) => setConfig(prev => ({ ...prev, student_threshold_percentage: e.target.value }))}
                   onBlur={(e) => handleUpdateConfig("student_threshold_percentage", e.target.value)}
@@ -189,92 +189,101 @@ export default function GatingAdminPanel() {
               <p className="text-[10px] text-slate-400 italic">Class average needed to unlock next chapter assessment.</p>
             </div>
 
-            {/* Assessment Configuration */}
-            <div className="pt-4 border-t border-slate-100">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <BookOpen className="w-4 h-4 text-purple-600" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">Assessment Configuration</h4>
-                  <p className="text-[10px] text-slate-400">Controls for teacher chapter assessments</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600">Questions per Chapter</Label>
-                  <Input 
-                    type="number" 
-                    value={config.assessment_question_count || "10"}
-                    onChange={(e) => setConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
-                    onBlur={(e) => handleUpdateConfig("assessment_question_count", e.target.value)}
-                    className="bg-slate-50 border-slate-200 rounded-xl"
-                    min="1"
-                    max="30"
-                  />
-                  <p className="text-[10px] text-slate-400 italic">Number of MCQ questions in each teacher assessment (1–30).</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600">Total Marks</Label>
-                  <Input 
-                    type="number" 
-                    value={config.assessment_total_marks || "100"}
-                    onChange={(e) => setConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
-                    onBlur={(e) => handleUpdateConfig("assessment_total_marks", e.target.value)}
-                    className="bg-slate-50 border-slate-200 rounded-xl"
-                    min="1"
-                    max="1000"
-                  />
-                  <p className="text-[10px] text-slate-400 italic">Maximum marks for the assessment. Distributed equally across questions.</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-slate-600">Passing Marks</Label>
-                  <Input 
-                    type="number" 
-                    value={config.assessment_passing_marks || "70"}
-                    onChange={(e) => setConfig(prev => ({ 
-                      ...prev, 
-                      assessment_passing_marks: e.target.value
-                    }))}
-                    onBlur={(e) => handleUpdateConfig("assessment_passing_marks", e.target.value)}
-                    className="bg-slate-50 border-slate-200 rounded-xl"
-                    min="1"
-                    max="1000"
-                  />
-                  <p className="text-[10px] text-slate-400 italic">Minimum marks required for a teacher to pass the assessment.</p>
-                </div>
-              </div>
-            </div>
-
             <div className="pt-4 border-t border-slate-50">
-              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl shadow-sm">
                 <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
                 <p className="text-[11px] text-blue-700 leading-tight">
-                  Changes apply immediately to all active sessions and dashboards.
+                  Global rules apply immediately to all active sessions.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Manual Override Form */}
-        <Card className="border-0 shadow-sm rounded-2xl overflow-hidden lg:col-span-2">
+        {/* Teacher Assessment Configuration */}
+        <Card className="border-0 shadow-sm rounded-2xl overflow-hidden lg:col-span-1">
           <CardHeader className="bg-white border-b border-slate-50">
             <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
-              <Unlock className="w-5 h-5 text-amber-500" /> Manual Chapter Override
+              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-purple-600" />
+              </div>
+              Assessment Config
             </CardTitle>
-            <CardDescription>Grant temporary access or bypass gating for specific chapters.</CardDescription>
+            <CardDescription>Rules for teacher competency exams.</CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select School</Label>
-                  <select 
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+          <CardContent className="p-6 space-y-6">
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Questions per Chapter</Label>
+              <Input
+                type="number"
+                value={config.assessment_question_count || "10"}
+                onChange={(e) => setConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
+                onBlur={(e) => {
+                  let val = parseInt(e.target.value, 10);
+                  if (isNaN(val) || val < 1) val = 10;
+                  if (val > 30) val = 30;
+                  const strVal = String(val);
+                  setConfig(prev => ({ ...prev, assessment_question_count: strVal }));
+                  handleUpdateConfig("assessment_question_count", strVal);
+                }}
+                className="bg-slate-50 border-slate-200 rounded-xl"
+                min="1"
+                max="30"
+              />
+              <p className="text-[10px] text-slate-400 italic">Max 30 questions. Distributed from question bank.</p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Total Assessment Marks</Label>
+              <Input
+                type="number"
+                value={config.assessment_total_marks || "100"}
+                onChange={(e) => setConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
+                onBlur={(e) => handleUpdateConfig("assessment_total_marks", e.target.value)}
+                className="bg-slate-50 border-slate-200 rounded-xl"
+                min="1"
+                max="1000"
+              />
+              <p className="text-[10px] text-slate-400 italic">Distributed equally across selected questions.</p>
+            </div>
+
+            <div className="pt-4 border-t border-slate-50">
+              <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-100 rounded-xl shadow-sm">
+                <Settings2 className="w-4 h-4 text-purple-500 shrink-0" />
+                <p className="text-[11px] text-purple-700 leading-tight font-medium">
+                  Configures the auto-generated teacher quiz interface.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+      </div>
+
+      {/* Manual Override Form */}
+      <Card className="border-0 shadow-sm rounded-3xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-br from-white to-slate-50 border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
+                <Unlock className="w-5 h-5 text-amber-500" /> Manual Chapter Override
+              </CardTitle>
+              <CardDescription>Grant bypass for specific teachers.</CardDescription>
+            </div>
+            <div className="h-10 w-10 bg-amber-50 rounded-2xl flex items-center justify-center border border-amber-100">
+              <ShieldCheck className="w-5 h-5 text-amber-500" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="relative group">
+                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full opacity-0 group-focus-within:opacity-100 transition-all" />
+                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 1: School & Teacher</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <select
+                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
                     value={targetSchoolId}
                     onChange={(e) => {
                       setTargetSchoolId(e.target.value);
@@ -283,15 +292,11 @@ export default function GatingAdminPanel() {
                       setTargetChapterId("");
                     }}
                   >
-                    <option value="">Choose School...</option>
+                    <option value="">School...</option>
                     {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Teacher</Label>
-                  <select 
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  <select
+                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
                     value={targetTeacherId}
                     onChange={(e) => {
                       setTargetTeacherId(e.target.value);
@@ -299,80 +304,80 @@ export default function GatingAdminPanel() {
                       setTargetChapterId("");
                     }}
                   >
-                    <option value="">Choose Teacher...</option>
+                    <option value="">Teacher...</option>
                     {teachers
                       .filter(t => !targetSchoolId || String(t.schoolId) === targetSchoolId)
-                      .map(t => <option key={t.id} value={t.id}>{t.name} ({schools.find(s => s.id === t.schoolId)?.name || 'Unknown School'})</option>)}
+                      .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Class</Label>
-                  <select 
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              <div className="relative group">
+                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full opacity-0 group-focus-within:opacity-100 transition-all" />
+                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 2: Class & Chapter</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <select
+                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
                     value={targetClassId}
                     onChange={(e) => setTargetClassId(e.target.value)}
                   >
-                    <option value="">Choose Class...</option>
+                    <option value="">Class...</option>
                     {classes
-                      .filter(c => {
-                        if (!targetTeacherId) return true;
-                        const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
-                        return teacher?.classIds.includes(c.id) ?? true;
-                      })
-                      .map(c => <option key={c.id} value={c.id}>{c.name} ({schools.find(s => s.id === c.schoolId)?.name})</option>)}
+                      .filter(c => !targetSchoolId || String(c.schoolId) === targetSchoolId)
+                      .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Chapter</Label>
-                  <select 
-                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  <select
+                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
                     value={targetChapterId}
                     onChange={(e) => setTargetChapterId(e.target.value)}
                   >
-                    <option value="">Choose Chapter...</option>
+                    <option value="">Chapter...</option>
                     {chapters
-                      .sort((a,b) => (a.order || 0) - (b.order || 0))
                       .filter(ch => {
                         if (!targetTeacherId) return true;
                         const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
                         if (!teacher?.subjects || teacher.subjects.length === 0) return true;
-                        // Match by subject name (from chaptersRow mapping in index.js)
-                        // In index.js, chapters have subjectId. Let's find the subject name for that ID.
                         return teacher.subjects.some(subName => {
                           const sub = data.subjects?.find(s => s.name === subName);
                           return sub && String(sub.id) === String(ch.subjectId);
                         });
                       })
-                      .map(ch => <option key={ch.id} value={ch.id}>{ch.name} (G{ch.grade})</option>)}
+                      .map(ch => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
                   </select>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-4 flex flex-col">
-                <div className="space-y-1.5 flex-1">
-                  <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reason for Override</Label>
-                  <textarea 
-                    className="w-full h-full min-h-[100px] p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
-                    placeholder="e.g., Technical issue during assessment, transfer teacher, etc."
-                    value={overrideReason}
-                    onChange={(e) => setOverrideReason(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  className="w-full rounded-xl py-6 font-bold gap-2" 
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 3: Reason for Authorization</Label>
+                <textarea
+                  className="w-full h-28 p-5 bg-slate-50 border border-slate-200 rounded-[2rem] text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none shadow-sm"
+                  placeholder="Provide detailed justification for the manual unlock..."
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  className="w-full rounded-2xl py-8 font-bold gap-3 shadow-xl shadow-primary/10 hover:shadow-primary/20 text-lg"
                   onClick={handleCreateOverride}
                   disabled={creatingOverride || !targetTeacherId || !targetChapterId}
                 >
-                  {creatingOverride ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                  {creatingOverride ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
                   Authorize Manual Unlock
                 </Button>
+
+                <p className="text-[10px] text-center text-slate-400 px-4 leading-relaxed">
+                  <AlertCircle className="w-3 h-3 inline mr-1 mb-0.5" />
+                  All manual overrides are logged permanently with your administrator ID for security compliance.
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Override History */}
       <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">

@@ -284,7 +284,7 @@ export const StudentOptionCard = ({ data, option, printLayout = "4-in-1" }: { da
         {/* Header */}
         <div className="fp-header px-5 pt-6 pb-4 flex justify-between items-start relative z-10">
           <div />
-          <VidhyaPlusLogo className="ml-auto" />
+          <VidhyaPlusLogo className="ml-auto print:scale-[1.5] print:origin-top-right" />
         </div>
 
         {/* Option Badge */}

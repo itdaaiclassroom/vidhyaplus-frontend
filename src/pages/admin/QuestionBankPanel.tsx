@@ -100,8 +100,6 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
         subject_id: qbSubjectId !== "" ? Number(qbSubjectId) : undefined,
         grade: qbGrade !== "" ? Number(qbGrade) : undefined,
         chapter: qbChapter !== "" ? qbChapter : undefined,
-        topic_name: qbTopicName !== "" ? qbTopicName : undefined,
-        level: qbLevel !== "" ? qbLevel : undefined,
         page: qbPage,
         limit: 20
       });
@@ -135,14 +133,12 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
 
   useEffect(() => {
     loadQuestions();
-  }, [qbSubjectId, qbGrade, qbChapter, qbTopicName, qbLevel, qbPage]);
+  }, [qbSubjectId, qbGrade, qbChapter, qbPage]);
 
   const applyFilters = () => {
     setQbSubjectId(qbPendingSubject);
     setQbGrade(qbPendingGrade);
     setQbChapter(qbPendingChapter);
-    setQbTopicName(qbPendingTopicName);
-    setQbLevel(qbPendingLevel);
     setQbPage(1);
   };
 
@@ -150,13 +146,9 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
     setQbPendingSubject("");
     setQbPendingGrade("");
     setQbPendingChapter("");
-    setQbPendingTopicName("");
-    setQbPendingLevel("");
     setQbSubjectId("");
     setQbGrade("");
     setQbChapter("");
-    setQbTopicName("");
-    setQbLevel("");
     setQbPage(1);
   };
 
@@ -271,10 +263,10 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
             <Plus className="w-4 h-4 mr-2" /> Add Question
           </Button>
         </div>
-      </div>
+      </div >
 
       {/* Filters */}
-      <Card className="border-0 shadow-sm rounded-2xl bg-slate-50 mb-6">
+      < Card className="border-0 shadow-sm rounded-2xl bg-slate-50 mb-6" >
         <CardContent className="p-5 flex flex-wrap gap-3 items-end">
           <div className="space-y-1 w-48">
             <Label className="text-xs font-bold text-slate-500 uppercase">Subject</Label>
@@ -315,8 +307,8 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
           </div>
           <Button className="rounded-xl h-10 px-6" onClick={applyFilters}>Apply</Button>
           <Button variant="outline" className="rounded-xl h-10" onClick={clearFilters}>Clear</Button>
-        </CardContent>
-      </Card>
+        </CardContent >
+      </Card >
 
       <div className="mb-4 flex items-center">
         <Badge variant="outline" className="text-slate-500">
@@ -332,9 +324,8 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
               <tr>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase w-12">#</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase w-1/3">Question</th>
-                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Chapter / Topic</th>
+                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Chapter</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Grade</th>
-                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Level</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-center">Correct</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-right">Actions</th>
               </tr>
@@ -352,22 +343,13 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                       <tr className={`hover:bg-slate-50 transition-colors cursor-pointer ${isExp ? 'bg-slate-50' : ''}`} onClick={() => setExpandedRow(isExp ? null : q.id)}>
                         <td className="px-5 py-3 text-sm text-slate-400">{q.id}</td>
                         <td className="px-5 py-3 text-sm font-medium text-slate-800 line-clamp-2">{q.question_text}</td>
-                        <td className="px-5 py-3 text-sm text-slate-500">
-                          <div className="font-medium text-slate-700">{q.chapter || '-'}</div>
-                          <div className="text-xs text-slate-400">{q.topic_name || '-'}</div>
-                        </td>
+                        <td className="px-5 py-3 text-sm text-slate-500">{q.chapter || '-'}</td>
                         <td className="px-5 py-3 text-sm text-slate-500">{q.grade || '-'}</td>
-                        <td className="px-5 py-3 text-sm">
-                          {q.level === 'Easy' && <Badge variant="outline" className="bg-green-50 text-green-600 border-green-100">Easy</Badge>}
-                          {q.level === 'Medium' && <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100">Medium</Badge>}
-                          {q.level === 'Hard' && <Badge variant="outline" className="bg-red-50 text-red-600 border-red-100">Hard</Badge>}
-                          {!q.level && '-'}
-                        </td>
                         <td className="px-5 py-3 text-center">
                           <span className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 text-center ${q.correct_option === 'A' ? 'bg-emerald-100 text-emerald-700' :
-                              q.correct_option === 'B' ? 'bg-blue-100 text-blue-700' :
-                                q.correct_option === 'C' ? 'bg-amber-100 text-amber-700' :
-                                  'bg-red-100 text-red-700'
+                            q.correct_option === 'B' ? 'bg-blue-100 text-blue-700' :
+                              q.correct_option === 'C' ? 'bg-amber-100 text-amber-700' :
+                                'bg-red-100 text-red-700'
                             }`}>{q.correct_option}</span>
                         </td>
                         <td className="px-5 py-3 text-right space-x-2">
@@ -418,7 +400,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
             <DialogTitle>{editingQuestion ? "Edit Question" : "Add Question"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveQuestion} className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Subject <span className="text-red-500">*</span></Label>
                 <select className="w-full h-10 px-3 border rounded-xl" value={modalSubjectId} onChange={e => setModalSubjectId(e.target.value ? Number(e.target.value) : "")} required disabled={!!editingQuestion}>
@@ -433,9 +415,6 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                   {[6, 7, 8, 9, 10].map(g => <option key={g} value={g}>Class {g}</option>)}
                 </select>
               </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Chapter</Label>
                 <Input list="chapter-list" value={qbForm.chapter} onChange={e => setQbForm(f => ({ ...f, chapter: e.target.value }))} placeholder="e.g. Optics" />
@@ -458,7 +437,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                   <option value="Hard">Hard</option>
                 </select>
               </div>
-            </div>
+            </div >
 
             <div className="space-y-1">
               <Label>Assign to Topic <span className="text-slate-400 text-[10px] font-normal">(Required for Teacher Assessments)</span></Label>
@@ -512,12 +491,12 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
               <Button type="button" variant="outline" onClick={() => setQbModalOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={qbSaving}>{qbSaving ? "Saving..." : "Save Question"}</Button>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </form >
+        </DialogContent >
+      </Dialog >
 
       {/* Bulk Upload Modal */}
-      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+      < Dialog open={bulkOpen} onOpenChange={setBulkOpen} >
         <DialogContent className="max-w-xl rounded-3xl">
           <DialogHeader>
             <DialogTitle className="flex justify-between items-center pr-8">
@@ -532,7 +511,6 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
               <p className="font-bold mb-1 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Master Global Upload</p>
               <p>You can now upload questions for multiple subjects in a single file. The system will automatically map them based on the <strong>Subject</strong> column in your Excel.</p>
             </div>
-
             <div className="relative border-2 border-dashed border-slate-300 rounded-xl p-8 hover:bg-slate-50 transition-colors text-center cursor-pointer">
               <input type="file" accept=".xlsx,.xls,.csv" onChange={e => setBulkFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
               <Upload className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
@@ -546,8 +524,9 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                     Optional: Topic Name, Level, Grade, Chapter, Explanation
                   </p>
                 </>
-              )}
-            </div>
+              )
+              }
+            </div >
 
             {bulkResult && (
               <div className={`p-4 rounded-xl border ${bulkResult.failed > 0 ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'}`}>
@@ -572,9 +551,9 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                 {bulkUploading ? "Uploading..." : "Upload File"}
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </div >
+        </DialogContent >
+      </Dialog >
+    </div >
   );
 }

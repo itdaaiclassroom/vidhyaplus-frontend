@@ -9,13 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { 
   fetchAdmins, createAdminAccount, updateAdminAccount, deleteAdminAccount, AdminAccount,
@@ -46,7 +39,7 @@ const UserManagementPanel = () => {
 
   // Forms
   const [adminForm, setAdminForm] = useState({ name: "", email: "", password: "", role: "admin" });
-  const [teamForm, setTeamForm] = useState({ team_name: "", email: "", password: "", role: "material_management", district: "", is_active: 1 });
+  const [teamForm, setTeamForm] = useState({ team_name: "", email: "", password: "", role: "", district: "", is_active: 1 });
   const [submitting, setSubmitting] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [showTeamPassword, setShowTeamPassword] = useState(false);
@@ -162,7 +155,7 @@ const UserManagementPanel = () => {
       });
     } else {
       setEditingTeam(null);
-      setTeamForm({ team_name: "", email: "", password: "", role: "material_management", district: "", is_active: 1 });
+      setTeamForm({ team_name: "", email: "", password: "", role: "", district: "", is_active: 1 });
     }
     setShowTeamPassword(false);
     setTeamDialogOpen(true);
@@ -467,19 +460,8 @@ const UserManagementPanel = () => {
               <p className="text-xs text-slate-500">Minimum 8 characters required</p>
             </div>
             <div className="space-y-2">
-              <Label>Role <span className="text-destructive">*</span></Label>
-              <Select 
-                value={teamForm.role} 
-                onValueChange={(val) => setTeamForm({...teamForm, role: val})}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="material_management">Material Management</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-slate-500">Determines which modules the team can access.</p>
+              <Label>Role (Free text) <span className="text-destructive">*</span></Label>
+              <Input value={teamForm.role} onChange={e => setTeamForm({...teamForm, role: e.target.value})} placeholder="e.g. material_management, timetable..." required />
             </div>
             <div className="space-y-2">
               <Label>District</Label>
