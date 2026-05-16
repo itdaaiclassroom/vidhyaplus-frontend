@@ -1624,7 +1624,6 @@ export interface QuestionBankEntry {
   option_d: string;
   correct_option: "A" | "B" | "C" | "D";
   explanation: string | null;
-  assigned_for: "student" | "teacher" | "both";
   uploaded_by: string | null;
   created_at: string;
 }
@@ -1663,7 +1662,6 @@ export interface CreateQuestionBody {
   topic_name?: string;
   level?: "Easy" | "Medium" | "Hard";
   grade?: number;
-  assigned_for?: "student" | "teacher" | "both";
 }
 
 /** GET /api/subjects/question-bank — system-wide question bank with optional filters */
@@ -1689,6 +1687,30 @@ export async function fetchQuestionBank(params?: {
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
+export interface QuestionBankMetadataResponse {
+  chapters: string[];
+  topics: string[];
+}
+
+/** GET /api/subjects/question-bank/metadata � fetch unique chapters and topics */
+export async function fetchQuestionBankMetadata(params?: {
+  subject_id?: number;
+  grade?: number;
+}): Promise<QuestionBankMetadataResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const query = new URLSearchParams(
+    Object.entries(params || {})
+      .filter(([, v]) => v !== undefined && v !== 0)
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  const res = await fetch(
+    `${API_BASE}/api/subjects/question-bank/metadata${query ? `?${query}` : ""}`,
+    { headers: getAuthHeaders() }
+  );
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 
 /** POST /api/subjects/:id/question-bank — create a single MCQ question */
 export async function createQuestion(
@@ -1733,20 +1755,23 @@ export async function deleteQuestion(qid: number): Promise<{ ok: boolean; delete
 
 /** POST /api/subjects/question-bank/bulk — global bulk upload from base64 Excel/CSV */
 export async function bulkUploadQuestions(
-  file: File,
-  topicId?: number
+  file: File
 ): Promise<BulkUploadQuestionsResponse> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  
+  const buffer = await file.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+  const dataUrl = `data:${file.type || 'application/octet-stream'};base64,${base64}`;
+
   const res = await fetch(`${API_BASE}/api/subjects/question-bank/bulk`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ file: base64, topic_id: topicId }),
+    body: JSON.stringify({ file: dataUrl }),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();

@@ -3,6 +3,7 @@ import { HelpCircle, Plus, Edit2, X, ChevronLeft, ChevronRight, Trash2, Upload, 
 import * as XLSX from "xlsx";
 import {
   fetchQuestionBank, createQuestion, updateQuestion, deleteQuestion, bulkUploadQuestions, fetchSubjectTopics,
+  fetchQuestionBankMetadata,
   QuestionBankEntry, QuestionBankResponse, BulkUploadQuestionsResponse, CreateQuestionBody
 } from '@/api/client';
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +40,10 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
   const [qbLoading, setQbLoading] = useState(false);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
+  // Global Metadata for Dropdowns (Fixes Filter Lock)
+  const [allChapters, setAllChapters] = useState<string[]>([]);
+  const [allTopics, setAllTopics] = useState<string[]>([]);
+
   // Modal State
   const [qbModalOpen, setQbModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<QuestionBankEntry | null>(null);
@@ -63,9 +68,9 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
 
   const downloadSampleTemplate = () => {
     const data = [
-      ["Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer", "Explanation", "Chapter", "Grade", "Assigned For"],
-      ["What is the powerhouse of the cell?", "Nucleus", "Mitochondria", "Ribosome", "Golgi Body", "B", "Mitochondria generates ATP.", "Introduction to Cells", "9", "both"],
-      ["Which planet is known as the Red Planet?", "Earth", "Mars", "Jupiter", "Venus", "B", "Mars has iron oxide on its surface.", "Solar System", "8", "student"]
+      ["Subject", "Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer", "Topic Name", "Level", "Grade", "Chapter", "Explanation"],
+      ["Science", "What is the powerhouse of the cell?", "Nucleus", "Mitochondria", "Ribosome", "Golgi Body", "B", "Introduction to Cells", "Medium", "9", "Biology Basics", "Mitochondria generates ATP."],
+      ["Science", "Which planet is known as the Red Planet?", "Earth", "Mars", "Jupiter", "Venus", "B", "Solar System", "Easy", "8", "Astronomy", "Mars has iron oxide on its surface."]
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -110,6 +115,23 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
       setQbLoading(false);
     }
   };
+
+  const loadMetadata = async () => {
+    try {
+      const res = await fetchQuestionBankMetadata({
+        subject_id: qbSubjectId !== "" ? Number(qbSubjectId) : undefined,
+        grade: qbGrade !== "" ? Number(qbGrade) : undefined
+      });
+      setAllChapters(res.chapters || []);
+      setAllTopics(res.topics || []);
+    } catch (err) {
+      console.error("Metadata load error:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadMetadata();
+  }, [qbSubjectId, qbGrade]);
 
   useEffect(() => {
     loadQuestions();
@@ -161,8 +183,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
       chapter: q.chapter || "",
       topic_name: q.topic_name || "",
       level: (q.level as any) || "Medium",
-      grade: q.grade || undefined,
-      assigned_for: q.assigned_for || "both"
+      grade: q.grade || undefined
     });
     setQbModalOpen(true);
   };
@@ -271,11 +292,17 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
           </div>
           <div className="space-y-1 w-48">
             <Label className="text-xs font-bold text-slate-500 uppercase">Chapter</Label>
-            <Input className="h-10 bg-white" placeholder="Search chapter..." value={qbPendingChapter} onChange={e => setQbPendingChapter(e.target.value)} />
+            <select className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm" value={qbPendingChapter} onChange={e => setQbPendingChapter(e.target.value)}>
+              <option value="">All Chapters</option>
+              {allChapters.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
           <div className="space-y-1 w-48">
             <Label className="text-xs font-bold text-slate-500 uppercase">Topic</Label>
-            <Input className="h-10 bg-white" placeholder="Search topic..." value={qbPendingTopicName} onChange={e => setQbPendingTopicName(e.target.value)} />
+            <select className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm" value={qbPendingTopicName} onChange={e => setQbPendingTopicName(e.target.value)}>
+              <option value="">All Topics</option>
+              {allTopics.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
           <div className="space-y-1 w-32">
             <Label className="text-xs font-bold text-slate-500 uppercase">Level</Label>
@@ -309,15 +336,14 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Grade</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Level</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-center">Correct</th>
-                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-center">Assigned For</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {qbLoading ? (
-                <tr><td colSpan={7} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                <tr><td colSpan={6} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
               ) : questions.length === 0 ? (
-                <tr><td colSpan={7} className="p-8 text-center text-slate-500">No questions found</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-slate-500">No questions found</td></tr>
               ) : (
                 questions.map(q => {
                   const isExp = expandedRow === q.id;
@@ -344,14 +370,6 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                                   'bg-red-100 text-red-700'
                             }`}>{q.correct_option}</span>
                         </td>
-                        <td className="px-5 py-3 text-center">
-                          <Badge variant="outline" className={
-                            q.assigned_for === 'student' ? 'text-blue-600 bg-blue-50' :
-                              q.assigned_for === 'teacher' ? 'text-purple-600 bg-purple-50' : 'text-slate-600 bg-slate-50'
-                          }>
-                            {q.assigned_for === 'student' ? 'Students' : q.assigned_for === 'teacher' ? 'Teachers' : 'Both'}
-                          </Badge>
-                        </td>
                         <td className="px-5 py-3 text-right space-x-2">
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:text-primary" onClick={(e) => { e.stopPropagation(); handleOpenEditModal(q); }}>
                             <Edit2 className="w-4 h-4" />
@@ -363,7 +381,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                       </tr>
                       {isExp && (
                         <tr className="bg-slate-50/50">
-                          <td colSpan={7} className="px-10 py-4">
+                          <td colSpan={6} className="px-10 py-4">
                             <div className="grid grid-cols-2 gap-4 max-w-3xl">
                               <OptionBadge option="A" text={q.option_a} isCorrect={q.correct_option === 'A'} />
                               <OptionBadge option="B" text={q.option_b} isCorrect={q.correct_option === 'B'} />
@@ -420,11 +438,17 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Chapter</Label>
-                <Input value={qbForm.chapter} onChange={e => setQbForm(f => ({ ...f, chapter: e.target.value }))} placeholder="e.g. Optics" />
+                <Input list="chapter-list" value={qbForm.chapter} onChange={e => setQbForm(f => ({ ...f, chapter: e.target.value }))} placeholder="e.g. Optics" />
+                <datalist id="chapter-list">
+                  {allChapters.map(c => <option key={c} value={c} />)}
+                </datalist>
               </div>
               <div className="space-y-1">
                 <Label>Topic</Label>
-                <Input value={qbForm.topic_name} onChange={e => setQbForm(f => ({ ...f, topic_name: e.target.value }))} placeholder="e.g. Lenses" />
+                <Input list="topic-list" value={qbForm.topic_name} onChange={e => setQbForm(f => ({ ...f, topic_name: e.target.value }))} placeholder="e.g. Lenses" />
+                <datalist id="topic-list">
+                  {allTopics.map(t => <option key={t} value={t} />)}
+                </datalist>
               </div>
               <div className="space-y-1">
                 <Label>Level</Label>
@@ -477,15 +501,6 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                   </label>
                 ))}
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Assigned For</Label>
-              <select className="w-full h-10 px-3 border rounded-xl" value={qbForm.assigned_for || "both"} onChange={e => setQbForm(f => ({ ...f, assigned_for: e.target.value as "student" | "teacher" | "both" }))}>
-                <option value="both">Both</option>
-                <option value="student">Students</option>
-                <option value="teacher">Teachers</option>
-              </select>
             </div>
 
             <div className="space-y-1">
