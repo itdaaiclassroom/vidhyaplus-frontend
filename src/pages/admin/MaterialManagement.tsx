@@ -554,26 +554,49 @@ export default function MaterialManagement() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="text-[10px] text-slate-400 font-semibold">Default Questions</label>
-                <input type="number" value={assessConfig.assessment_question_count || "10"}
-                  onChange={(e) => setAssessConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
-                  onBlur={(e) => handleUpdateAssessConfig("assessment_question_count", e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-purple-600 focus:ring-2 focus:ring-purple-500 outline-none" min={1} max={50} />
+                <label className="text-[10px] text-slate-400 font-semibold">Default Questions (Max 30)</label>
+                <input type="number" value={assessConfig.student_quiz_question_count || "10"}
+                  onChange={(e) => {
+                    let val = parseInt(e.target.value, 10);
+                    if (val > 30) val = 30;
+                    setAssessConfig(prev => ({ ...prev, student_quiz_question_count: String(val) }));
+                  }}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-purple-600 focus:ring-2 focus:ring-purple-500 outline-none" min={1} max={30} />
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-semibold">Default Total Marks</label>
-                <input type="number" value={assessConfig.assessment_total_marks || "100"}
-                  onChange={(e) => setAssessConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
-                  onBlur={(e) => handleUpdateAssessConfig("assessment_total_marks", e.target.value)}
+                <input type="number" value={assessConfig.student_quiz_total_marks || "100"}
+                  onChange={(e) => setAssessConfig(prev => ({ ...prev, student_quiz_total_marks: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none" min={1} max={1000} />
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-semibold">Default Passing Marks</label>
-                <input type="number" value={assessConfig.assessment_passing_marks || "70"}
-                  onChange={(e) => setAssessConfig(prev => ({ ...prev, assessment_passing_marks: e.target.value }))}
-                  onBlur={(e) => handleUpdateAssessConfig("assessment_passing_marks", e.target.value)}
+                <input type="number" value={assessConfig.student_quiz_passing_marks || "70"}
+                  onChange={(e) => setAssessConfig(prev => ({ ...prev, student_quiz_passing_marks: e.target.value }))}
                   className="w-full border border-slate-300 rounded-lg p-2 text-sm font-bold text-center text-emerald-600 focus:ring-2 focus:ring-emerald-500 outline-none" min={1} max={1000} />
               </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={async () => {
+                  let qCount = parseInt(assessConfig.student_quiz_question_count || "10", 10);
+                  if (isNaN(qCount) || qCount < 1) qCount = 10;
+                  if (qCount > 30) qCount = 30;
+                  await Promise.all([
+                    handleUpdateAssessConfig("student_quiz_question_count", String(qCount)),
+                    handleUpdateAssessConfig("student_quiz_total_marks", assessConfig.student_quiz_total_marks || "100"),
+                    handleUpdateAssessConfig("student_quiz_passing_marks", assessConfig.student_quiz_passing_marks || "70")
+                  ]);
+                  // Refresh the table to show the new global defaults
+                  if (chapterConfigSubject) {
+                    loadChapterConfigs(chapterConfigSubject);
+                  }
+                }}
+                disabled={assessConfigSaving}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                {assessConfigSaving ? "Saving..." : "Save Global Defaults"}
+              </button>
             </div>
           </div>
         )}

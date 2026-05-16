@@ -1290,6 +1290,7 @@ export interface GatingStatusResponse {
   teacherPassThreshold: number;
   studentThreshold: number;
   chapters: ChapterGatingStatus[];
+  topicScores?: Record<string, { avgScore: number; thresholdMet: boolean }>;
 }
 
 export interface AssessmentQuestion {
