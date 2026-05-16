@@ -1,18 +1,41 @@
-import React from 'react';
-import { Download, X, GraduationCap, Trophy, Users, BarChart3, Star, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useMemo } from 'react';
+import {
+  Download, X, GraduationCap, Trophy, Users, BarChart3, Star,
+  CheckCircle2, AlertCircle, TrendingUp, Calendar, BookOpen,
+  Target, Award, Lightbulb, MessageSquare, PenTool
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from 'recharts';
+import { motion } from 'framer-motion';
+
+interface SubjectGrade {
+  name: string;
+  internal: string; // e.g. "15+15"
+  exam: number;
+  quiz: number;
+  grade: string;
+}
 
 interface StudentReportCardProps {
   studentName: string;
   className: string;
-  subjectName?: string;
   rollNumber: string;
   schoolName: string;
   attendance: number;
+  totalPresent?: number;
+  totalDays?: number;
   perfIndex: number;
-  quizScore: number;
-  quizTotal: number;
+  classRank?: string;
+  academicYear?: string;
+  profilePic?: string;
+  subjectGrades?: SubjectGrade[];
   aiReportContent: string;
+  teacherFeedback?: string;
   onClose: () => void;
   onDownload: () => void;
 }
@@ -20,159 +43,506 @@ interface StudentReportCardProps {
 const StudentReportCard: React.FC<StudentReportCardProps> = ({
   studentName,
   className,
-  subjectName = "Social Studies",
   rollNumber,
   schoolName,
   attendance,
+  totalPresent = 92,
+  totalDays = 100,
   perfIndex,
-  quizScore,
-  quizTotal,
+  classRank = "5 / 40 (Top 12%)",
+  academicYear = "2023-24",
+  profilePic,
+  subjectGrades,
   aiReportContent,
+  teacherFeedback = "I encourage Rathod to continue his efforts; his future is bright. Focus on math and language will help him excel as the term continues. I am happy to see his improvement.",
   onClose,
   onDownload
 }) => {
+  // Mock data for graphs if not provided
+  const progressData = [
+    { name: 'FA1', score: 50 },
+    { name: 'FA2', score: 61.2 },
+    { name: 'SA1', score: 65.6 },
+    { name: 'SA2', score: 85 },
+  ];
+
+  const quizPerformanceData = [
+    { name: 'Qui1', score: 55 },
+    { name: 'Qui2', score: 70 },
+    { name: 'Qui3', score: 68 },
+    { name: 'Qui4', score: 80 },
+    { name: 'SA2', score: 45 },
+  ];
+
+  const defaultSubjectGrades: SubjectGrade[] = [
+    { name: "English", internal: "15+15", exam: 40, quiz: 38, grade: "C+" },
+    { name: "Mathematics", internal: "15+15", exam: 40, quiz: 38, grade: "C+" },
+    { name: "Science", internal: "15+15", exam: 40, quiz: 38, grade: "B+" },
+    { name: "Social Studies", internal: "15+15", exam: 40, quiz: 37, grade: "B+" },
+    { name: "Second Language", internal: "15+15", exam: 40, quiz: 37, grade: "C+" },
+    { name: "Computer Science", internal: "15+15", exam: 40, quiz: 37, grade: "B+" },
+  ];
+
+  const displayGrades = subjectGrades || defaultSubjectGrades;
+
   // Simple parser for AI content
-  const parseAiNarrative = (content: string) => {
-    if (!content) return { 
-      strengths: "Mathematics, Physics", 
-      opportunities: "English", 
-      summary: "Student shows consistent progress across core subjects." 
-    };
+  const narrative = useMemo(() => {
+    const strengthsMatch = aiReportContent.match(/(?:Strengths|STRENGTHS):?\s*([^.]+)/i);
+    const improvementMatch = aiReportContent.match(/(?:Areas to improve|Opportunities|Improvement|WEAKNESSES):?\s*([^.]+)/i);
 
-    // If it's a long text, we can try to extract parts, but usually it's better to just show it
-    // For now, let's assume the AI returns a structured-ish string or just use defaults if it's too short
-    const strengthsMatch = content.match(/Strengths:?\s*([^.\n]+)/i);
-    const opportunitiesMatch = content.match(/(?:Areas to improve|Opportunities|Improvement):?\s*([^.\n]+)/i);
-    
     return {
-      strengths: strengthsMatch ? strengthsMatch[1].trim() : "Core concepts, logical reasoning",
-      opportunities: opportunitiesMatch ? opportunitiesMatch[1].trim() : "Communication skills",
-      summary: content.length > 50 ? content : "This analysis is automatically generated based on real-time student performance logs."
+      strengths: strengthsMatch ? strengthsMatch[1].trim() : "Strong grasp of Scientific concepts, Good English vocabulary",
+      improvement: improvementMatch ? improvementMatch[1].trim() : "Mathematical problem solving, Class participation",
+      summary: aiReportContent || "Student shows consistent progress across core subjects."
     };
-  };
-
-  const narrative = parseAiNarrative(aiReportContent);
+  }, [aiReportContent]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div 
-        className="relative w-full max-w-2xl bg-[#F8F9FE] rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300"
-        onClick={e => e.stopPropagation()}
-        id="student-report-card"
+    <div className="w-full h-full bg-[#F8FAFC]">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full mx-auto"
       >
-        {/* Header - Purple Gradient */}
-        <div className="bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] p-8 pb-16 text-white relative">
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            data-html2canvas-ignore
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-3xl font-black tracking-tighter uppercase mb-1">VidhyaPlus</h1>
-              <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Academic Performance Report</p>
-            </div>
-            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-right">
-              <p className="text-[10px] font-bold uppercase opacity-70">Academic Year</p>
-              <p className="text-sm font-black">2025-26</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 mt-8">
-            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-lg transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-              <Users className="w-10 h-10 text-[#6366F1]" />
-            </div>
-            <div>
-              <h2 className="text-3xl font-black mb-2">{studentName}</h2>
-              <div className="flex gap-2">
-                <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-white/10 flex items-center gap-1.5">
-                  <Star className="w-3 h-3" /> {subjectName}
-                </span>
-                <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-white/10 flex items-center gap-1.5">
-                  <GraduationCap className="w-3 h-3" /> Class {className}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Cards - Overlapping */}
-        <div className="px-8 -mt-10 relative z-10 grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-3xl p-5 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform duration-300">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Performance Index</p>
-            <p className="text-3xl font-black text-[#6366F1]">{perfIndex}%</p>
-          </div>
-          <div className="bg-white rounded-3xl p-5 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform duration-300">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Attendance</p>
-            <p className="text-3xl font-black text-[#10B981]">{attendance}%</p>
-          </div>
-          <div className="bg-white rounded-3xl p-5 shadow-xl border border-slate-100 flex flex-col items-center justify-center text-center group hover:-translate-y-1 transition-transform duration-300">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Quiz Score</p>
-            <p className="text-3xl font-black text-[#F59E0B]">{quizScore}/{quizTotal}</p>
-          </div>
-        </div>
-
-        {/* AI Narrative Section */}
-        <div className="p-8">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="h-[1px] flex-1 bg-slate-200"></div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">AI Learning Narrative</p>
-            <div className="h-[1px] flex-1 bg-slate-200"></div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-[#ECFDF5] rounded-3xl p-5 border border-emerald-100 flex gap-4 group">
-              <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Star className="w-3 h-3" /> Key Strengths
-                </p>
-                <p className="text-sm font-bold text-slate-700 leading-tight">"{narrative.strengths}"</p>
-              </div>
-            </div>
-
-            <div className="bg-[#FFFBEB] rounded-3xl p-5 border border-amber-100 flex gap-4 group">
-              <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <BarChart3 className="w-3 h-3" /> Opportunities for Growth
-                </p>
-                <p className="text-sm font-bold text-slate-700 leading-tight">"{narrative.opportunities}"</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-slate-100/50 rounded-2xl p-4 text-center">
-            <p className="text-[10px] italic text-slate-500 leading-relaxed max-w-md mx-auto">
-              Note: {narrative.summary}
-            </p>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div className="p-8 pt-0 flex gap-4" data-html2canvas-ignore>
-          <Button 
-            variant="ghost" 
-            className="flex-1 rounded-2xl h-14 font-bold text-slate-500 hover:bg-slate-200/50 transition-colors"
-            onClick={onClose}
-          >
-            Dismiss
-          </Button>
-          <Button 
-            className="flex-[2] rounded-2xl h-14 bg-[#6366F1] hover:bg-[#4F46E5] text-white font-black shadow-xl shadow-[#6366F1]/20 gap-3 transition-all active:scale-[0.98]"
+        {/* Actions - Hidden during PDF export */}
+        <div className="flex items-center justify-end gap-3 p-6 pb-0" data-html2canvas-ignore>
+          <Button
             onClick={onDownload}
+            className="bg-[#0D9488] hover:bg-[#0F766E] text-white rounded-xl px-5 shadow-lg shadow-teal-900/20 gap-2 border-none h-11"
           >
-            <Download className="w-5 h-5" /> Download Report PDF
+            <Download className="w-4 h-4" /> DOWNLOAD PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onClose}
+            className="bg-white/80 hover:bg-white border-slate-200 rounded-xl h-11 w-11"
+          >
+            <X className="w-5 h-5 text-slate-600" />
           </Button>
         </div>
-      </div>
+
+        {/* Main Report Content */}
+        <div className="p-8 pt-6">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8 border-b border-slate-200 pb-6 bg-white -mx-8 px-8 -mt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-[#0D9488] rounded-2xl flex items-center justify-center shadow-inner">
+                <GraduationCap className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black tracking-tight text-[#0D9488]">VidhyaPlus<span className="text-slate-400 font-light">+</span></h1>
+                <div className="flex items-center gap-3 mt-1">
+                  <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Academic Performance Report Card</h2>
+                  <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 font-semibold px-3">Academic Year: {academicYear}</Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 bg-slate-50 p-2 pr-6 rounded-2xl border border-slate-100">
+              <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-md bg-slate-200">
+                {profilePic ? (
+                  <img src={profilePic} alt={studentName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-300">
+                    <Users className="w-7 h-7 text-slate-400" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="font-black text-slate-900 text-lg leading-tight">{studentName}</p>
+                <Badge className="bg-[#DCFCE7] text-[#166534] hover:bg-[#DCFCE7] border-none text-[10px] h-5 mt-1 font-bold">Active</Badge>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-6">
+            {/* Left Column: Student Details */}
+            <div className="col-span-12 lg:col-span-3 space-y-6">
+              <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-[#0D9488]/10 rounded-lg">
+                      <Users className="w-4 h-4 text-[#0D9488]" />
+                    </div>
+                    <h3 className="font-bold text-slate-800">Student Details</h3>
+                  </div>
+                  <AlertCircle className="w-4 h-4 text-slate-300" />
+                </div>
+                <CardContent className="p-5 space-y-4">
+                  <div className="space-y-3">
+                    {[
+                      { label: "Name:", value: studentName },
+                      { label: "Class & Sec:", value: className },
+                      { label: "Roll Number:", value: rollNumber },
+                      { label: "School Name:", value: schoolName },
+                      { label: "Attendance %:", value: `${attendance}%` },
+                      { label: "Class Rank:", value: classRank },
+                      { label: "Performance Index:", value: `${perfIndex}/10` },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                        <span className="text-slate-500 font-medium">{item.label}</span>
+                        <span className="text-slate-900 font-bold">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 p-4 bg-[#0D9488] rounded-2xl text-white shadow-lg shadow-teal-900/20 relative overflow-hidden group">
+                    <div className="absolute -right-2 -bottom-2 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <Trophy className="w-20 h-20" />
+                    </div>
+                    <div className="flex items-center justify-between relative z-10">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                          <Star className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Overall</p>
+                          <p className="font-black text-sm">Performance</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Rank</p>
+                        <p className="font-black text-sm">{classRank.split('(')[0]}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Middle Column: Subject Table */}
+            <div className="col-span-12 lg:col-span-9 space-y-6">
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-12 lg:col-span-7">
+                  <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden h-full">
+                    <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-[#0D9488]/10 rounded-lg">
+                          <BookOpen className="w-4 h-4 text-[#0D9488]" />
+                        </div>
+                        <h3 className="font-bold text-slate-800">Subject Performance & Grades</h3>
+                      </div>
+                    </div>
+                    <CardContent className="p-0">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-400 font-black">
+                            <th className="px-5 py-4 border-b border-slate-100">Subject</th>
+                            <th className="px-5 py-4 border-b border-slate-100 text-center">Internal Marks (FA1+FA3)</th>
+                            <th className="px-5 py-4 border-b border-slate-100 text-center">Exam Marks (SA1)</th>
+                            <th className="px-5 py-4 border-b border-slate-100 text-center">Quiz Score (Out of 50)</th>
+                            <th className="px-5 py-4 border-b border-slate-100 text-right">Final Grade</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-sm">
+                          {displayGrades.map((grade, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-5 py-3.5 border-b border-slate-50 font-bold text-slate-700">{grade.name}</td>
+                              <td className="px-5 py-3.5 border-b border-slate-50 text-center text-slate-600 font-medium">{grade.internal}</td>
+                              <td className="px-5 py-3.5 border-b border-slate-50 text-center text-slate-600 font-medium">{grade.exam}</td>
+                              <td className="px-5 py-3.5 border-b border-slate-50 text-center text-slate-600 font-medium">{grade.quiz}</td>
+                              <td className="px-5 py-3.5 border-b border-slate-50 text-right">
+                                <span className={`font-black ${grade.grade.startsWith('A') ? 'text-green-600' :
+                                    grade.grade.startsWith('B') ? 'text-[#0D9488]' :
+                                      'text-amber-600'
+                                  }`}>{grade.grade}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      <div className="p-5 bg-slate-50/30 flex justify-between items-center">
+                        <div className="flex gap-8">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">OVERALL PERFORMANCE</p>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-xl font-black text-slate-800">388/500</span>
+                              <span className="text-xs font-bold text-slate-500 text-center">Total Marks</span>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Percentage</p>
+                            <p className="text-xl font-black text-slate-800">77.6%</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Overall Grade</p>
+                            <p className="text-xl font-black text-[#0D9488]">B+</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Rank</p>
+                          <p className="text-xl font-black text-slate-800">5/40</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="col-span-12 lg:col-span-5 space-y-6">
+                  {/* Performance Analytics */}
+                  <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                    <div className="bg-slate-50/50 p-5 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-[#0D9488]/10 rounded-lg">
+                          <BarChart3 className="w-4 h-4 text-[#0D9488]" />
+                        </div>
+                        <h3 className="font-bold text-slate-800">Performance Analytics</h3>
+                      </div>
+                    </div>
+                    <CardContent className="p-5">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="col-span-2">
+                          <p className="text-xs font-bold text-slate-700 mb-4 flex items-center gap-2">
+                            <TrendingUp className="w-3.5 h-3.5 text-[#0D9488]" /> Progress Line Graph
+                          </p>
+                          <div className="h-40 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={progressData}>
+                                <defs>
+                                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#0D9488" stopOpacity={0.1} />
+                                    <stop offset="95%" stopColor="#0D9488" stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                <XAxis
+                                  dataKey="name"
+                                  axisLine={false}
+                                  tickLine={false}
+                                  tick={{ fontSize: 10, fontWeight: 700, fill: '#64748B' }}
+                                  dy={10}
+                                />
+                                <YAxis hide domain={[0, 100]} />
+                                <Tooltip
+                                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                />
+                                <Line
+                                  type="monotone"
+                                  dataKey="score"
+                                  stroke="#0D9488"
+                                  strokeWidth={4}
+                                  dot={{ r: 4, fill: '#0D9488', strokeWidth: 2, stroke: '#fff' }}
+                                  activeDot={{ r: 6, strokeWidth: 0 }}
+                                  label={{ position: 'top', fontSize: 10, fontWeight: 800, fill: '#334155', dy: -10 }}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+
+                        <div className="col-span-1">
+                          <p className="text-xs font-bold text-slate-700 mb-4 flex items-center gap-2">
+                            <Calendar className="w-3.5 h-3.5 text-[#0D9488]" /> Attendance Summary
+                          </p>
+                          <div className="flex flex-col gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-12 h-12">
+                                <svg className="w-12 h-12 -rotate-90">
+                                  <circle cx="24" cy="24" r="20" fill="none" stroke="#F1F5F9" strokeWidth="4" />
+                                  <circle cx="24" cy="24" r="20" fill="none" stroke="#0D9488" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 * (1 - attendance / 100)} strokeLinecap="round" />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[10px] font-black">{attendance}%</span>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-800 leading-tight">92%</p>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">Present/Total</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-12 h-12">
+                                <svg className="w-12 h-12 -rotate-90">
+                                  <circle cx="24" cy="24" r="20" fill="none" stroke="#F1F5F9" strokeWidth="4" />
+                                  <circle cx="24" cy="24" r="20" fill="none" stroke="#0D9488" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 * (1 - 0.92)} strokeLinecap="round" />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[10px] font-black">92%</span>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-800 leading-tight">92%</p>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">Present/Total</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="col-span-1">
+                          <p className="text-xs font-bold text-slate-700 mb-4 flex items-center gap-2">
+                            <Target className="w-3.5 h-3.5 text-[#0D9488]" /> Quiz Performance Card
+                          </p>
+                          <div className="h-28 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={quizPerformanceData}>
+                                <Bar dataKey="score" radius={[2, 2, 0, 0]}>
+                                  {quizPerformanceData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={index === 4 ? '#94A3B8' : '#0D9488'} fillOpacity={0.8} />
+                                  ))}
+                                </Bar>
+                                <XAxis
+                                  dataKey="name"
+                                  axisLine={false}
+                                  tickLine={false}
+                                  tick={{ fontSize: 8, fontWeight: 700, fill: '#94A3B8' }}
+                                />
+                                <Tooltip />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Behavior & Competency Tracking */}
+              <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+                <div className="bg-slate-50/50 p-5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-[#0D9488]/10 rounded-lg">
+                      <Award className="w-4 h-4 text-[#0D9488]" />
+                    </div>
+                    <h3 className="font-bold text-slate-800">Behavior & Competency Tracking</h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Co-Scholastic & Personal Skills</span>
+                </div>
+                <CardContent className="p-5">
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {[
+                      { label: "Excellent", color: "bg-[#DCFCE7] text-[#166534]" },
+                      { label: "Communication", color: "bg-[#F0FDF4] text-[#15803d]" },
+                      { label: "Creativity", color: "bg-[#F0FDF9] text-[#0d9488]" },
+                      { label: "Leadership", color: "bg-[#F0F9FF] text-[#0369a1]" },
+                      { label: "Confidence", color: "bg-[#FFF7ED] text-[#c2410c]" },
+                      { label: "Teamwork", color: "bg-[#F0FDF9] text-[#0d9488]" },
+                      { label: "Participation", color: "bg-[#FEFCE8] text-[#854d0e]" },
+                      { label: "Needs Support", color: "bg-[#FEF2F2] text-[#991b1b]" },
+                    ].map((badge, idx) => (
+                      <Badge key={idx} className={`${badge.color} border-none rounded-lg px-4 py-1 text-[11px] font-bold shadow-sm`}>
+                        {badge.label}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 border-dashed">
+                    With 1-line AI remarks: "Demonstrates strong interpersonal skills and active engagement in group discussions."
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* AI-Powered Learning Insights */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 border-none shadow-xl rounded-3xl overflow-hidden bg-gradient-to-br from-[#0D9488] to-[#0F766E] text-white">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
+                    <Lightbulb className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-black tracking-tight">AI-Powered Learning Insights</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:bg-white/20 transition-all group">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <TrendingUp className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">STRENGTHS</p>
+                    <ul className="text-xs font-bold space-y-2 list-disc list-inside text-white/90">
+                      <li>Strong grasp of Scientific concepts</li>
+                      <li>Good English vocabulary</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:bg-white/20 transition-all group">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <AlertCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">AREAS TO IMPROVE</p>
+                    <ul className="text-xs font-bold space-y-2 list-disc list-inside text-white/90">
+                      <li>Mathematical problem solving</li>
+                      <li>Class participation</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:bg-white/20 transition-all group">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <BarChart3 className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">LEARNING PATTERN</p>
+                    <div className="h-10 w-full flex items-center">
+                      <svg className="w-full h-8 overflow-visible">
+                        <path d="M0 20 Q 20 5, 40 15 T 80 10 T 120 20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 hover:bg-white/20 transition-all group">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Target className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">ATTENTION NEEDED</p>
+                    <ul className="text-xs font-bold space-y-2 list-disc list-inside text-white/90">
+                      <li>Complex equations</li>
+                      <li>Focus during lectures</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-black/10 backdrop-blur-md p-5 rounded-2xl border border-white/5">
+                    <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">AI SUMMARY</p>
+                    <p className="text-sm font-medium leading-relaxed opacity-90">{narrative.summary}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="border-slate-200 shadow-sm rounded-3xl overflow-hidden h-full flex flex-col">
+                <div className="p-6 flex flex-col flex-1 gap-6">
+                  <div className="flex-1 bg-slate-50/50 rounded-2xl p-5 border border-slate-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <PenTool className="w-4 h-4 text-[#0D9488]" />
+                      <h4 className="font-black text-sm text-[#0D9488] uppercase tracking-wider">Teacher Feedback</h4>
+                    </div>
+                    <p className="text-xs text-slate-600 font-bold leading-relaxed">{teacherFeedback}</p>
+                    <p className="text-[10px] font-black text-slate-400 mt-4 uppercase">Signed</p>
+                  </div>
+                </div>
+
+                <div className="p-6 pt-0 mt-auto">
+                  <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-100">
+                    <div className="text-center">
+                      <div className="h-px bg-slate-200 mb-2" />
+                      <p className="text-[9px] font-black text-slate-400 uppercase">Teacher Signature</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-px bg-slate-200 mb-2" />
+                      <p className="text-[9px] font-black text-slate-400 uppercase">Principal Signature</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-px bg-slate-200 mb-2" />
+                      <p className="text-[9px] font-black text-slate-400 uppercase">Parent Signature</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="bg-slate-100 p-4 px-8 text-center border-t border-slate-200" data-html2canvas-ignore>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            VidhyaPlus+ Education Systems • AI-Generated Performance Report • Confidential
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 };

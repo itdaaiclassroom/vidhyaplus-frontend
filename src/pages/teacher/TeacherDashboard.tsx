@@ -56,7 +56,7 @@ import {
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
   Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
-  Youtube, ExternalLink, Lock, AlertTriangle, Download
+  Youtube, ExternalLink, Lock, AlertTriangle, Download, GraduationCap
 } from "lucide-react";
 
 import {
@@ -2145,15 +2145,17 @@ const TeacherDashboard = () => {
         </Dialog>
         {/* AI Report Card Result Dialog - Premium Redesign */}
         <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
-          <DialogContent className="max-w-6xl w-[95vw] h-[95vh] p-0 overflow-y-auto border-none shadow-2xl bg-slate-50/50">
+          <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
             <div ref={reportRef}>
               <StudentReportCard
                 studentName={aiReportStudentName}
                 className={currentClass?.name || "N/A"}
-                rollNumber="23"
+                rollNumber={aiReportData?.rollNumber || "N/A"}
                 schoolName="VidhyaPlus Academy"
                 attendance={aiReportData?.attendance || 0}
                 perfIndex={aiReportData?.perfIndex || 0}
+                academicYear={aiReportData?.academicYear}
+                subjectGrades={aiReportData?.subjectGrades}
                 aiReportContent={aiReportContent}
                 onClose={() => setAiReportDialogOpen(false)}
                 onDownload={() => downloadReport(aiReportStudentName)}
@@ -2178,7 +2180,6 @@ const TeacherDashboard = () => {
               <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
               {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
               <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
-              <TabsTrigger value="my-assignments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assignments</TabsTrigger>
               <TabsTrigger value="my-assessments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assessments</TabsTrigger>
               <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
               <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
@@ -2466,7 +2467,30 @@ const TeacherDashboard = () => {
                                 </div>
 
                                 {expandedTopics[topic.id] && (
-                                  <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2">
+                                  <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2 items-center">
+                                    {(() => {
+                                      const tScore = gatingStatus?.topicScores?.[topic.id];
+                                      if (!tScore) {
+                                        return (
+                                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-dashed border-muted-foreground/20 text-muted-foreground/40">
+                                            <span className="text-[10px] font-medium italic">No quiz data yet</span>
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border shadow-sm ${tScore.thresholdMet ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                                          <div className={`w-2 h-2 rounded-full ${tScore.thresholdMet ? 'bg-green-500 animate-pulse' : 'bg-red-500 animate-pulse'}`} />
+                                          <span className="text-xs font-semibold">
+                                            Class Average: {tScore.avgScore.toFixed(0)}%
+                                          </span>
+                                          {!tScore.thresholdMet && (
+                                            <span className="text-[10px] ml-1 uppercase tracking-wider font-bold bg-red-100 px-1.5 py-0.5 rounded text-red-800">
+                                              Needs Retake
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                     {ch.textbookChunkPdfPath && (
                                       <Button
                                         variant="link"
@@ -2649,12 +2673,19 @@ const TeacherDashboard = () => {
                                     setAiReportStudentName(s.name);
                                     setAiReportData({
                                       attendance: att?.percentage || 0,
-                                      fa1: mockFA1,
-                                      sa1: mockSA1,
+                                      perfIndex: mockPerfIndex,
+                                      rollNumber: s.rollNo,
                                       quizScore: quizScore,
                                       quizTotal: totalQuizMax,
-                                      perfIndex: mockPerfIndex,
-                                      rollNumber: s.rollNo
+                                      academicYear: "2023-24",
+                                      subjectGrades: [
+                                        { name: "English", internal: "14+15", exam: 42, quiz: 45, grade: "A" },
+                                        { name: "Mathematics", internal: "13+14", exam: 38, quiz: 40, grade: "B+" },
+                                        { name: "Science", internal: "15+15", exam: 45, quiz: 48, grade: "A+" },
+                                        { name: "Social Studies", internal: "14+14", exam: 40, quiz: 42, grade: "A" },
+                                        { name: "Second Language", internal: "12+13", exam: 35, quiz: 38, grade: "B" },
+                                        { name: "Computer Science", internal: "15+15", exam: 48, quiz: 50, grade: "A+" },
+                                      ]
                                     });
                                     setAiReportDialogOpen(true);
                                     return data;
@@ -2733,61 +2764,6 @@ const TeacherDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* MY ASSIGNMENTS TAB */}
-            <TabsContent value="my-assignments" className="space-y-4">
-              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-primary" /> My Assignments
-              </h3>
-              <Card className="shadow-card border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-base">Assigned Subjects, Classes & Sections</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(() => {
-                    if (loadingAssign) return <p className="text-sm text-muted-foreground py-4">Loading assignments...</p>;
-                    if (!assignData) return <p className="text-sm text-muted-foreground py-4">No assignments found.</p>;
-
-                    return (
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subjects</p>
-                          <div className="flex flex-wrap gap-2">
-                            {assignData.assigned_subject_ids.length > 0
-                              ? assignData.assigned_subject_ids.map((id) => (
-                                  <Badge key={id} variant="secondary" className="px-3 py-1">Subject ID: {id}</Badge>
-                                ))
-                              : <span className="text-sm text-muted-foreground">None assigned</span>
-                            }
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Classes (Grade IDs)</p>
-                          <div className="flex flex-wrap gap-2">
-                            {assignData.assigned_class_ids.length > 0
-                              ? assignData.assigned_class_ids.map((id) => (
-                                  <Badge key={id} variant="secondary" className="px-3 py-1">Grade ID: {id}</Badge>
-                                ))
-                              : <span className="text-sm text-muted-foreground">None assigned</span>
-                            }
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sections</p>
-                          <div className="flex flex-wrap gap-2">
-                            {assignData.assigned_section_ids.length > 0
-                              ? assignData.assigned_section_ids.map((id) => (
-                                  <Badge key={id} variant="secondary" className="px-3 py-1">Section ID: {id}</Badge>
-                                ))
-                              : <span className="text-sm text-muted-foreground">None assigned</span>
-                            }
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             {/* MY ASSESSMENTS TAB */}
             <TabsContent value="my-assessments" className="space-y-4">
@@ -3466,18 +3442,17 @@ const TeacherDashboard = () => {
 
       {/* AI Report Card Result Dialog - Premium Redesign */}
       <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
-        <DialogContent className="max-w-6xl w-[95vw] h-[95vh] p-0 overflow-y-auto border-none shadow-2xl bg-slate-50/50">
+        <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
           <div ref={reportRef}>
             <StudentReportCard
               studentName={aiReportStudentName}
               className={currentClass?.name || "N/A"}
-              subjectName={currentSubject?.name}
               rollNumber={aiReportData?.rollNumber || "N/A"}
               schoolName="VidhyaPlus Academy"
               attendance={aiReportData?.attendance || 0}
               perfIndex={aiReportData?.perfIndex || 0}
-              quizScore={aiReportData?.quizScore || 0}
-              quizTotal={aiReportData?.quizTotal || 20}
+              academicYear={aiReportData?.academicYear}
+              subjectGrades={aiReportData?.subjectGrades}
               aiReportContent={aiReportContent}
               onClose={() => setAiReportDialogOpen(false)}
               onDownload={() => downloadReport(aiReportStudentName)}

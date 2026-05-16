@@ -13,7 +13,7 @@ import { registerTeacher, fetchAll } from "@/api/client";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 
-type StepKey = "personal" | "address" | "teaching" | "contact" | "additional" | "summary";
+type StepKey = "personal" | "address" | "teaching" | "summary";
 
 interface TeacherForm {
   teacherName: string;
@@ -21,21 +21,12 @@ interface TeacherForm {
   gender: string;
   caste: string;
   religion: string;
-  nationality: string;
   motherTongue: string;
   address: string;
-  village: string;
-  mandal: string;
-  district: string;
-  state: string;
-  pincode: string;
   subjectsHandled: string[];
   classesCanHandle: string[];
   phoneNumber: string;
-  emergencyContact: string;
   email: string;
-  disabilities: string;
-  aadhaarNumber: string;
   photo: File | null;
 }
 
@@ -43,8 +34,6 @@ const steps: { key: StepKey; title: string; desc?: string }[] = [
   { key: "personal", title: "Personal Details" },
   { key: "address", title: "Address Details" },
   { key: "teaching", title: "Teaching Details" },
-  { key: "contact", title: "Contact Details" },
-  { key: "additional", title: "Additional Info" },
   { key: "summary", title: "Summary" },
 ];
 
@@ -79,27 +68,20 @@ const TeacherRegistration: React.FC = () => {
     }).catch(console.error);
   }, []);
 
+  const [successModalData, setSuccessModalData] = useState<{ id: string; name: string } | null>(null);
+
   const [form, setForm] = useState<TeacherForm>({
     teacherName: "",
     dob: "",
     gender: "",
     caste: "",
     religion: "",
-    nationality: "",
     motherTongue: "",
     address: "",
-    village: "",
-    mandal: "",
-    district: "",
-    state: "",
-    pincode: "",
     subjectsHandled: [],
     classesCanHandle: [],
     phoneNumber: "",
-    emergencyContact: "",
     email: "",
-    disabilities: "",
-    aadhaarNumber: "",
     photo: null,
   });
 
@@ -155,7 +137,7 @@ const TeacherRegistration: React.FC = () => {
         .map(name => subjects.find(s => s.name === name)?.id)
         .filter((id): id is string => id !== undefined);
 
-      await registerTeacher({
+      const res = await registerTeacher({
         school_id: schoolId,
         full_name: form.teacherName,
         email: form.email,
@@ -165,32 +147,27 @@ const TeacherRegistration: React.FC = () => {
         gender: form.gender,
         caste: form.caste,
         religion: form.religion,
-        nationality: form.nationality,
         mother_tongue: form.motherTongue,
         address: form.address,
-        village: form.village,
-        mandal: form.mandal,
-        district: form.district,
-        state: form.state,
-        pincode: form.pincode,
         phone_number: form.phoneNumber,
-        emergency_contact: form.emergencyContact,
-        disabilities: form.disabilities,
-        aadhaar_number: form.aadhaarNumber,
         ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       
       refetchTeachers();
-      toast.success("Teacher registered successfully!");
+      setSuccessModalData({ id: (res as any).teacher_id || "Generated", name: form.teacherName });
       setCurrent(0);
       setForm({
-        teacherName: "", dob: "", gender: "", caste: "", religion: "", nationality: "",
-        motherTongue: "", address: "", village: "", mandal: "", district: "", state: "",
-        pincode: "", subjectsHandled: [], classesCanHandle: [], phoneNumber: "",
-        emergencyContact: "", email: "", disabilities: "", aadhaarNumber: "", photo: null,
+        teacherName: "", dob: "", gender: "", caste: "", religion: "", motherTongue: "",
+        address: "", subjectsHandled: [], classesCanHandle: [], phoneNumber: "",
+        email: "", photo: null,
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to register teacher");
+      const msg = err instanceof Error ? err.message : "Failed to register teacher";
+      if (msg.includes("Unauthorized") || msg.includes("Token required")) {
+        toast.error("Session expired or token missing. Please log out and log back in.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -205,6 +182,7 @@ const TeacherRegistration: React.FC = () => {
             <div className="grid grid-cols-2 gap-8">
               {/* Left Column */}
               <div className="space-y-4">
+                <Input value="Auto-generated after save" disabled className="h-10 bg-muted text-muted-foreground border-primary/30" />
                 <Input
                   placeholder="Teacher name"
                   value={form.teacherName}
@@ -229,9 +207,16 @@ const TeacherRegistration: React.FC = () => {
                   </SelectContent>
                 </Select>
                 <Input
-                  placeholder="Caste"
-                  value={form.caste}
-                  onChange={(e) => handleChange("caste", e.target.value)}
+                  placeholder="Contact Number"
+                  value={form.phoneNumber}
+                  onChange={(e) => handleChange("phoneNumber", e.target.value)}
+                  className="h-10"
+                />
+                <Input
+                  type="email"
+                  placeholder="Email Address"
+                  value={form.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
                   className="h-10"
                 />
               </div>
@@ -239,15 +224,15 @@ const TeacherRegistration: React.FC = () => {
               {/* Right Column */}
               <div className="space-y-4">
                 <Input
-                  placeholder="Religion"
-                  value={form.religion}
-                  onChange={(e) => handleChange("religion", e.target.value)}
+                  placeholder="Caste"
+                  value={form.caste}
+                  onChange={(e) => handleChange("caste", e.target.value)}
                   className="h-10"
                 />
                 <Input
-                  placeholder="Nationality"
-                  value={form.nationality}
-                  onChange={(e) => handleChange("nationality", e.target.value)}
+                  placeholder="Religion"
+                  value={form.religion}
+                  onChange={(e) => handleChange("religion", e.target.value)}
                   className="h-10"
                 />
                 <Input
@@ -258,12 +243,11 @@ const TeacherRegistration: React.FC = () => {
                 />
                 <div>
                   <label className="text-xs font-medium text-foreground mb-1 block">
-                    Profile Photo
+                    Profile Photo (Optional)
                   </label>
                   <input
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     onChange={(e) => handleChange("photo", e.target.files?.[0] || null)}
                     className="border border-input rounded-md px-2 py-2 h-10 text-xs cursor-pointer file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-primary file:text-primary-foreground file:cursor-pointer file:font-medium hover:file:bg-primary/90 w-full"
                   />
@@ -283,52 +267,13 @@ const TeacherRegistration: React.FC = () => {
 
       case "address":
         return (
-          <div className="space-y-4 max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 gap-8">
-              {/* Left Column */}
-              <div className="space-y-4">
-                <Textarea
-                  placeholder="Address"
-                  value={form.address}
-                  onChange={(e) => handleChange("address", e.target.value)}
-                  className="min-h-24"
-                />
-                <Input
-                  placeholder="Village"
-                  value={form.village}
-                  onChange={(e) => handleChange("village", e.target.value)}
-                  className="h-10"
-                />
-                <Input
-                  placeholder="Mandal"
-                  value={form.mandal}
-                  onChange={(e) => handleChange("mandal", e.target.value)}
-                  className="h-10"
-                />
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-4">
-                <Input
-                  placeholder="District"
-                  value={form.district}
-                  onChange={(e) => handleChange("district", e.target.value)}
-                  className="h-10"
-                />
-                <Input
-                  placeholder="State"
-                  value={form.state}
-                  onChange={(e) => handleChange("state", e.target.value)}
-                  className="h-10"
-                />
-                <Input
-                  placeholder="Pincode"
-                  value={form.pincode}
-                  onChange={(e) => handleChange("pincode", e.target.value)}
-                  className="h-10"
-                />
-              </div>
-            </div>
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <Textarea
+              placeholder="Full Address"
+              value={form.address}
+              onChange={(e) => handleChange("address", e.target.value)}
+              className="min-h-[120px]"
+            />
           </div>
         );
 
@@ -379,54 +324,6 @@ const TeacherRegistration: React.FC = () => {
           </div>
         );
 
-      case "contact":
-        return (
-          <div className="space-y-4 max-w-2xl mx-auto">
-            <Input
-              placeholder="Phone Number"
-              value={form.phoneNumber}
-              onChange={(e) => handleChange("phoneNumber", e.target.value)}
-              className="h-10"
-            />
-            <Input
-              placeholder="Emergency Contact Number"
-              value={form.emergencyContact}
-              onChange={(e) => handleChange("emergencyContact", e.target.value)}
-              className="h-10"
-            />
-            <Input
-              type="email"
-              placeholder="Email Address"
-              value={form.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              className="h-10"
-            />
-          </div>
-        );
-
-      case "additional":
-        return (
-          <div className="space-y-4 max-w-2xl mx-auto">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Disabilities / Special Requirements
-              </label>
-              <Textarea
-                placeholder="Enter any disabilities or special requirements (if any)"
-                value={form.disabilities}
-                onChange={(e) => handleChange("disabilities", e.target.value)}
-                className="min-h-24"
-              />
-            </div>
-            <Input
-              placeholder="Aadhaar Number"
-              value={form.aadhaarNumber}
-              onChange={(e) => handleChange("aadhaarNumber", e.target.value)}
-              className="h-10"
-            />
-          </div>
-        );
-
       case "summary":
         return (
           <div className="space-y-5 max-w-3xl mx-auto">
@@ -438,42 +335,19 @@ const TeacherRegistration: React.FC = () => {
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <div className="text-xs text-muted-foreground font-medium">Name</div>
-                    <div className="font-medium">{form.teacherName}</div>
+                    <div className="font-medium">{form.teacherName || "-"}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground font-medium">DOB</div>
-                    <div className="font-medium">{form.dob}</div>
+                    <div className="font-medium">{form.dob || "-"}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground font-medium">Gender</div>
-                    <div className="font-medium">{form.gender}</div>
+                    <div className="font-medium">{form.gender || "-"}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground font-medium">Religion</div>
-                    <div className="font-medium">{form.religion}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Details */}
-              <div>
-                <h5 className="font-semibold text-sm mb-3 text-primary">Address Details</h5>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-xs text-muted-foreground font-medium">Village</div>
-                    <div className="font-medium">{form.village}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground font-medium">District</div>
-                    <div className="font-medium">{form.district}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground font-medium">State</div>
-                    <div className="font-medium">{form.state}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground font-medium">Pincode</div>
-                    <div className="font-medium">{form.pincode}</div>
+                    <div className="text-xs text-muted-foreground font-medium">Phone</div>
+                    <div className="font-medium">{form.phoneNumber || "-"}</div>
                   </div>
                 </div>
               </div>
@@ -512,21 +386,6 @@ const TeacherRegistration: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Contact Details */}
-              <div>
-                <h5 className="font-semibold text-sm mb-3 text-primary">Contact Details</h5>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-xs text-muted-foreground font-medium">Phone</div>
-                    <div className="font-medium">{form.phoneNumber}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground font-medium">Email</div>
-                    <div className="font-medium">{form.email}</div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         );
@@ -538,6 +397,25 @@ const TeacherRegistration: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
+      {successModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md shadow-2xl p-6 text-center animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Registration Successful!</h2>
+            <p className="text-muted-foreground mb-6">Teacher <span className="font-semibold text-foreground">{successModalData.name}</span> has been successfully registered.</p>
+            {successModalData.id !== "Generated" && (
+              <div className="bg-muted rounded-lg p-4 mb-6 text-center">
+                <span className="block text-sm text-muted-foreground mb-1">Generated Teacher ID</span>
+                <span className="block text-3xl font-mono font-bold text-primary">{successModalData.id}</span>
+              </div>
+            )}
+            <Button className="w-full" size="lg" onClick={() => setSuccessModalData(null)}>Done</Button>
+          </Card>
+        </div>
+      )}
+
       <Tabs defaultValue="manual" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md mx-auto">
           <TabsTrigger value="manual">Manual Registration</TabsTrigger>
