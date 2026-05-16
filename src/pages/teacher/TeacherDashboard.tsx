@@ -39,6 +39,7 @@ import {
   fetchTeacherAssignments,
   fetchChapterGatingStatus,
   fetchTeacherAssessments,
+  submitStudentMark,
   type GatingStatusResponse
 } from "@/api/client";
 import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel, TeacherAssessmentHistoryDialog } from "./TeacherAssessment";
@@ -409,6 +410,40 @@ const TeacherDashboard = () => {
       fullText: content
     };
   };
+
+  const handleMarkChange = async (studentId: string, type: string, value: string) => {
+    if (!selectedSubject) return;
+    const score = parseInt(value);
+    
+    // Allow clearing the input
+    if (value === '') {
+      // In a real app, we might want to delete the record, but here we'll just skip or save 0
+      return;
+    }
+    
+    if (isNaN(score)) return;
+
+    // Use the first chapter of the subject as the anchor for these general assessments
+    const subChapters = chapters.filter(ch => String(ch.subjectId) === String(selectedSubject));
+    const chapterId = subChapters[0]?.id;
+
+    try {
+      await submitStudentMark({
+        studentId,
+        chapterId: chapterId || "1",
+        score: score,
+        total: 100,
+        assessmentType: type,
+        assessedOn: new Date().toISOString()
+      });
+      // Silent refetch to update UI without global loading
+      refetch();
+    } catch (e) {
+      console.error("Failed to save mark:", e);
+      toast.error(`Failed to save ${type} mark`);
+    }
+  };
+
   const [chatLoading, setChatLoading] = useState(false);
   const [workflowLoading, setWorkflowLoading] = useState<string | null>(null);
   const [todayAttendance, setTodayAttendance] = useState<{ marked: boolean; status?: string } | null>(null);
@@ -2629,16 +2664,26 @@ const TeacherDashboard = () => {
                       <tbody>
                         {classStudents.map(s => {
                           const att = studentAttendance.find(a => a.studentId === s.id);
-                          // Dynamic data from API context
-                          const fa1Result = studentQuizResults.find(r => r.studentId === s.id && r.assessmentType?.toLowerCase() === 'fa1');
-                          const sa1Result = studentQuizResults.find(r => r.studentId === s.id && r.assessmentType?.toLowerCase() === 'sa1');
-                          const quizResultsList = studentQuizResults.filter(r => r.studentId === s.id && (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
                           
-                          const mockFA1 = fa1Result && fa1Result.total > 0 ? Math.round((fa1Result.score / fa1Result.total) * 100) : 0;
-                          const mockSA1 = sa1Result && sa1Result.total > 0 ? Math.round((sa1Result.score / sa1Result.total) * 100) : 0;
+                          // Real database marks for this specific subject
+                          const studentMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id));
+                          
+                          const fa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA1')?.score;
+                          const fa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA2')?.score;
+                          const fa3 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA3')?.score;
+                          const fa4 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA4')?.score;
+                          const sa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'SA1')?.score;
+                          const sa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'SA2')?.score;
+                          
+                          const quizResultsList = studentMarks.filter(r => (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
+                          
+                          const avgFA = ((Number(fa1||0) + Number(fa2||0) + Number(fa3||0) + Number(fa4||0)) / 4);
+                          const avgSA = ((Number(sa1||0) + Number(sa2||0)) / 2);
                           const quizScore = quizResultsList.reduce((sum, r) => sum + r.score, 0);
                           const totalQuizMax = quizResultsList.reduce((sum, r) => sum + r.total, 0) || 20;
-                          const mockPerfIndex = Math.floor((mockFA1/100)*30 + (mockSA1/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
+                          
+                          // Updated Performance Index calculation including all 6 assessments
+                          const mockPerfIndex = Math.floor((avgFA/100)*30 + (avgSA/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
                           
                           return (
                             <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
@@ -2652,12 +2697,12 @@ const TeacherDashboard = () => {
                                   </div>
                                 ) : <span className="text-xs text-muted-foreground">—</span>}
                               </td>
-                              <td className="p-2 text-center"><Input defaultValue={mockFA1 || ''} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center"><Input defaultValue={mockSA1 || ''} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
-                              <td className="p-2 text-center"><Input className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={fa1 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA1', e.target.value)} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={fa2 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA2', e.target.value)} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={fa3 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA3', e.target.value)} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={fa4 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA4', e.target.value)} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={sa1 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'SA1', e.target.value)} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
+                              <td className="p-2 text-center"><Input defaultValue={sa2 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'SA2', e.target.value)} className="h-7 w-12 text-center text-xs p-1 mx-auto" /></td>
                               <td className="p-2 text-center font-bold text-primary">{quizScore}/{totalQuizMax}</td>
                               <td className="p-3 text-center bg-primary/5 font-black text-foreground">
                                 {mockPerfIndex} <span className="text-[9px] text-muted-foreground">/100</span>
@@ -2678,14 +2723,35 @@ const TeacherDashboard = () => {
                                       quizScore: quizScore,
                                       quizTotal: totalQuizMax,
                                       academicYear: "2023-24",
-                                      subjectGrades: [
-                                        { name: "English", internal: "14+15", exam: 42, quiz: 45, grade: "A" },
-                                        { name: "Mathematics", internal: "13+14", exam: 38, quiz: 40, grade: "B+" },
-                                        { name: "Science", internal: "15+15", exam: 45, quiz: 48, grade: "A+" },
-                                        { name: "Social Studies", internal: "14+14", exam: 40, quiz: 42, grade: "A" },
-                                        { name: "Second Language", internal: "12+13", exam: 35, quiz: 38, grade: "B" },
-                                        { name: "Computer Science", internal: "15+15", exam: 48, quiz: 50, grade: "A+" },
-                                      ]
+                                      subjectGrades: subjects.filter(sub => sub.grades.includes(grade)).map(sub => {
+                                        const subChaps = chapters.filter(ch => ch.subjectId === sub.id);
+                                        const subMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id) && subChaps.some(ch => ch.id === r.chapterId));
+                                        
+                                        const getScore = (type: string) => subMarks.find(r => r.assessmentType?.toUpperCase() === type)?.score || "—";
+                                        
+                                        const totalScore = subMarks.reduce((sum, r) => sum + r.score, 0);
+                                        const totalMax = subMarks.reduce((sum, r) => sum + r.total, 0);
+                                        const pct = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
+                                        
+                                        let gradeVal = "C";
+                                        if (pct >= 90) gradeVal = "A+";
+                                        else if (pct >= 80) gradeVal = "A";
+                                        else if (pct >= 70) gradeVal = "B+";
+                                        else if (pct >= 60) gradeVal = "B";
+                                        else if (pct >= 50) gradeVal = "C+";
+
+                                        return {
+                                          name: sub.name,
+                                          fa1: getScore('FA1'),
+                                          fa2: getScore('FA2'),
+                                          fa3: getScore('FA3'),
+                                          fa4: getScore('FA4'),
+                                          sa1: getScore('SA1'),
+                                          sa2: getScore('SA2'),
+                                          quiz: totalMax > 0 ? Math.round((totalScore / totalMax) * 50) : 0,
+                                          grade: gradeVal
+                                        };
+                                      })
                                     });
                                     setAiReportDialogOpen(true);
                                     return data;
