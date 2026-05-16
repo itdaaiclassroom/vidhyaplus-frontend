@@ -1290,6 +1290,7 @@ export interface GatingStatusResponse {
   teacherPassThreshold: number;
   studentThreshold: number;
   chapters: ChapterGatingStatus[];
+  topicScores?: Record<string, { avgScore: number; thresholdMet: boolean }>;
 }
 
 export interface AssessmentQuestion {
@@ -1723,7 +1724,8 @@ export async function deleteQuestion(qid: number): Promise<{ ok: boolean; delete
 /** POST /api/subjects/:id/question-bank/bulk — bulk upload from base64 Excel/CSV */
 export async function bulkUploadQuestions(
   subjectId: number,
-  file: File
+  file: File,
+  topicId?: number
 ): Promise<BulkUploadQuestionsResponse> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const base64 = await new Promise<string>((resolve, reject) => {
@@ -1735,7 +1737,7 @@ export async function bulkUploadQuestions(
   const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/question-bank/bulk`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ file: base64 }),
+    body: JSON.stringify({ file: base64, topic_id: topicId }),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
@@ -1754,6 +1756,16 @@ export async function fetchBroadcastMessages(): Promise<any[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const rolePrefix = localStorage.getItem('role') === 'teacher' ? 'teacher' : 'principal';
   const res = await fetch(`${API_BASE}/api/${rolePrefix}/dashboard/broadcast-messages`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchSubjectTopics(subjectId: number, grade?: number): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const url = grade ? `${API_BASE}/api/subjects/${subjectId}/topics?grade=${grade}` : `${API_BASE}/api/subjects/${subjectId}/topics`;
+  const res = await fetch(url, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));

@@ -20,32 +20,21 @@ interface StudentForm {
   gender: string;
   gradeId: string;
   classId: string;
-  schoolName: string;
+  caste: string;
+  religion: string;
+  motherTongue: string;
   fatherName: string;
+  fatherNumber: string;
   motherName: string;
-  phone: string;
-  emergencyContact: string;
+  motherNumber: string;
   address: string;
-  village: string;
-  mandal: string;
-  district: string;
-  state: string;
-  pincode: string;
-  aadhaar: string;
-  hostelStatus: string;
-  disabilities: string;
-  motherTongue?: string;
-  nationality?: string;
-  religion?: string;
-  caste?: string;
   photo: File | null;
-  rollNo: string;
 }
 
 const steps: { key: StepKey; title: string; desc?: string }[] = [
   { key: "personal", title: "Personal Details" },
   { key: "family", title: "Family Details" },
-  { key: "contact", title: "Address & Contact" },
+  { key: "contact", title: "Address" },
   { key: "summary", title: "Summary" },
 ];
 
@@ -68,35 +57,24 @@ const StudentRegistrationWizard: React.FC = () => {
     setSections(filtered);
   };
 
+  const [successModalData, setSuccessModalData] = useState<{ id: string; name: string } | null>(null);
+
   const [form, setForm] = useState<StudentForm>({
     fullName: "",
     dob: "",
     gender: "",
     gradeId: "",
     classId: "",
-    schoolName: "",
-    fatherName: "",
-    motherName: "",
-    phone: "",
-    emergencyContact: "",
-    address: "",
-    village: "",
-    mandal: "",
-    district: "",
-    state: "",
-    pincode: "",
-    aadhaar: "",
-    hostelStatus: "no",
-    disabilities: "",
-    motherTongue: "",
-    nationality: "",
-    religion: "",
     caste: "",
+    religion: "",
+    motherTongue: "",
+    fatherName: "",
+    fatherNumber: "",
+    motherName: "",
+    motherNumber: "",
+    address: "",
     photo: null,
-    rollNo: "",
   });
-
-  const schoolOptions = ["DAV School", "St. Mary's Academy", "Government School", "Public School", "Bharatiya Vidya Bhavan"];
 
   const handleChange = (k: keyof StudentForm, v: string | File | null) => {
     setForm((s: StudentForm) => ({ ...s, [k]: v }));
@@ -137,10 +115,9 @@ const StudentRegistrationWizard: React.FC = () => {
       const firstName = nameParts[0];
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
 
-      await registerStudent({
+      const res = await registerStudent({
         school_id: schoolId,
         section_id: form.classId,
-        roll_no: form.rollNo,
         first_name: firstName,
         last_name: lastName,
         category: form.caste || 'General',
@@ -148,37 +125,31 @@ const StudentRegistrationWizard: React.FC = () => {
         grade_id: Number(form.gradeId),
         father_name: form.fatherName,
         mother_name: form.motherName,
-        phone: form.phone,
-        emergency_contact: form.emergencyContact,
+        phone: form.fatherNumber,
+        emergency_contact: form.motherNumber,
         address: form.address,
-        village: form.village,
-        mandal: form.mandal,
-        district: form.district,
-        state: form.state,
-        pincode: form.pincode,
-        aadhaar: form.aadhaar,
-        hostel_status: form.hostelStatus,
-        disabilities: form.disabilities,
         mother_tongue: form.motherTongue,
-        nationality: form.nationality,
         religion: form.religion,
         dob: form.dob,
         gender: form.gender,
-        ...(photoUrl ? { photo_url: photoUrl } : {}),
+        ...(photoUrl ? { profile_image_path: photoUrl } : {}),
       });
       
       refetchStudents();
-      toast.success("Student registered successfully!");
+      setSuccessModalData({ id: res.student_id, name: form.fullName });
       setCurrent(0);
       setForm({
-        fullName: "", dob: "", gender: "", gradeId: "", classId: "", schoolName: "", fatherName: "",
-        motherName: "", phone: "", emergencyContact: "", address: "", village: "",
-        mandal: "", district: "", state: "", pincode: "", aadhaar: "", hostelStatus: "no",
-        disabilities: "", motherTongue: "", nationality: "", religion: "", caste: "", photo: null,
-        rollNo: "",
+        fullName: "", dob: "", gender: "", gradeId: "", classId: "",
+        caste: "", religion: "", motherTongue: "", fatherName: "",
+        fatherNumber: "", motherName: "", motherNumber: "", address: "", photo: null
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to register student");
+      const msg = err instanceof Error ? err.message : "Failed to register student";
+      if (msg.includes("Unauthorized") || msg.includes("Token required")) {
+        toast.error("Session expired or token missing. Please log out and log back in.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -193,7 +164,7 @@ const StudentRegistrationWizard: React.FC = () => {
             <div className="grid grid-cols-2 gap-8">
               {/* Left Column */}
               <div className="space-y-4">
-                <Input placeholder="Roll No" value={form.rollNo} onChange={(e) => handleChange("rollNo", e.target.value)} className="h-10 border-primary/30 focus:border-primary" />
+                <Input value="Auto-generated after save" disabled className="h-10 bg-muted text-muted-foreground border-primary/30" />
                 <Input placeholder="Student name" value={form.fullName} onChange={(e) => handleChange("fullName", e.target.value)} className="h-10" />
                 <Input type="date" placeholder="Date of Birth" value={form.dob} onChange={(e) => handleChange("dob", e.target.value)} className="h-10" />
                 <Select value={form.gender} onValueChange={(v) => handleChange("gender", v)}>
@@ -204,7 +175,6 @@ const StudentRegistrationWizard: React.FC = () => {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input placeholder="School name" value={form.schoolName} onChange={(e) => handleChange("schoolName", e.target.value)} className="h-10" />
                 <div className="grid grid-cols-2 gap-4">
                   <Select value={form.gradeId} onValueChange={(v) => handleChange("gradeId", v)}>
                     <SelectTrigger className="h-10"><SelectValue placeholder="Grade" /></SelectTrigger>
@@ -227,15 +197,14 @@ const StudentRegistrationWizard: React.FC = () => {
 
               {/* Right Column */}
               <div className="space-y-4">
-                <Input placeholder="Caste" value={form.caste || ""} onChange={(e) => handleChange("caste", e.target.value)} className="h-10" />
-                <Input placeholder="Religion" value={form.religion || ""} onChange={(e) => handleChange("religion", e.target.value)} className="h-10" />
-                <Input placeholder="Mother Tongue" value={form.motherTongue || ""} onChange={(e) => handleChange("motherTongue", e.target.value)} className="h-10" />
+                <Input placeholder="Caste" value={form.caste} onChange={(e) => handleChange("caste", e.target.value)} className="h-10" />
+                <Input placeholder="Religion" value={form.religion} onChange={(e) => handleChange("religion", e.target.value)} className="h-10" />
+                <Input placeholder="Mother Tongue" value={form.motherTongue} onChange={(e) => handleChange("motherTongue", e.target.value)} className="h-10" />
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">Profile Photo</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Profile Photo (Optional)</label>
                   <input 
                     type="file" 
                     accept="image/*" 
-                    capture="environment" 
                     onChange={(e) => handleChange("photo", e.target.files?.[0] || null)}
                     className="border border-input rounded-md px-2 py-2 h-10 text-xs cursor-pointer file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-primary file:text-primary-foreground file:cursor-pointer file:font-medium hover:file:bg-primary/90 w-full"
                   />
@@ -258,40 +227,19 @@ const StudentRegistrationWizard: React.FC = () => {
           <div className="space-y-5 max-w-2xl mx-auto">
             <div className="grid grid-cols-2 gap-6">
               <Input placeholder="Father's name" value={form.fatherName} onChange={(e) => handleChange("fatherName", e.target.value)} className="h-10" />
-              <Input placeholder="Mother's name" value={form.motherName} onChange={(e) => handleChange("motherName", e.target.value)} className="h-10" />
+              <Input placeholder="Father's number" value={form.fatherNumber} onChange={(e) => handleChange("fatherNumber", e.target.value)} className="h-10" />
             </div>
-            <Textarea placeholder="Any disabilities / special requirements" value={form.disabilities} onChange={(e) => handleChange("disabilities", e.target.value)} />
+            <div className="grid grid-cols-2 gap-6">
+              <Input placeholder="Mother's name" value={form.motherName} onChange={(e) => handleChange("motherName", e.target.value)} className="h-10" />
+              <Input placeholder="Mother's number" value={form.motherNumber} onChange={(e) => handleChange("motherNumber", e.target.value)} className="h-10" />
+            </div>
           </div>
         );
 
       case "contact":
         return (
-          <div className="space-y-4 max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 gap-8">
-              {/* Left Column */}
-              <div className="space-y-4">
-                <Input placeholder="Phone number" value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} className="h-10" />
-                <Input placeholder="Village" value={form.village} onChange={(e) => handleChange("village", e.target.value)} className="h-10" />
-                <Input placeholder="Mandal" value={form.mandal} onChange={(e) => handleChange("mandal", e.target.value)} className="h-10" />
-              </div>
-
-              {/* Right Column */}
-              <div className="space-y-4">
-                <Input placeholder="Pincode" value={form.pincode} onChange={(e) => handleChange("pincode", e.target.value)} className="h-10" />
-                <Input placeholder="District" value={form.district} onChange={(e) => handleChange("district", e.target.value)} className="h-10" />
-                <Input placeholder="State" value={form.state} onChange={(e) => handleChange("state", e.target.value)} className="h-10" />
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="text-xs font-medium text-foreground min-w-fit">Hostler :</label>
-              <Select value={form.hostelStatus} onValueChange={(v) => handleChange("hostelStatus", v)}>
-                <SelectTrigger className="h-8 w-32"><SelectValue placeholder="Select option" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Yes</SelectItem>
-                  <SelectItem value="no">No</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <Textarea placeholder="Full Address" value={form.address} onChange={(e) => handleChange("address", e.target.value)} className="min-h-[120px]" />
           </div>
         );
 
@@ -303,31 +251,31 @@ const StudentRegistrationWizard: React.FC = () => {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <div className="text-xs text-muted-foreground font-medium">Name</div>
-                  <div className="font-medium">{form.fullName}</div>
+                  <div className="font-medium">{form.fullName || "-"}</div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground font-medium">DOB</div>
-                  <div className="font-medium">{form.dob}</div>
+                  <div className="font-medium">{form.dob || "-"}</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="text-xs text-muted-foreground font-medium">School</div>
-                  <div className="font-medium">{form.schoolName}</div>
-                </div>
                 <div>
                   <div className="text-xs text-muted-foreground font-medium">Class</div>
-                  <div className="font-medium">{form.classId}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <div className="text-xs text-muted-foreground font-medium">Phone</div>
-                  <div className="font-medium">{form.phone}</div>
+                  <div className="font-medium">{form.classId ? "Selected" : "-"}</div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground font-medium">Gender</div>
-                  <div className="font-medium">{form.gender}</div>
+                  <div className="font-medium">{form.gender || "-"}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <div className="text-xs text-muted-foreground font-medium">Father's Name</div>
+                  <div className="font-medium">{form.fatherName || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground font-medium">Phone</div>
+                  <div className="font-medium">{form.fatherNumber || "-"}</div>
                 </div>
               </div>
             </div>
@@ -341,6 +289,23 @@ const StudentRegistrationWizard: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
+      {successModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md shadow-2xl p-6 text-center animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Registration Successful!</h2>
+            <p className="text-muted-foreground mb-6">Student <span className="font-semibold text-foreground">{successModalData.name}</span> has been successfully registered.</p>
+            <div className="bg-muted rounded-lg p-4 mb-6 text-center">
+              <span className="block text-sm text-muted-foreground mb-1">Generated Student ID</span>
+              <span className="block text-3xl font-mono font-bold text-primary">{successModalData.id}</span>
+            </div>
+            <Button className="w-full" size="lg" onClick={() => setSuccessModalData(null)}>Done</Button>
+          </Card>
+        </div>
+      )}
+      
       <Tabs defaultValue="manual" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md mx-auto">
           <TabsTrigger value="manual">Manual Registration</TabsTrigger>

@@ -36,6 +36,7 @@ const ModernAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [announcement, setAnnouncement] = useState("");
+  const [announcementTarget, setAnnouncementTarget] = useState<string>("all");
   const [analytics, setAnalytics] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
@@ -121,8 +122,12 @@ const ModernAdminDashboard = () => {
   const handleSendAnnouncement = async () => {
     if (!announcement.trim()) return;
     try {
-      await createAnnouncement({ title: "Admin Announcement", message: announcement });
-      toast.success("Announcement sent to all teachers");
+      await createAnnouncement({ 
+        title: "Admin Announcement", 
+        message: announcement,
+        target_role: announcementTarget 
+      });
+      toast.success(`Announcement sent to ${announcementTarget === 'all' ? 'everyone' : announcementTarget}`);
       setAnnouncement("");
     } catch (err) {
       toast.error("Failed to send announcement");
@@ -930,6 +935,118 @@ const ModernAdminDashboard = () => {
             <GatingAdminPanel />
           </TabsContent>
 
+          {/* Profile Content */}
+          <TabsContent value="profile" className="space-y-8">
+            <div className="relative">
+              {/* Cover Gradient */}
+              <div className="h-48 w-full bg-gradient-to-r from-primary/80 to-blue-600/80 rounded-3xl overflow-hidden shadow-lg">
+                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
+              </div>
+              
+              {/* Profile Header */}
+              <div className="px-8 -mt-16 relative flex flex-col md:flex-row items-end gap-6 pb-6 border-b border-slate-100">
+                <div className="p-1.5 bg-white rounded-3xl shadow-2xl">
+                  <div className="w-32 h-32 rounded-2xl bg-slate-100 flex items-center justify-center text-4xl font-bold text-primary border-4 border-white overflow-hidden shadow-inner">
+                    {userName?.charAt(0) || "A"}
+                  </div>
+                </div>
+                <div className="flex-1 pb-2">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-3xl font-bold text-slate-800">{userName || "Administrator"}</h2>
+                    <Badge className="bg-primary/10 text-primary border-0 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">
+                      {role === 'admin' ? 'Super Admin' : role === 'team' ? `Team: ${teamRole}` : role}
+                    </Badge>
+                  </div>
+                  <p className="text-slate-500 font-medium">System Management & Administration</p>
+                </div>
+                <div className="flex gap-3 pb-2">
+                  <Button variant="outline" className="rounded-xl border-slate-200">Edit Details</Button>
+                  <Button className="rounded-xl shadow-lg shadow-primary/20" onClick={handleLogout}>Logout</Button>
+                </div>
+              </div>
+
+              {/* Profile Details Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+                {/* Account Information */}
+                <Card className="border-0 shadow-sm rounded-3xl lg:col-span-2 overflow-hidden">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4">
+                    <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" /> Account Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Full Name</Label>
+                        <p className="text-lg font-semibold text-slate-800">{userName}</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Account ID</Label>
+                        <p className="text-lg font-semibold text-slate-800 font-mono">#{role === 'admin' ? '001' : (localStorage.getItem("auth.teamId") || 'ADM-882')}</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Primary Email</Label>
+                        <p className="text-lg font-semibold text-slate-800">{role === 'admin' ? 'admin@vidhyaplus.com' : 'team@vidhyaplus.com'}</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Phone Number</Label>
+                        <p className="text-lg font-semibold text-slate-800">+91 98765 43210</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Assigned Location</Label>
+                        <p className="text-lg font-semibold text-slate-800">Headquarters (Remote)</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Language</Label>
+                        <p className="text-lg font-semibold text-slate-800">English (Primary), Telugu</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Permissions & Role Card */}
+                <Card className="border-0 shadow-sm rounded-3xl overflow-hidden h-fit">
+                  <CardHeader className="bg-primary/5 border-b border-primary/10 py-4">
+                    <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-primary" /> Role & Access
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                      <p className="text-sm font-bold text-primary mb-1 uppercase tracking-wider">Access Level</p>
+                      <p className="text-2xl font-black text-slate-800">{role?.toUpperCase()}</p>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Permissions</p>
+                      <div className="space-y-3">
+                        {role === 'admin' ? (
+                          <>
+                            <PermissionBadge label="Full System Access" />
+                            <PermissionBadge label="User Management" />
+                            <PermissionBadge label="Database Write Access" />
+                            <PermissionBadge label="School Configurations" />
+                            <PermissionBadge label="Audit Log Viewer" />
+                          </>
+                        ) : (
+                          <>
+                            <PermissionBadge label="Material Management" />
+                            <PermissionBadge label="Syllabus Control" />
+                            <PermissionBadge label="Profile View" />
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 mt-4 border-t border-slate-100">
+                      <p className="text-xs text-slate-400 italic">Account created on May 12, 2024</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
           {/* Schools Content */}
           <TabsContent value="schools" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1038,9 +1155,21 @@ const ModernAdminDashboard = () => {
                 <MessageSquare className="w-5 h-5 text-primary" /> Announcements
               </h3>
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-slate-500">Target Audience</Label>
+                  <select 
+                    className="w-full p-3 bg-slate-50 border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                    value={announcementTarget}
+                    onChange={(e) => setAnnouncementTarget(e.target.value)}
+                  >
+                    <option value="all">All Users</option>
+                    <option value="teachers">Teachers Only</option>
+                    <option value="principals">Principals Only</option>
+                  </select>
+                </div>
                 <textarea 
                   className="w-full h-32 p-4 bg-slate-50 border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
-                  placeholder="Broadcast a message to all teachers..."
+                  placeholder="Broadcast a message..."
                   value={announcement}
                   onChange={(e) => setAnnouncement(e.target.value)}
                 />
@@ -1361,23 +1490,21 @@ const ModernAdminDashboard = () => {
               <Label htmlFor="school-active" className="cursor-pointer">Active</Label>
             </div>
 
-            {!editingSchool && (
-              <div className="space-y-3 mt-2 pt-4 border-t border-border">
-                <p className="text-sm font-semibold text-primary">Principal Credentials</p>
-                <div>
-                  <Label>Principal Name</Label>
-                  <Input value={schoolForm.principalName} onChange={(e) => setSchoolForm(f => ({ ...f, principalName: e.target.value }))} placeholder="Dr. Maheshwar Rao" />
-                </div>
-                <div>
-                  <Label>Principal Email</Label>
-                  <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
-                </div>
-                <div>
-                  <Label>Principal Password</Label>
-                  <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
-                </div>
+            <div className="space-y-3 mt-2 pt-4 border-t border-border">
+              <p className="text-sm font-semibold text-primary">{editingSchool ? "Edit Principal Credentials" : "Principal Credentials"}</p>
+              <div>
+                <Label>Principal Name</Label>
+                <Input value={schoolForm.principalName} onChange={(e) => setSchoolForm(f => ({ ...f, principalName: e.target.value }))} placeholder="Dr. Maheshwar Rao" />
               </div>
-            )}
+              <div>
+                <Label>Principal Email</Label>
+                <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
+              </div>
+              <div>
+                <Label>Principal Password {editingSchool && "(leave blank to keep current)"}</Label>
+                <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2 mt-4">
               <Button type="button" variant="outline" onClick={() => setSchoolFormOpen(false)}>Cancel</Button>
@@ -1427,6 +1554,13 @@ const DetailItem = ({ label, value }: any) => (
   <div className="space-y-1">
     <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</p>
     <p className="text-slate-700 font-medium">{value}</p>
+  </div>
+);
+
+const PermissionBadge = ({ label }: { label: string }) => (
+  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+    <span className="text-xs font-semibold text-slate-700">{label}</span>
   </div>
 );
 

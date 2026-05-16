@@ -389,6 +389,109 @@ export function TeacherAssessmentDialog({
   );
 }
 
+
+/* ─── Last Attempt Review Dialog ─── */
+export function TeacherAssessmentHistoryDialog({ 
+  open, 
+  onOpenChange, 
+  gradedSummary, 
+  chapterName, 
+  score, 
+  total, 
+  passed 
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  gradedSummary: any[]; 
+  chapterName: string;
+  score: number;
+  total: number;
+  passed: boolean;
+}) {
+  if (!gradedSummary || !Array.isArray(gradedSummary)) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-6 bg-indigo-600 text-white shrink-0">
+          <DialogTitle className="text-xl">Last Attempt Review</DialogTitle>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm font-medium opacity-90">{chapterName}</span>
+            <Badge className={passed ? "bg-green-500 text-white" : "bg-red-500 text-white"}>
+              {passed ? "PASSED" : "FAILED"} — {score}/{total}
+            </Badge>
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {gradedSummary.map((item, idx) => (
+            <div key={idx} className="space-y-3 pb-6 border-b border-gray-100 last:border-0">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold mt-0.5">
+                  {idx + 1}
+                </span>
+                <p className="text-sm font-semibold text-slate-800 leading-relaxed">
+                  {item.questionText || `Question ${idx + 1}`}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pl-9">
+                {['A', 'B', 'C', 'D'].map((opt) => {
+                  const optText = (item as any)[`option${opt}`] || `Option ${opt}`;
+                  const isSelected = item.selectedOption === opt;
+                  const isCorrect = item.correctOption === opt;
+                  
+                  let statusClass = "border-gray-100 bg-white text-slate-600";
+                  let icon = null;
+
+                  if (isCorrect) {
+                    statusClass = "border-green-200 bg-green-50 text-green-700 font-medium";
+                    icon = <CheckCircle2 className="w-3.5 h-3.5" />;
+                  } else if (isSelected && !isCorrect) {
+                    statusClass = "border-red-200 bg-red-50 text-red-700 font-medium";
+                    icon = <XCircle className="w-3.5 h-3.5" />;
+                  } else if (isSelected) {
+                    statusClass = "border-indigo-200 bg-indigo-50 text-indigo-700 font-medium";
+                  }
+
+                  return (
+                    <div key={opt} className={`p-2.5 rounded-xl border-2 text-xs flex items-center justify-between transition-all ${statusClass}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                          isCorrect ? "bg-green-500 text-white" : isSelected ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {opt}
+                        </span>
+                        {optText}
+                      </div>
+                      {icon}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {item.explanation && (
+                <div className="ml-9 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-[10px] text-amber-700 leading-relaxed">
+                    <span className="font-bold uppercase mr-1">Explanation:</span> {item.explanation}
+                  </p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="p-4 bg-gray-50 border-t shrink-0 flex justify-end">
+          <Button onClick={() => onOpenChange(false)} className="bg-indigo-600 hover:bg-indigo-700">
+            Close Review
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 /* ─── Gating Status Badge for Chapter Cards ─── */
 interface ChapterGatingBadgeProps {
   gatingStatus: ChapterGatingStatus | null;
