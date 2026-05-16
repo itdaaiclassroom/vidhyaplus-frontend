@@ -30,7 +30,11 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const IdCardGenerator = () => {
+interface IdCardGeneratorProps {
+  isEmbedded?: boolean;
+}
+
+const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
   const { data: globalData } = useAppData();
   const { schoolId, role } = useAuth();
   const isPrincipal = role === "principal";
@@ -100,9 +104,8 @@ const IdCardGenerator = () => {
     window.print();
   };
 
-  return (
-    <DashboardLayout title="ID Card Generator">
-      <div className="flex flex-col gap-6">
+  const content = (
+    <div className="flex flex-col gap-6">
           
           {/* Controls - Hidden on print */}
           <Card className="print:hidden">
@@ -419,6 +422,15 @@ const IdCardGenerator = () => {
           }
         `}} />
       </div>
+  );
+
+  if (isEmbedded) {
+    return content;
+  }
+
+  return (
+    <DashboardLayout title="ID Card Generator">
+      {content}
     </DashboardLayout>
   );
 };

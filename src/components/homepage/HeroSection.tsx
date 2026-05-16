@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Brain, BarChart3, Video, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 
-const heroImage = "/placeholder.svg";
+const heroImage = "/home.png";
 
 const HeroSection = () => {
   const aiFeatures = [
@@ -70,13 +70,13 @@ const HeroSection = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            <div className="rounded-2xl overflow-hidden shadow-hover border border-border">
-              <img
-                src={heroImage}
-                alt="AI Classroom Dashboard Preview"
-                className="w-full h-auto"
-              />
-            </div>
+        <div className="rounded-2xl overflow-hidden shadow-hover border border-border max-w-lg mx-auto">
+  <img
+    src={heroImage}
+    alt="AI Classroom Dashboard Preview"
+    className="w-full h-auto object-cover"
+  />
+</div>
             <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-2xl gradient-primary opacity-20 blur-xl" />
             <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-accent/20 blur-xl" />
           </motion.div>
