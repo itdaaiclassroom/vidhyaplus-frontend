@@ -15,8 +15,12 @@ import { motion } from 'framer-motion';
 
 interface SubjectGrade {
   name: string;
-  internal: string; // e.g. "15+15"
-  exam: number;
+  fa1: number | string;
+  fa2: number | string;
+  fa3: number | string;
+  fa4: number | string;
+  sa1: number | string;
+  sa2: number | string;
   quiz: number;
   grade: string;
 }
@@ -75,12 +79,12 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
   ];
 
   const defaultSubjectGrades: SubjectGrade[] = [
-    { name: "English", internal: "15+15", exam: 40, quiz: 38, grade: "C+" },
-    { name: "Mathematics", internal: "15+15", exam: 40, quiz: 38, grade: "C+" },
-    { name: "Science", internal: "15+15", exam: 40, quiz: 38, grade: "B+" },
-    { name: "Social Studies", internal: "15+15", exam: 40, quiz: 37, grade: "B+" },
-    { name: "Second Language", internal: "15+15", exam: 40, quiz: 37, grade: "C+" },
-    { name: "Computer Science", internal: "15+15", exam: 40, quiz: 37, grade: "B+" },
+    { name: "English", fa1: 15, fa2: 14, fa3: 15, fa4: 13, sa1: 42, sa2: 45, quiz: 38, grade: "A" },
+    { name: "Mathematics", fa1: 12, fa2: 13, fa3: 12, fa4: 14, sa1: 38, sa2: 40, quiz: 35, grade: "B+" },
+    { name: "Science", fa1: 15, fa2: 15, fa3: 15, fa4: 15, sa1: 45, sa2: 48, quiz: 45, grade: "A+" },
+    { name: "Social Studies", fa1: 14, fa2: 14, fa3: 13, fa4: 14, sa1: 40, sa2: 42, quiz: 40, grade: "A" },
+    { name: "Second Language", fa1: 12, fa2: 12, fa3: 13, fa4: 12, sa1: 35, sa2: 38, quiz: 32, grade: "B" },
+    { name: "Computer Science", fa1: 15, fa2: 15, fa3: 15, fa4: 15, sa1: 48, sa2: 50, quiz: 48, grade: "A+" },
   ];
 
   const displayGrades = subjectGrades || defaultSubjectGrades;
@@ -227,23 +231,31 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                     <CardContent className="p-0">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-400 font-black">
-                            <th className="px-5 py-4 border-b border-slate-100">Subject</th>
-                            <th className="px-5 py-4 border-b border-slate-100 text-center">Internal Marks (FA1+FA3)</th>
-                            <th className="px-5 py-4 border-b border-slate-100 text-center">Exam Marks (SA1)</th>
-                            <th className="px-5 py-4 border-b border-slate-100 text-center">Quiz Score (Out of 50)</th>
-                            <th className="px-5 py-4 border-b border-slate-100 text-right">Final Grade</th>
+                          <tr className="bg-slate-50/50 text-[9px] uppercase tracking-widest text-slate-400 font-black">
+                            <th className="px-4 py-4 border-b border-slate-100">Subject</th>
+                            <th className="px-2 py-4 border-b border-slate-100 text-center">FA1</th>
+                            <th className="px-2 py-4 border-b border-slate-100 text-center">FA2</th>
+                            <th className="px-2 py-4 border-b border-slate-100 text-center">FA3</th>
+                            <th className="px-2 py-4 border-b border-slate-100 text-center">FA4</th>
+                            <th className="px-2 py-4 border-b border-slate-100 text-center">SA1</th>
+                            <th className="px-2 py-4 border-b border-slate-100 text-center">SA2</th>
+                            <th className="px-3 py-4 border-b border-slate-100 text-center">Quiz (50)</th>
+                            <th className="px-4 py-4 border-b border-slate-100 text-right">Grade</th>
                           </tr>
                         </thead>
                         <tbody className="text-sm">
                           {displayGrades.map((grade, idx) => (
                             <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="px-5 py-3.5 border-b border-slate-50 font-bold text-slate-700">{grade.name}</td>
-                              <td className="px-5 py-3.5 border-b border-slate-50 text-center text-slate-600 font-medium">{grade.internal}</td>
-                              <td className="px-5 py-3.5 border-b border-slate-50 text-center text-slate-600 font-medium">{grade.exam}</td>
-                              <td className="px-5 py-3.5 border-b border-slate-50 text-center text-slate-600 font-medium">{grade.quiz}</td>
-                              <td className="px-5 py-3.5 border-b border-slate-50 text-right">
-                                <span className={`font-black ${grade.grade.startsWith('A') ? 'text-green-600' :
+                              <td className="px-4 py-3 border-b border-slate-50 font-bold text-slate-700 text-xs">{grade.name}</td>
+                              <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.fa1}</td>
+                              <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.fa2}</td>
+                              <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.fa3}</td>
+                              <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.fa4}</td>
+                              <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.sa1}</td>
+                              <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.sa2}</td>
+                              <td className="px-3 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.quiz}</td>
+                              <td className="px-4 py-3 border-b border-slate-50 text-right">
+                                <span className={`font-black text-sm ${grade.grade.startsWith('A') ? 'text-green-600' :
                                     grade.grade.startsWith('B') ? 'text-[#0D9488]' :
                                       'text-amber-600'
                                   }`}>{grade.grade}</span>

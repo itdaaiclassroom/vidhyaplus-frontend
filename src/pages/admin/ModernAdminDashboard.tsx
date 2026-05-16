@@ -1,5 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import StudentReportCard from "@/components/StudentReportCard";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
   MessageSquare, Calendar as CalendarIcon, LogOut, 
@@ -72,6 +75,51 @@ const ModernAdminDashboard = () => {
   const [filterSection, setFilterSection] = useState<string>("all");
   const [filterSubject, setFilterSubject] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [aiReportData, setAiReportData] = useState<any>(null);
+  const [aiReportDialogOpen, setAiReportDialogOpen] = useState(false);
+  const [aiReportContent, setAiReportContent] = useState("");
+  const [aiReportStudentName, setAiReportStudentName] = useState("");
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const downloadReport = async (studentName: string) => {
+    if (!reportRef.current) return;
+    
+    const toastId = toast.loading("Finalizing your premium PDF...");
+    
+    try {
+      const originalStyle = reportRef.current.style.width;
+      reportRef.current.style.width = "800px";
+
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: 800
+      });
+      
+      reportRef.current.style.width = originalStyle;
+
+      const imgData = canvas.toDataURL('image/png');
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const margin = 10;
+      const contentWidth = pdfWidth - (margin * 2);
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
+      pdf.save(`VidhyaPlus_Report_${studentName.replace(/\\s+/g, '_')}.pdf`);
+      
+      toast.success("Professional PDF Downloaded!", { id: toastId });
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF", { id: toastId });
+    }
+  };
 
   useEffect(() => {
     if (schoolFormOpen && editingSchool) {
@@ -498,14 +546,91 @@ const ModernAdminDashboard = () => {
                                     </Badge>
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-6 py-4 text-right flex justify-end gap-2">
                                   <Button 
-                                    variant="ghost" 
+                                    variant="outline" 
                                     size="sm" 
-                                    className="text-primary hover:text-primary hover:bg-primary/5 rounded-lg"
-                                    onClick={() => setSelectedStudent(s)}
+                                    className="text-primary border-primary/20 hover:bg-primary/5 rounded-lg font-semibold"
+                                    onClick={() => {
+                                      const studentClass = classes.find(c => c.id === s.classId);
+                                      const att = data.studentAttendance?.find((a: any) => a.studentId === s.id);
+                                      const quizResultsList = data.studentQuizResults.filter((r: any) => String(r.studentId) === String(s.id) && (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
+                                      const quizScore = quizResultsList.reduce((sum: number, r: any) => sum + r.score, 0);
+                                      const totalQuizMax = quizResultsList.reduce((sum: number, r: any) => sum + r.total, 0) || 20;
+                                      const fa1Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'fa1');
+                                      const sa1Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'sa1');
+                                      const mockFA1 = fa1Result && fa1Result.total > 0 ? Math.round((fa1Result.score / fa1Result.total) * 100) : 0;
+                                      const mockSA1 = sa1Result && sa1Result.total > 0 ? Math.round((sa1Result.score / sa1Result.total) * 100) : 0;
+                                      const mockPerfIndex = Math.floor((mockFA1/100)*30 + (mockSA1/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
+
+                                      const promise = fetch(`${getApiBase()}/api/ai/report-card`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ studentName: s.name, studentId: s.id })
+                                      }).then(res => res.json()).then(resData => {
+                                        setAiReportContent(resData.report);
+                                        setAiReportStudentName(s.name);
+                                          const studentSubjects = data.subjects.filter((sub: any) => sub.grades?.includes(studentClass?.grade));
+                                        const realSubjectGrades = studentSubjects.length > 0 ? studentSubjects.map((sub: any) => {
+                                          const subChaps = data.chapters.filter((ch: any) => ch.subjectId === sub.id);
+                                          const subMarks = data.studentQuizResults.filter((r: any) => 
+                                            String(r.studentId) === String(s.id) && 
+                                            subChaps.some((ch: any) => ch.id === r.chapterId)
+                                          );
+                                          
+                                          const getScore = (type: string) => subMarks.find((r: any) => r.assessmentType?.toUpperCase() === type)?.score || "—";
+                                          
+                                          const totalScore = subMarks.reduce((sum: number, r: any) => sum + r.score, 0);
+                                          const totalMax = subMarks.reduce((sum: number, r: any) => sum + r.total, 0);
+                                          const pct = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
+                                          
+                                          let gradeVal = "C";
+                                          if (pct >= 90) gradeVal = "A+";
+                                          else if (pct >= 80) gradeVal = "A";
+                                          else if (pct >= 70) gradeVal = "B+";
+                                          else if (pct >= 60) gradeVal = "B";
+                                          else if (pct >= 50) gradeVal = "C+";
+
+                                          return {
+                                            name: sub.name,
+                                            fa1: getScore('FA1'),
+                                            fa2: getScore('FA2'),
+                                            fa3: getScore('FA3'),
+                                            fa4: getScore('FA4'),
+                                            sa1: getScore('SA1'),
+                                            sa2: getScore('SA2'),
+                                            quiz: totalMax > 0 ? Math.round((totalScore / (totalMax || 1)) * 50) : 0,
+                                            grade: gradeVal
+                                          };
+                                        }) : [
+                                          { name: "No Data", fa1: "—", fa2: "—", fa3: "—", fa4: "—", sa1: "—", sa2: "—", quiz: 0, grade: "—" }
+                                        ];
+
+                                        setAiReportData({
+                                          attendance: att?.percentage || 0,
+                                          perfIndex: mockPerfIndex,
+                                          rollNumber: (s as any).rollNo || "N/A",
+                                          quizScore: quizScore,
+                                          quizTotal: totalQuizMax,
+                                          academicYear: "2023-24",
+                                          className: studentClass?.name || "N/A",
+                                          subjectGrades: realSubjectGrades
+                                        });
+                                        setAiReportDialogOpen(true);
+                                        return resData;
+                                      });
+
+                                      toast.promise(
+                                        promise,
+                                        {
+                                          loading: `Generating Report Card for ${s.name}...`,
+                                          success: `Report Card Generated for ${s.name}!`,
+                                          error: 'Failed to generate report card'
+                                        }
+                                      );
+                                    }}
                                   >
-                                    <Eye className="w-4 h-4 mr-2" /> View
+                                    <Eye className="w-4 h-4 mr-2" /> View Report
                                   </Button>
                                 </td>
                               </tr>
@@ -1427,8 +1552,92 @@ const ModernAdminDashboard = () => {
                                     })()}
                                   </Badge>
                                 </td>
-                                <td className="px-6 py-4 text-right">
-                                  <Button variant="ghost" size="sm" className="text-primary" onClick={() => setSelectedStudent(s)}>View</Button>
+                                <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-primary border-primary/20 hover:bg-primary/5 rounded-lg font-semibold"
+                                    onClick={() => {
+                                      const studentClass = classes.find(c => c.id === s.classId);
+                                      const att = data.studentAttendance?.find((a: any) => a.studentId === s.id);
+                                      const quizResultsList = data.studentQuizResults.filter((r: any) => String(r.studentId) === String(s.id) && (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
+                                      const quizScore = quizResultsList.reduce((sum: number, r: any) => sum + r.score, 0);
+                                      const totalQuizMax = quizResultsList.reduce((sum: number, r: any) => sum + r.total, 0) || 20;
+                                      const fa1Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'fa1');
+                                      const sa1Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'sa1');
+                                      const mockFA1 = fa1Result && fa1Result.total > 0 ? Math.round((fa1Result.score / fa1Result.total) * 100) : 0;
+                                      const mockSA1 = sa1Result && sa1Result.total > 0 ? Math.round((sa1Result.score / sa1Result.total) * 100) : 0;
+                                      const mockPerfIndex = Math.floor((mockFA1/100)*30 + (mockSA1/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
+
+                                      const promise = fetch(`${getApiBase()}/api/ai/report-card`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ studentName: s.name, studentId: s.id })
+                                      }).then(res => res.json()).then(resData => {
+                                        setAiReportContent(resData.report);
+                                        setAiReportStudentName(s.name);
+                                          const studentSubjects = data.subjects.filter((sub: any) => sub.grades?.includes(studentClass?.grade));
+                                        const realSubjectGrades = studentSubjects.length > 0 ? studentSubjects.map((sub: any) => {
+                                          const subChaps = data.chapters.filter((ch: any) => ch.subjectId === sub.id);
+                                          const subMarks = data.studentQuizResults.filter((r: any) => 
+                                            String(r.studentId) === String(s.id) && 
+                                            subChaps.some((ch: any) => ch.id === r.chapterId)
+                                          );
+                                          
+                                          const getScore = (type: string) => subMarks.find((r: any) => r.assessmentType?.toUpperCase() === type)?.score || "—";
+                                          
+                                          const totalScore = subMarks.reduce((sum: number, r: any) => sum + r.score, 0);
+                                          const totalMax = subMarks.reduce((sum: number, r: any) => sum + r.total, 0);
+                                          const pct = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
+                                          
+                                          let gradeVal = "C";
+                                          if (pct >= 90) gradeVal = "A+";
+                                          else if (pct >= 80) gradeVal = "A";
+                                          else if (pct >= 70) gradeVal = "B+";
+                                          else if (pct >= 60) gradeVal = "B";
+                                          else if (pct >= 50) gradeVal = "C+";
+
+                                          return {
+                                            name: sub.name,
+                                            fa1: getScore('FA1'),
+                                            fa2: getScore('FA2'),
+                                            fa3: getScore('FA3'),
+                                            fa4: getScore('FA4'),
+                                            sa1: getScore('SA1'),
+                                            sa2: getScore('SA2'),
+                                            quiz: totalMax > 0 ? Math.round((totalScore / (totalMax || 1)) * 50) : 0,
+                                            grade: gradeVal
+                                          };
+                                        }) : [
+                                          { name: "No Data", fa1: "—", fa2: "—", fa3: "—", fa4: "—", sa1: "—", sa2: "—", quiz: 0, grade: "—" }
+                                        ];
+
+                                        setAiReportData({
+                                          attendance: att?.percentage || 0,
+                                          perfIndex: mockPerfIndex,
+                                          rollNumber: (s as any).rollNo || "N/A",
+                                          quizScore: quizScore,
+                                          quizTotal: totalQuizMax,
+                                          academicYear: "2023-24",
+                                          className: studentClass?.name || "N/A",
+                                          subjectGrades: realSubjectGrades
+                                        });
+                                        setAiReportDialogOpen(true);
+                                        return resData;
+                                      });
+
+                                      toast.promise(
+                                        promise,
+                                        {
+                                          loading: `Generating Report Card for ${s.name}...`,
+                                          success: `Report Card Generated for ${s.name}!`,
+                                          error: 'Failed to generate report card'
+                                        }
+                                      );
+                                    }}
+                                  >
+                                    View Report
+                                  </Button>
                                 </td>
                               </tr>
                             )
@@ -1511,6 +1720,26 @@ const ModernAdminDashboard = () => {
               <Button type="submit" disabled={schoolSubmitting}>{editingSchool ? "Update" : "Add"} School</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* AI Report Card Result Dialog */}
+      <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
+        <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
+          <div ref={reportRef}>
+            <StudentReportCard
+              studentName={aiReportStudentName}
+              className={aiReportData?.className || "N/A"}
+              rollNumber={aiReportData?.rollNumber || "N/A"}
+              schoolName="VidhyaPlus Academy"
+              attendance={aiReportData?.attendance || 0}
+              perfIndex={aiReportData?.perfIndex || 0}
+              academicYear={aiReportData?.academicYear}
+              subjectGrades={aiReportData?.subjectGrades}
+              aiReportContent={aiReportContent}
+              onClose={() => setAiReportDialogOpen(false)}
+              onDownload={() => downloadReport(aiReportStudentName)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
