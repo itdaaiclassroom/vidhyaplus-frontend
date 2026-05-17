@@ -100,6 +100,8 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
         subject_id: qbSubjectId !== "" ? Number(qbSubjectId) : undefined,
         grade: qbGrade !== "" ? Number(qbGrade) : undefined,
         chapter: qbChapter !== "" ? qbChapter : undefined,
+        topic_name: qbTopicName !== "" ? qbTopicName : undefined,
+        level: qbLevel !== "" ? qbLevel : undefined,
         page: qbPage,
         limit: 20
       });
@@ -133,12 +135,14 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
 
   useEffect(() => {
     loadQuestions();
-  }, [qbSubjectId, qbGrade, qbChapter, qbPage]);
+  }, [qbSubjectId, qbGrade, qbChapter, qbTopicName, qbLevel, qbPage]);
 
   const applyFilters = () => {
     setQbSubjectId(qbPendingSubject);
     setQbGrade(qbPendingGrade);
     setQbChapter(qbPendingChapter);
+    setQbTopicName(qbPendingTopicName);
+    setQbLevel(qbPendingLevel);
     setQbPage(1);
   };
 
@@ -146,9 +150,13 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
     setQbPendingSubject("");
     setQbPendingGrade("");
     setQbPendingChapter("");
+    setQbPendingTopicName("");
+    setQbPendingLevel("");
     setQbSubjectId("");
     setQbGrade("");
     setQbChapter("");
+    setQbTopicName("");
+    setQbLevel("");
     setQbPage(1);
   };
 
@@ -225,8 +233,8 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
     try {
       const res = await bulkUploadQuestions(bulkFile);
       setBulkResult(res);
-      toast.success("Bulk upload processed!");
-      if (res.uploaded > 0) {
+      toast.success(`Upload complete! Inserted: ${res.uploaded}, Skipped: ${res.skipped || 0}`);
+      if (res.uploaded > 0 || (res.skipped && res.skipped > 0)) {
         loadQuestions();
       }
     } catch (err: any) {
@@ -326,15 +334,17 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase w-1/3">Question</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Chapter</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Grade</th>
+                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Topic</th>
+                <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Level</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-center">Correct</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {qbLoading ? (
-                <tr><td colSpan={6} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                <tr><td colSpan={8} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
               ) : questions.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-500">No questions found</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-slate-500">No questions found</td></tr>
               ) : (
                 questions.map(q => {
                   const isExp = expandedRow === q.id;
@@ -345,6 +355,10 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                         <td className="px-5 py-3 text-sm font-medium text-slate-800 line-clamp-2">{q.question_text}</td>
                         <td className="px-5 py-3 text-sm text-slate-500">{q.chapter || '-'}</td>
                         <td className="px-5 py-3 text-sm text-slate-500">{q.grade || '-'}</td>
+                        <td className="px-5 py-3 text-sm text-slate-500">{q.topic_name || '-'}</td>
+                        <td className="px-5 py-3 text-sm text-slate-500">
+                          {q.level ? <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">{q.level}</span> : '-'}
+                        </td>
                         <td className="px-5 py-3 text-center">
                           <span className={`inline-block w-6 h-6 rounded-full text-xs font-bold leading-6 text-center ${q.correct_option === 'A' ? 'bg-emerald-100 text-emerald-700' :
                             q.correct_option === 'B' ? 'bg-blue-100 text-blue-700' :
@@ -363,7 +377,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                       </tr>
                       {isExp && (
                         <tr className="bg-slate-50/50">
-                          <td colSpan={6} className="px-10 py-4">
+                          <td colSpan={8} className="px-10 py-4">
                             <div className="grid grid-cols-2 gap-4 max-w-3xl">
                               <OptionBadge option="A" text={q.option_a} isCorrect={q.correct_option === 'A'} />
                               <OptionBadge option="B" text={q.option_b} isCorrect={q.correct_option === 'B'} />

@@ -1648,6 +1648,7 @@ export interface BulkUploadQuestionsResponse {
   ok: boolean;
   subject: string;
   uploaded: number;
+  skipped?: number;
   failed: number;
   errors: Array<{ row: number; reason: string }>;
 }
@@ -1671,6 +1672,8 @@ export async function fetchQuestionBank(params?: {
   subject_id?: number;
   grade?: number;
   chapter?: string;
+  topic_name?: string;
+  level?: string;
   page?: number;
   limit?: number;
 }): Promise<QuestionBankResponse> {
