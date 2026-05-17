@@ -429,25 +429,7 @@ const PrincipalDashboardInner: React.FC = () => {
               </Card>
             </div>
 
-            {broadcastMessages.length > 0 && (
-              <Card className="mt-6 border-info bg-info/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-info">
-                    <CheckCircle2 className="w-4 h-4" /> Admin Announcements
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {broadcastMessages.map((msg, idx) => (
-                      <div key={idx} className="p-3 bg-white rounded-lg border shadow-sm">
-                        <p className="text-sm text-foreground">{msg.message}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">{new Date(msg.created_at).toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               {/* Teacher Attendance Summary Card */}

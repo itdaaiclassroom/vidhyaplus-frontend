@@ -665,48 +665,6 @@ const QuizScreen = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-
-            <div className="lg:col-span-4 space-y-6">
-              
-              {/* Phase 1: Live Scanning HUD */}
-              <Card className="shadow-lg border-border">
-                 <CardHeader className="py-4 px-5 bg-secondary/30 border-b border-border">
-                    <CardTitle className="font-display text-lg flex items-center gap-2">
-                       <ScanLine className="w-5 h-5 text-primary" /> Scanning HUD
-                    </CardTitle>
-                 </CardHeader>
-                 <CardContent className="p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                       <div className="bg-slate-50 p-3 rounded-xl border border-border flex flex-col">
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Total Students</span>
-                          <span className="text-xl font-black text-slate-800">{totalStudents}</span>
-                       </div>
-                       <div className="bg-success/10 p-3 rounded-xl border border-success/20 flex flex-col">
-                          <span className="text-[10px] text-success-dark uppercase font-bold tracking-wider mb-1">Scanned</span>
-                          <span className="text-xl font-black text-success-dark">{scansReceived}</span>
-                       </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                       <div className="bg-amber-50 p-2 rounded-lg border border-amber-200 flex flex-col items-center justify-center text-center">
-                          <span className="text-xl font-bold text-amber-600">{Math.max(0, totalStudents - scansReceived)}</span>
-                          <span className="text-[9px] text-amber-700 uppercase font-bold tracking-wider">Pending</span>
-                       </div>
-                       {mode === "qr" && (
-                         <>
-                           <div className="bg-orange-50 p-2 rounded-lg border border-orange-200 flex flex-col items-center justify-center text-center">
-                              <span className="text-xl font-bold text-orange-600">{duplicateScans}</span>
-                              <span className="text-[9px] text-orange-700 uppercase font-bold tracking-wider">Duplicate</span>
-                           </div>
-                           <div className="bg-destructive/10 p-2 rounded-lg border border-destructive/20 flex flex-col items-center justify-center text-center">
-                              <span className="text-xl font-bold text-destructive">{invalidScans}</span>
-                              <span className="text-[9px] text-destructive uppercase font-bold tracking-wider">Invalid</span>
-                           </div>
-                         </>
-                       )}
-                    </div>
-                 </CardContent>
-              </Card>
 
               {/* Phase 1: Question-wise Analytics (Evaluated Phase) */}
               {phase === "evaluating" && (
@@ -739,8 +697,54 @@ const QuizScreen = () => {
                     </CardContent>
                  </Card>
               )}
+            </div>
 
-              {miniLeaderboard.length > 0 && phase !== "evaluating" && (
+            <div className="lg:col-span-4 space-y-6">
+              
+              {/* Phase 1: Live Scanning HUD */}
+              {phase !== "evaluating" && (
+                <Card className="shadow-lg border-border">
+                   <CardHeader className="py-4 px-5 bg-secondary/30 border-b border-border">
+                      <CardTitle className="font-display text-lg flex items-center gap-2">
+                         <ScanLine className="w-5 h-5 text-primary" /> Scanning HUD
+                      </CardTitle>
+                   </CardHeader>
+                   <CardContent className="p-4 space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                         <div className="bg-slate-50 p-3 rounded-xl border border-border flex flex-col">
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Total Students</span>
+                            <span className="text-xl font-black text-slate-800">{totalStudents}</span>
+                         </div>
+                         <div className="bg-success/10 p-3 rounded-xl border border-success/20 flex flex-col">
+                            <span className="text-[10px] text-success-dark uppercase font-bold tracking-wider mb-1">Scanned</span>
+                            <span className="text-xl font-black text-success-dark">{scansReceived}</span>
+                         </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                         <div className="bg-amber-50 p-2 rounded-lg border border-amber-200 flex flex-col items-center justify-center text-center">
+                            <span className="text-xl font-bold text-amber-600">{Math.max(0, totalStudents - scansReceived)}</span>
+                            <span className="text-[9px] text-amber-700 uppercase font-bold tracking-wider">Pending</span>
+                         </div>
+                         {mode === "qr" && (
+                           <>
+                             <div className="bg-orange-50 p-2 rounded-lg border border-orange-200 flex flex-col items-center justify-center text-center">
+                                <span className="text-xl font-bold text-orange-600">{duplicateScans}</span>
+                                <span className="text-[9px] text-orange-700 uppercase font-bold tracking-wider">Duplicate</span>
+                             </div>
+                             <div className="bg-destructive/10 p-2 rounded-lg border border-destructive/20 flex flex-col items-center justify-center text-center">
+                                <span className="text-xl font-bold text-destructive">{invalidScans}</span>
+                                <span className="text-[9px] text-destructive uppercase font-bold tracking-wider">Invalid</span>
+                             </div>
+                           </>
+                         )}
+                      </div>
+                   </CardContent>
+                </Card>
+              )}
+
+              {/* Live Leaderboard */}
+
+              {miniLeaderboard.length > 0 && phase === "evaluating" && (
                 <Card className="shadow-lg border-primary/20">
                   <CardHeader className="py-4 px-5 bg-primary/5 border-b border-primary/10">
                     <CardTitle className="font-display text-lg flex items-center gap-2">
