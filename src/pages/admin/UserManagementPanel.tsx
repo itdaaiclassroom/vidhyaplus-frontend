@@ -349,7 +349,9 @@ const UserManagementPanel = () => {
                         <td className="px-6 py-4 text-sm font-medium text-slate-800">{team.team_name}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{team.email}</td>
                         <td className="px-6 py-4 text-sm">
-                          <Badge variant="outline" className="rounded-full bg-slate-50">{team.role}</Badge>
+                          <Badge variant="outline" className="rounded-full bg-slate-50">
+                            {team.role === "material_management" ? "Material Management" : team.role}
+                          </Badge>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-500">{team.district || '-'}</td>
                         <td className="px-6 py-4 text-sm">
@@ -460,8 +462,16 @@ const UserManagementPanel = () => {
               <p className="text-xs text-slate-500">Minimum 8 characters required</p>
             </div>
             <div className="space-y-2">
-              <Label>Role (Free text) <span className="text-destructive">*</span></Label>
-              <Input value={teamForm.role} onChange={e => setTeamForm({...teamForm, role: e.target.value})} placeholder="e.g. material_management, timetable..." required />
+              <Label>Role <span className="text-destructive">*</span></Label>
+              <select
+                value={teamForm.role}
+                onChange={e => setTeamForm({...teamForm, role: e.target.value})}
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                required
+              >
+                <option value="" disabled>Select a role</option>
+                <option value="material_management">Material Management</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label>District</Label>
