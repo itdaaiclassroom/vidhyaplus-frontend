@@ -2,7 +2,18 @@ import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LogOut, Home } from "lucide-react";
+import { GraduationCap, LogOut, Home, Bell } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const DashboardLayout = ({ children, title, userDisplayName }: { children: ReactNode; title: string; userDisplayName?: string }) => {
   const { userName, role, logout } = useAuth();
@@ -29,7 +40,28 @@ const DashboardLayout = ({ children, title, userDisplayName }: { children: React
             <Link to="/">
               <Button variant="ghost" size="icon"><Home className="w-4 h-4" /></Button>
             </Link>
-            <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="w-4 h-4" /></Button>
+            <Link to="/announcements">
+              <Button variant="ghost" size="icon" title="Announcements"><Bell className="w-4 h-4" /></Button>
+            </Link>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" title="Logout"><LogOut className="w-4 h-4" /></Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will log you out of your current session. You will need to sign in again to access the dashboard.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Log out
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </header>

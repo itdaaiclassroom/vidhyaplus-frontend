@@ -104,16 +104,20 @@ const ArucoScannerBoard = ({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
+  const [conflictingRollNos, setConflictingRollNos] = useState<Set<number>>(new Set());
 
   const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scanLoopRef = useRef<number | null>(null);
   const pendingSubmitsRef = useRef<Set<number>>(new Set()); // rollNos being submitted
   const warnedAbsentRef = useRef<Set<number>>(new Set());
+  const recentScansRef = useRef<Map<number, Map<string, { timestamp: number, id: number }>>>(new Map());
 
   // Reset warnings when question changes
   useEffect(() => {
     warnedAbsentRef.current.clear();
+    recentScansRef.current.clear();
+    setConflictingRollNos(new Set());
   }, [questionIndex]);
 
   // Build rollNo → student lookup
@@ -193,61 +197,107 @@ const ArucoScannerBoard = ({
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const markers = detectMarkers(imageData);
 
+      const now = Date.now();
+
       for (const marker of markers) {
         const { slot, answer } = fromArucoId(marker.id);
-
-        // Since slot is rollNo % 60, find the student in this class who matches this slot
         const student = classStudents.find((s) => (s.rollNo % 60) === slot);
         if (!student) continue;
 
-        const rollNo = student.rollNo;
+        let studentScans = recentScansRef.current.get(student.rollNo);
+        if (!studentScans) {
+          studentScans = new Map();
+          recentScansRef.current.set(student.rollNo, studentScans);
+        }
+        studentScans.set(answer, { timestamp: now, id: marker.id });
+      }
 
-        // Check if student is absent
-        if (absentRollNos.includes(rollNo)) {
-          if (!warnedAbsentRef.current.has(rollNo)) {
-            warnedAbsentRef.current.add(rollNo);
-            toast.error(`Student ${student.name} (#${rollNo}) is marked absent.`);
+      for (const student of classStudents) {
+        const studentScans = recentScansRef.current.get(student.rollNo);
+        if (!studentScans) continue;
+
+        const activeAnswers: { answer: string, id: number }[] = [];
+        for (const [ans, data] of studentScans.entries()) {
+          if (now - data.timestamp < 1500) {
+            activeAnswers.push({ answer: ans, id: data.id });
+          } else {
+            studentScans.delete(ans);
           }
-          continue;
         }
 
-        if (pendingSubmitsRef.current.has(rollNo)) continue;
-        const existingScan = scanned.get(rollNo);
-        if (existingScan && existingScan.answer === answer) continue;
+        if (activeAnswers.length > 1) {
+          setConflictingRollNos((prev) => {
+            if (!prev.has(student.rollNo)) {
+              const next = new Set(prev);
+              next.add(student.rollNo);
+              return next;
+            }
+            return prev;
+          });
+        } else if (activeAnswers.length === 1) {
+          setConflictingRollNos((prev) => {
+            if (prev.has(student.rollNo)) {
+              const next = new Set(prev);
+              next.delete(student.rollNo);
+              return next;
+            }
+            return prev;
+          });
 
-        // Mark as pending to avoid duplicate API calls
-        pendingSubmitsRef.current.add(rollNo);
+          const rollNo = student.rollNo;
+          const { answer, id: markerId } = activeAnswers[0];
 
-        // Play beep
-        if (soundEnabled) playBeep();
+          if (absentRollNos.includes(rollNo)) {
+            if (!warnedAbsentRef.current.has(rollNo)) {
+              warnedAbsentRef.current.add(rollNo);
+              toast.error(`Student ${student.name} (#${rollNo}) is marked absent.`);
+            }
+            continue;
+          }
 
-        // Submit to backend (same API as QR scanner)
-        try {
-          const qrRaw = toQrRaw(rollNo, marker.id);
-          const result = await submitLiveQuizScan(quizSessionId, {
+          if (pendingSubmitsRef.current.has(rollNo)) continue;
+          const existingScan = scanned.get(rollNo);
+          if (existingScan && existingScan.answer === answer) continue;
+
+          pendingSubmitsRef.current.add(rollNo);
+
+          if (soundEnabled) playBeep();
+
+          submitLiveQuizScan(quizSessionId, {
             questionNo: questionIndex + 1,
-            qrRaw,
-          });
+            qrRaw: toQrRaw(rollNo, markerId),
+          })
+          .then((result) => {
+            const entry: ScannedEntry = {
+              studentId: result.studentId || student.id,
+              studentName: result.studentName || student.name,
+              rollNo,
+              answer,
+              timestamp: Date.now(),
+              isCorrect: result.isCorrect,
+            };
 
-          const entry: ScannedEntry = {
-            studentId: result.studentId || student.id,
-            studentName: result.studentName || student.name,
-            rollNo,
-            answer,
-            timestamp: Date.now(),
-            isCorrect: result.isCorrect,
-          };
-
-          setScanned((prev) => {
-            const next = new Map(prev);
-            next.set(rollNo, entry);
-            return next;
+            setScanned((prev) => {
+              const next = new Map(prev);
+              next.set(rollNo, entry);
+              return next;
+            });
+          })
+          .catch((err) => {
+            console.warn(`Scan failed for roll ${rollNo}:`, err);
+          })
+          .finally(() => {
+            pendingSubmitsRef.current.delete(rollNo);
           });
-        } catch (err) {
-          // Don't toast every failed scan — just log
-          console.warn(`Scan failed for roll ${rollNo}:`, err);
-        } finally {
-          pendingSubmitsRef.current.delete(rollNo);
+        } else {
+          setConflictingRollNos((prev) => {
+            if (prev.has(student.rollNo)) {
+              const next = new Set(prev);
+              next.delete(student.rollNo);
+              return next;
+            }
+            return prev;
+          });
         }
       }
     },
@@ -467,6 +517,11 @@ const ArucoScannerBoard = ({
                           <span className="text-[10px] text-muted-foreground ml-1.5">
                             #{entry.rollNo}
                           </span>
+                          {conflictingRollNos.has(entry.rollNo) && (
+                            <div className="text-[10px] text-destructive font-bold flex items-center gap-1 mt-0.5 animate-pulse">
+                              <AlertTriangle className="w-3 h-3" /> Drop one card
+                            </div>
+                          )}
                         </div>
                       </div>
                       <Badge
@@ -513,8 +568,17 @@ const ArucoScannerBoard = ({
                       className="p-2.5 px-4 flex items-center gap-2 text-sm text-slate-600"
                     >
                       <XCircle className="w-3.5 h-3.5 text-destructive/40 shrink-0" />
-                      <span className="font-medium">{s.name}</span>
-                      <span className="text-[10px] text-muted-foreground">#{s.rollNo}</span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">{s.name}</span>
+                          <span className="text-[10px] text-muted-foreground">#{s.rollNo}</span>
+                        </div>
+                        {conflictingRollNos.has(s.rollNo) && (
+                          <div className="text-[10px] text-destructive font-bold flex items-center gap-1 mt-0.5 animate-pulse">
+                            <AlertTriangle className="w-3 h-3" /> Drop one card
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

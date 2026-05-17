@@ -1791,7 +1791,8 @@ export async function fetchSchoolRanking(): Promise<{ rank: number, total: numbe
 
 export async function fetchBroadcastMessages(): Promise<any[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const rolePrefix = localStorage.getItem('role') === 'teacher' ? 'teacher' : 'principal';
+  const role = localStorage.getItem('auth.role');
+  const rolePrefix = role === 'teacher' ? 'teachers' : 'principal';
   const res = await fetch(`${API_BASE}/api/${rolePrefix}/dashboard/broadcast-messages`, {
     headers: getAuthHeaders(),
   });
@@ -1803,6 +1804,69 @@ export async function fetchSubjectTopics(subjectId: number, grade?: number): Pro
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const url = grade ? `${API_BASE}/api/subjects/${subjectId}/topics?grade=${grade}` : `${API_BASE}/api/subjects/${subjectId}/topics`;
   const res = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export interface SchoolAnnouncement {
+  id: number;
+  school_id: number;
+  sender_principal_id: number;
+  title: string;
+  message: string;
+  target_role: string;
+  created_at: string;
+  sender_name?: string;
+}
+
+export async function fetchSchoolAnnouncements(): Promise<SchoolAnnouncement[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/announcements`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createSchoolAnnouncement(payload: {
+  title: string;
+  message: string;
+  target_role?: string;
+}): Promise<{ ok: boolean; message: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/announcements`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateSchoolAnnouncement(
+  id: number,
+  payload: {
+    title?: string;
+    message?: string;
+    target_role?: string;
+  }
+): Promise<{ ok: boolean; message: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/announcements/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteSchoolAnnouncement(id: number): Promise<{ ok: boolean; message: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/principal/announcements/${id}`, {
+    method: "DELETE",
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));

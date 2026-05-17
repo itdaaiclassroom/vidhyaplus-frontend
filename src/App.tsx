@@ -30,6 +30,7 @@ import TeacherRegistration from "./pages/admin/TeacherRegistration";
 import MvpSubmissionHub from "./pages/MvpSubmissionHub";
 import PrincipalDashboard from "./pages/principal/PrincipalDashboard";
 import IdCardGenerator from "./pages/admin/IdCardGenerator";
+import Announcements from "./pages/Announcements";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/student/live-quiz" element={<StudentLiveQuiz />} />
               <Route path="/student/qr-profile" element={<StudentQrProfile />} />
               <Route path="/principal" element={<PrincipalDashboard />} />
+              <Route path="/announcements" element={<Announcements />} />
               <Route path="/mvp-submission" element={<MvpSubmissionHub />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
