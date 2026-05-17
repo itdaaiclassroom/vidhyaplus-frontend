@@ -1671,6 +1671,8 @@ export async function fetchQuestionBank(params?: {
   subject_id?: number;
   grade?: number;
   chapter?: string;
+  topic_name?: string;
+  level?: string;
   page?: number;
   limit?: number;
 }): Promise<QuestionBankResponse> {
