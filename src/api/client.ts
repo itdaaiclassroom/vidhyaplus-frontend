@@ -1648,6 +1648,7 @@ export interface BulkUploadQuestionsResponse {
   ok: boolean;
   subject: string;
   uploaded: number;
+  skipped?: number;
   failed: number;
   errors: Array<{ row: number; reason: string }>;
 }

@@ -233,8 +233,8 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
     try {
       const res = await bulkUploadQuestions(bulkFile);
       setBulkResult(res);
-      toast.success("Bulk upload processed!");
-      if (res.uploaded > 0) {
+      toast.success(`Upload complete! Inserted: ${res.uploaded}, Skipped: ${res.skipped || 0}`);
+      if (res.uploaded > 0 || (res.skipped && res.skipped > 0)) {
         loadQuestions();
       }
     } catch (err: any) {
