@@ -272,7 +272,7 @@ const TeacherDashboard = () => {
   const [showLaunchQuizDialog, setShowLaunchQuizDialog] = useState(false);
   const liveQuizLeaderboardRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveQuizStatusPollSeq = useRef(0);
-  const [sessionStartLoading, setSessionStartLoading] = useState(false);
+  const [sessionStartLoading, setSessionStartLoading] = useState<string | null>(null);
   const [attendanceSubmitting, setAttendanceSubmitting] = useState(false);
   const [sessionEnding, setSessionEnding] = useState(false);
   const [recoLoading, setRecoLoading] = useState(false);
@@ -1113,7 +1113,48 @@ const TeacherDashboard = () => {
 
   const handleStartSession = async (topic: TopicLike) => {
     if (!teacherId || !selectedClass || !selectedSubject || !currentClass || !currentSubject) return;
-    setSessionStartLoading(true);
+
+    // Check if there is already an active/ongoing session for this topic in the database
+    const existingSession = liveSessionsFromApi?.find(
+      (ls) => sameId(ls.topicId, topic.id) && sameId(ls.classId, selectedClass) && ls.status !== "ended"
+    );
+
+    if (existingSession) {
+      // RESUME EXISTING SESSION
+      const session: LiveSessionLike = {
+        id: existingSession.id,
+        teacherId: existingSession.teacherId,
+        classId: existingSession.classId,
+        subjectId: existingSession.subjectId,
+        chapterId: existingSession.chapterId ?? topic.chapterId,
+        topicId: existingSession.topicId ?? topic.id,
+        topicName: existingSession.topicName,
+        teacherName: userName || "Teacher",
+        className: currentClass.name,
+        subjectName: currentSubject.name,
+        startTime: existingSession.startTime,
+        status: existingSession.status,
+        attendanceMarked: existingSession.attendanceMarked,
+        quizSubmitted: existingSession.quizSubmitted,
+      };
+      setActiveSession(session);
+      navigate(`/teacher/lesson?sessionId=${existingSession.id}`, { state: { session } });
+      return;
+    }
+
+    // Check if there is an active session for another topic in the same class
+    const otherActiveSession = liveSessionsFromApi?.find(
+      (ls) => !sameId(ls.topicId, topic.id) && sameId(ls.classId, selectedClass) && ls.status !== "ended"
+    );
+
+    if (otherActiveSession) {
+      const proceed = window.confirm(
+        `You already have an active/paused session for "${otherActiveSession.topicName}". Starting a new session will permanently end that session. Do you want to proceed?`
+      );
+      if (!proceed) return;
+    }
+
+    setSessionStartLoading(String(topic.id));
     resetLiveQuizUiState();
     liveQuizCheckpoint("live_session:start_request", { classId: selectedClass, subjectId: selectedSubject, topicId: topic.id });
     try {
@@ -1154,7 +1195,7 @@ const TeacherDashboard = () => {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Failed to start session");
     } finally {
-      setSessionStartLoading(false);
+      setSessionStartLoading(null);
     }
   };
 
@@ -2485,18 +2526,28 @@ const TeacherDashboard = () => {
                                     <span className="text-sm font-medium text-foreground">{topic.name}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      className="h-7 text-xs gap-1"
-                                      disabled={sessionStartLoading}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleStartSession(topic);
-                                      }}
-                                    >
-                                      <Play className="w-3 h-3" /> {sessionStartLoading ? "Starting…" : "Start Session"}
-                                    </Button>
+                                    {(() => {
+                                      const existing = liveSessionsFromApi?.find(
+                                        (ls) => sameId(ls.topicId, topic.id) && sameId(ls.classId, selectedClass) && ls.status !== "ended"
+                                      );
+                                      const isPaused = existing ? localStorage.getItem(`pausedState_${existing.id}`) === "true" : false;
+                                      const isCurrentLoading = sessionStartLoading === String(topic.id);
+                                      return (
+                                        <Button
+                                          size="sm"
+                                          variant={existing ? "secondary" : "default"}
+                                          className={`h-7 text-xs gap-1 ${existing ? "bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm transition-all" : ""}`}
+                                          disabled={isCurrentLoading}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStartSession(topic);
+                                          }}
+                                        >
+                                          {existing ? <Play className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3" />}
+                                          {isCurrentLoading ? "Starting…" : existing ? (isPaused ? "Resume Session" : "Join Session") : "Start Session"}
+                                        </Button>
+                                      );
+                                    })()}
                                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedTopics[topic.id] ? "rotate-180" : ""}`} />
                                   </div>
                                 </div>
