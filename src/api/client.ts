@@ -1773,6 +1773,30 @@ export async function deleteQuestion(qid: number): Promise<{ ok: boolean; delete
   return res.json();
 }
 
+/** DELETE /api/subjects/question-bank/bulk — bulk delete specific questions by IDs */
+export async function bulkDeleteQuestions(ids: number[]): Promise<{ deleted_count: number }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/question-bank/bulk`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ question_ids: ids }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** DELETE /api/subjects/question-bank/bulk — delete all questions matching filters */
+export async function deleteAllQuestions(filters: any): Promise<{ deleted_count: number }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/question-bank/bulk`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ delete_all: true, filters }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 /** POST /api/subjects/:id/question-bank/bulk â bulk upload from base64 Excel/CSV */
 export async function bulkUploadQuestions(
   file: File

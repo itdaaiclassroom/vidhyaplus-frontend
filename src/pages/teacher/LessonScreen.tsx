@@ -112,6 +112,7 @@ const LessonScreen = () => {
 
   const sessionContainerRef = useRef<HTMLDivElement>(null);
   const pptxRef = useRef<PptxViewerRef>(null);
+  const isEndingRef = useRef(false);
 
   useEffect(() => {
     if (!activeSession && sessionIdFromUrl && data.liveSessions) {
@@ -120,11 +121,23 @@ const LessonScreen = () => {
         setActiveSession(found);
         setAttendanceMarked(found.attendanceMarked);
         setSessionQuizDone(found.quizSubmitted);
-        const savedTime = localStorage.getItem(`pausedTime_${found.id}`);
-        if (savedTime) setSessionTime(parseInt(savedTime));
       }
     }
   }, [sessionIdFromUrl, data.liveSessions, activeSession]);
+
+  // Restore paused state and time from localStorage when activeSession is loaded
+  useEffect(() => {
+    if (activeSession) {
+      const savedPaused = localStorage.getItem(`pausedState_${activeSession.id}`);
+      if (savedPaused === "true") {
+        setSessionPaused(true);
+      }
+      const savedTime = localStorage.getItem(`pausedTime_${activeSession.id}`);
+      if (savedTime) {
+        setSessionTime(parseInt(savedTime));
+      }
+    }
+  }, [activeSession]);
 
   // Fetch existing attendance if already marked for today
   useEffect(() => {
@@ -192,6 +205,15 @@ const LessonScreen = () => {
     return () => clearInterval(timer);
   }, [activeSession, sessionPaused]);
 
+  // Automatically pause the session when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (activeSession && !isEndingRef.current) {
+        localStorage.setItem(`pausedState_${activeSession.id}`, "true");
+      }
+    };
+  }, [activeSession]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -211,10 +233,12 @@ const LessonScreen = () => {
 
   const handleEndSession = async () => {
     if (!activeSession) return;
+    isEndingRef.current = true;
     setSessionEnding(true);
     try {
       await endLiveSession(activeSession.id);
       localStorage.removeItem(`pausedTime_${activeSession.id}`);
+      localStorage.removeItem(`pausedState_${activeSession.id}`);
       refetch();
       toast.success("Session ended successfully.");
     } catch (e) {
@@ -358,7 +382,10 @@ const LessonScreen = () => {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-border/50 shadow-sm sticky top-0 z-10">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate(`/teacher?tab=chapters&class=${activeSession.classId}&subject=${activeSession.subjectId}`)} className="gap-2 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={() => {
+                localStorage.setItem(`pausedState_${activeSession.id}`, "true");
+                navigate(`/teacher?tab=chapters&class=${activeSession.classId}&subject=${activeSession.subjectId}`);
+              }} className="gap-2 text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="w-4 h-4" /> Exit
               </Button>
               <div className="h-8 w-px bg-border/60" />
@@ -386,7 +413,11 @@ const LessonScreen = () => {
               </Badge>
 
               <div className="flex gap-2 ml-2">
-                <Button variant="outline" size="sm" className={`gap-2 h-9 ${sessionPaused ? "bg-amber-light border-amber/30 text-amber" : ""}`} onClick={() => setSessionPaused(!sessionPaused)}>
+                <Button variant="outline" size="sm" className={`gap-2 h-9 ${sessionPaused ? "bg-amber-light border-amber/30 text-amber" : ""}`} onClick={() => {
+                  const nextPaused = !sessionPaused;
+                  setSessionPaused(nextPaused);
+                  localStorage.setItem(`pausedState_${activeSession.id}`, nextPaused.toString());
+                }}>
                   {sessionPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                   {sessionPaused ? "Resume" : "Pause"}
                 </Button>
