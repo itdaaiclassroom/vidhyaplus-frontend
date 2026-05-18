@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   fetchAssessmentQuestions,
   submitTeacherAssessment,
+  generateTeacherChapterQuiz,
   type AssessmentQuestion,
   type ChapterGatingStatus,
 } from "@/api/client";
@@ -22,8 +23,14 @@ import {
   ChevronLeft,
   RotateCcw,
   Loader2,
+  Settings,
+  BrainCircuit,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TeacherAssessmentDialogProps {
   open: boolean;
@@ -48,7 +55,10 @@ export function TeacherAssessmentDialog({
   classId,
   onAssessmentComplete,
 }: TeacherAssessmentDialogProps) {
+  const [setupMode, setSetupMode] = useState(true);
+  const [selectedCount, setSelectedCount] = useState(15);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -68,31 +78,63 @@ export function TeacherAssessmentDialog({
   const [source, setSource] = useState("");
   const [assessmentConfig, setAssessmentConfig] = useState<{ totalMarks: number; passingMarks: number; questionCount: number }>({ totalMarks: 100, passingMarks: 70, questionCount: 10 });
 
-  // Fetch questions when dialog opens
+  // Initialize state when dialog opens
   useEffect(() => {
     if (!open || !chapterId) return;
-    setLoading(true);
+    setSetupMode(true);
+    setLoading(false);
     setQuestions([]);
     setCurrentIndex(0);
     setAnswers({});
     setSubmitted(false);
     setResult(null);
-
-    fetchAssessmentQuestions(chapterId)
-      .then((data) => {
-        setQuestions(data.questions || []);
-        setSource(data.source || "quiz_bank");
-        setAssessmentConfig({
-          totalMarks: data.totalMarks || 100,
-          passingMarks: data.passingMarks || 70,
-          questionCount: data.questionCount || 10,
-        });
-      })
-      .catch((err) => {
-        toast.error("Failed to load assessment: " + err.message);
-      })
-      .finally(() => setLoading(false));
+    setSelectedCount(15);
   }, [open, chapterId]);
+
+  const handleGenerateQuiz = async () => {
+    setSetupMode(false);
+    setLoading(true);
+    setLoadingMessage("Initializing AI Microservice...");
+
+    // RAG-resilient progressive loading messages
+    const loadingSteps = [
+      "Analyzing chapter content...",
+      "Applying stratified random sampling...",
+      "Generating hard-difficulty questions...",
+      "Validating question quality...",
+      "Finalizing assessment...",
+    ];
+    let stepIndex = 0;
+    const interval = setInterval(() => {
+      if (stepIndex < loadingSteps.length) {
+        setLoadingMessage(loadingSteps[stepIndex]);
+        stepIndex++;
+      }
+    }, 2500);
+
+    try {
+      const data = await generateTeacherChapterQuiz({
+        chapter: chapterName,
+        subject: "Subject", // The backend only needs chapter, but subject helps context.
+        grade: Number(gradeId) || 10,
+        count: selectedCount
+      });
+
+      setQuestions(data.questions || []);
+      setSource(data.source || "ai_generated");
+      setAssessmentConfig({
+        totalMarks: selectedCount * 10,
+        passingMarks: Math.ceil(selectedCount * 10 * 0.7),
+        questionCount: selectedCount,
+      });
+    } catch (err) {
+      toast.error("Failed to generate assessment: " + (err instanceof Error ? err.message : String(err)));
+      setSetupMode(true); // Let them try again
+    } finally {
+      clearInterval(interval);
+      setLoading(false);
+    }
+  };
 
   const currentQuestion = questions[currentIndex];
   const totalQuestions = questions.length;
@@ -137,19 +179,7 @@ export function TeacherAssessmentDialog({
   };
 
   const handleRetry = () => {
-    setAnswers({});
-    setCurrentIndex(0);
-    setSubmitted(false);
-    setResult(null);
-    // Re-fetch questions for new randomization
-    setLoading(true);
-    fetchAssessmentQuestions(chapterId)
-      .then((data) => {
-        setQuestions(data.questions || []);
-        setSource(data.source || "quiz_bank");
-      })
-      .catch((err) => toast.error("Failed to reload: " + err.message))
-      .finally(() => setLoading(false));
+    setSetupMode(true);
   };
 
   const optionKeys = ["A", "B", "C", "D"] as const;
@@ -172,14 +202,14 @@ export function TeacherAssessmentDialog({
             </DialogTitle>
             <DialogDescription className="text-white/80 text-sm">
               {chapterName}
-              {source === "ai_generated" && (
+              {(source === "ai_generated" || setupMode) && (
                 <Badge className="ml-2 bg-white/20 text-white text-[10px]">AI Generated</Badge>
               )}
             </DialogDescription>
           </DialogHeader>
 
           {/* Progress bar */}
-          {!submitted && totalQuestions > 0 && (
+          {!submitted && !setupMode && totalQuestions > 0 && (
             <div className="mt-3">
               <div className="flex items-center justify-between text-xs text-white/70 mb-1">
                 <span>Question {currentIndex + 1} of {totalQuestions}</span>
@@ -196,10 +226,78 @@ export function TeacherAssessmentDialog({
 
         {/* Body */}
         <div className="px-6 py-4">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-              <p className="text-sm text-muted-foreground">Loading assessment questions...</p>
+          {setupMode ? (
+            <div className="py-6 space-y-8 animate-in fade-in zoom-in-95 duration-300">
+              <div className="space-y-2 text-center">
+                <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800">Configure Chapter Assessment</h3>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">
+                  Set up the parameters for your competency assessment. Questions will be generated using Stratified Random Sampling.
+                </p>
+              </div>
+
+              <div className="space-y-6 max-w-md mx-auto bg-slate-50 p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="space-y-3">
+                  <Label className="text-slate-700 font-semibold">Selected Chapter</Label>
+                  <Select value={chapterId} disabled>
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select a chapter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={chapterId}>{chapterName}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-slate-500 px-1">Selected from dashboard.</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-slate-700 font-semibold">Number of Questions</Label>
+                    <span className="text-lg font-bold text-indigo-600">{selectedCount}</span>
+                  </div>
+                  <Slider
+                    value={[selectedCount]}
+                    onValueChange={(vals) => setSelectedCount(vals[0])}
+                    min={5}
+                    max={30}
+                    step={1}
+                    className="py-2"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                    <span>5 (Min)</span>
+                    <span>30 (Max)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-center pt-4">
+                <Button
+                  onClick={handleGenerateQuiz}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 px-8 py-6 rounded-xl text-base font-bold gap-2"
+                >
+                  <Sparkles className="w-5 h-5" /> Generate Assessment
+                </Button>
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-6">
+              <div className="relative">
+                <div className="absolute inset-0 bg-indigo-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                <div className="relative w-16 h-16 bg-white border border-indigo-100 shadow-xl rounded-full flex items-center justify-center">
+                  <BrainCircuit className="w-8 h-8 text-indigo-600 animate-pulse" />
+                </div>
+              </div>
+              <div className="space-y-2 text-center">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                  Generating Quiz...
+                </h3>
+                <p className="text-sm text-indigo-600/80 font-medium min-h-[20px] transition-all duration-300">
+                  {loadingMessage}
+                </p>
+              </div>
             </div>
           ) : submitted && result ? (
             /* Results View */
@@ -207,9 +305,8 @@ export function TeacherAssessmentDialog({
               {/* Score Card */}
               <Card className={`border-2 ${result.passed ? "border-green-500 bg-green-50/50" : "border-red-500 bg-red-50/50"}`}>
                 <CardContent className="p-6 text-center">
-                  <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 ${
-                    result.passed ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
-                  }`}>
+                  <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 ${result.passed ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                    }`}>
                     {result.passed ? (
                       <Trophy className="w-10 h-10" />
                     ) : (
@@ -303,16 +400,14 @@ export function TeacherAssessmentDialog({
                   return (
                     <button
                       key={key}
-                      className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm font-medium ${
-                        isSelected
+                      className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm font-medium ${isSelected
                           ? "border-indigo-500 bg-indigo-50 text-indigo-800 shadow-sm"
                           : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-foreground"
-                      }`}
+                        }`}
                       onClick={() => selectOption(String(currentQuestion.id), key)}
                     >
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mr-3 text-xs font-bold ${
-                        isSelected ? "bg-indigo-500 text-white" : "bg-gray-200 text-gray-600"
-                      }`}>
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mr-3 text-xs font-bold ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-200 text-gray-600"
+                        }`}>
                         {key}
                       </span>
                       {optionText}
@@ -338,13 +433,12 @@ export function TeacherAssessmentDialog({
                   {questions.map((q, i) => (
                     <button
                       key={q.id}
-                      className={`w-6 h-6 rounded-full text-[10px] font-bold transition-all ${
-                        currentIndex === i
+                      className={`w-6 h-6 rounded-full text-[10px] font-bold transition-all ${currentIndex === i
                           ? "bg-indigo-500 text-white scale-110"
                           : answers[String(q.id)]
                             ? "bg-indigo-100 text-indigo-600"
                             : "bg-gray-100 text-gray-400"
-                      }`}
+                        }`}
                       onClick={() => setCurrentIndex(i)}
                     >
                       {i + 1}
@@ -391,18 +485,18 @@ export function TeacherAssessmentDialog({
 
 
 /* ─── Last Attempt Review Dialog ─── */
-export function TeacherAssessmentHistoryDialog({ 
-  open, 
-  onOpenChange, 
-  gradedSummary, 
-  chapterName, 
-  score, 
-  total, 
-  passed 
-}: { 
-  open: boolean; 
-  onOpenChange: (open: boolean) => void; 
-  gradedSummary: any[]; 
+export function TeacherAssessmentHistoryDialog({
+  open,
+  onOpenChange,
+  gradedSummary,
+  chapterName,
+  score,
+  total,
+  passed
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  gradedSummary: any[];
   chapterName: string;
   score: number;
   total: number;
@@ -440,7 +534,7 @@ export function TeacherAssessmentHistoryDialog({
                   const optText = (item as any)[`option${opt}`] || `Option ${opt}`;
                   const isSelected = item.selectedOption === opt;
                   const isCorrect = item.correctOption === opt;
-                  
+
                   let statusClass = "border-gray-100 bg-white text-slate-600";
                   let icon = null;
 
@@ -457,9 +551,8 @@ export function TeacherAssessmentHistoryDialog({
                   return (
                     <div key={opt} className={`p-2.5 rounded-xl border-2 text-xs flex items-center justify-between transition-all ${statusClass}`}>
                       <div className="flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                          isCorrect ? "bg-green-500 text-white" : isSelected ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500"
-                        }`}>
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isCorrect ? "bg-green-500 text-white" : isSelected ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500"
+                          }`}>
                           {opt}
                         </span>
                         {optText}
@@ -555,11 +648,10 @@ export function StudentPerformancePanel({ gatingStatus, studentThreshold, onRete
   }
 
   return (
-    <div className={`mt-4 mb-2 p-4 rounded-xl border-2 shadow-sm transition-all ${
-      studentThresholdMet
+    <div className={`mt-4 mb-2 p-4 rounded-xl border-2 shadow-sm transition-all ${studentThresholdMet
         ? "bg-green-50 border-green-200"
         : "bg-red-50 border-red-200"
-    }`}>
+      }`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
@@ -584,7 +676,7 @@ export function StudentPerformancePanel({ gatingStatus, studentThreshold, onRete
             </span>
           </div>
         </div>
-        
+
         {!studentThresholdMet && onReteach && (
           <div className="flex items-center gap-2 ml-7 sm:ml-0">
             <Button

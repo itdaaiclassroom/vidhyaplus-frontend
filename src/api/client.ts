@@ -1340,6 +1340,23 @@ export async function fetchAssessmentQuestions(chapterId: string): Promise<{
   return res.json();
 }
 
+export async function generateTeacherChapterQuiz(payload: { chapter: string; subject: string; grade: number; count: number }): Promise<{
+  questions: AssessmentQuestion[];
+  source: string;
+}> {
+  const AI_API_BASE = "http://localhost:8001"; // Fallback if needed, though usually proxied or direct
+  const res = await fetch(`${AI_API_BASE}/generate_teacher_quiz`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 export async function submitTeacherAssessment(payload: {
   teacherId: string;
   chapterId: string;
