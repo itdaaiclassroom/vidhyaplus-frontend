@@ -17,25 +17,25 @@ import PptxViewer from "@/components/PptxViewer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { 
-  createLeaveApplication, 
-  updateLeaveApplicationStatus, 
-  createLiveQuiz, 
-  getLiveQuizLeaderboard, 
-  endLiveQuiz, 
-  getApiBase, 
-  startLiveSession, 
-  submitAttendance, 
-  endLiveSession, 
-  getLiveQuizTeacherQr, 
-  fetchLiveQuizStatus, 
-  startLiveQuizCapture, 
-  submitLiveQuizAnswer, 
-  getAiRecommendations, 
-  askAiAssistant, 
-  fetchPrincipalStudents, 
-  fetchTodayTeacherAttendance, 
-  markTeacherSelfAttendance, 
+import {
+  createLeaveApplication,
+  updateLeaveApplicationStatus,
+  createLiveQuiz,
+  getLiveQuizLeaderboard,
+  endLiveQuiz,
+  getApiBase,
+  startLiveSession,
+  submitAttendance,
+  endLiveSession,
+  getLiveQuizTeacherQr,
+  fetchLiveQuizStatus,
+  startLiveQuizCapture,
+  submitLiveQuizAnswer,
+  getAiRecommendations,
+  askAiAssistant,
+  fetchPrincipalStudents,
+  fetchTodayTeacherAttendance,
+  markTeacherSelfAttendance,
   fetchTeacherAssignments,
   fetchChapterGatingStatus,
   fetchTeacherAssessments,
@@ -240,11 +240,25 @@ const TeacherDashboard = () => {
     const initial: Record<string, string> = {};
     topics.forEach((t) => {
       const tid = String(t.id);
-      if (topicIdsForFilteredChapters.has(tid)) initial[tid] = t.status || "not_started";
+      if (topicIdsForFilteredChapters.has(tid)) {
+        const hasCompletedSession = liveSessionsFromApi.some(
+          (ls) => String(ls.topicId) === tid && String(ls.classId) === selectedClass && String(ls.teacherId) === String(teacherId) && ls.status === "ended"
+        );
+        const hasActiveSession = liveSessionsFromApi.some(
+          (ls) => String(ls.topicId) === tid && String(ls.classId) === selectedClass && String(ls.teacherId) === String(teacherId) && (ls.status === "ongoing" || ls.status === "active")
+        );
+        if (hasCompletedSession) {
+          initial[tid] = "completed";
+        } else if (hasActiveSession) {
+          initial[tid] = "in_progress";
+        } else {
+          initial[tid] = "not_started";
+        }
+      }
     });
     // Prefer values from API (`initial`) over stale local state when data is refetched.
     setTopicStatusState((prev) => ({ ...prev, ...initial }));
-  }, [topics, topicIdsForFilteredChapters]);
+  }, [topics, topicIdsForFilteredChapters, liveSessionsFromApi, selectedClass, teacherId]);
 
   const filteredChapters = filteredChaptersForTopics;
 
@@ -359,9 +373,9 @@ const TeacherDashboard = () => {
 
   const downloadReport = async (studentName: string) => {
     if (!reportRef.current) return;
-    
+
     const toastId = toast.loading("Finalizing your premium PDF...");
-    
+
     try {
       // Temporarily set a fixed width for the capture to ensure it looks identical every time
       const originalStyle = reportRef.current.style.width;
@@ -374,25 +388,25 @@ const TeacherDashboard = () => {
         backgroundColor: "#ffffff",
         windowWidth: 800
       });
-      
+
       // Restore original style
       reportRef.current.style.width = originalStyle;
 
       const imgData = canvas.toDataURL('image/png');
-      
+
       // Create A4 PDF (210mm x 297mm)
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      
+
       // Calculate image size to fit A4 with margins (10mm margin)
       const margin = 10;
       const contentWidth = pdfWidth - (margin * 2);
       const contentHeight = (canvas.height * contentWidth) / canvas.width;
-      
+
       pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
       pdf.save(`VidhyaPlus_Report_${studentName.replace(/\s+/g, '_')}.pdf`);
-      
+
       toast.success("Professional PDF Downloaded!", { id: toastId });
     } catch (err) {
       console.error("PDF generation failed:", err);
@@ -403,7 +417,7 @@ const TeacherDashboard = () => {
   const parseAiReport = (content: string) => {
     const strengthsMatch = content.match(/Strengths:\s*([^.]+)/i);
     const improvementMatch = content.match(/(?:Areas to improve|Opportunities for Growth|Weaknesses):\s*([^.]+)/i);
-    
+
     return {
       strengths: strengthsMatch ? strengthsMatch[1].trim() : "Consistently participating in class activities and demonstrating good grasp of core concepts.",
       improvement: improvementMatch ? improvementMatch[1].trim() : "Continue practicing formative assessments to build confidence in complex topics.",
@@ -414,13 +428,13 @@ const TeacherDashboard = () => {
   const handleMarkChange = async (studentId: string, type: string, value: string) => {
     if (!selectedSubject) return;
     const score = parseInt(value);
-    
+
     // Allow clearing the input
     if (value === '') {
       // In a real app, we might want to delete the record, but here we'll just skip or save 0
       return;
     }
-    
+
     if (isNaN(score)) return;
 
     // Use the first chapter of the subject as the anchor for these general assessments
@@ -900,7 +914,7 @@ const TeacherDashboard = () => {
     try {
       await endLiveQuiz(liveQuizSession.id);
       liveQuizCheckpoint("end_quiz:api_ok");
-      
+
       // Trigger AI Summary Generation
       const summaryPromise = askAiAssistant({
         question: "Please analyze the results of the live quiz session that just ended. Provide a concise summary including overall performance, student engagement, and any specific concepts that might need a revisit.",
@@ -1144,10 +1158,10 @@ const TeacherDashboard = () => {
       setActiveSession(session);
       // Check for resume data
       const resumeData = getResumeData(topic.id);
-      
+
       // NAVIGATE to the dedicated lesson page
       navigate(`/teacher/lesson?sessionId=${created.id}`, { state: { session } });
-      
+
       refetch?.();
     } catch (e) {
       liveQuizCheckpoint("live_session:error", { message: e instanceof Error ? e.message : String(e) });
@@ -1222,14 +1236,14 @@ const TeacherDashboard = () => {
   const handleSendChat = async () => {
     const msg = chatInput.trim();
     if (!msg || chatLoading) return;
-    
+
     const userMsg = { role: "user" as const, text: msg };
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput("");
     setChatLoading(true);
-    
+
     try {
-      const activeChapter = activeSession?.chapterId 
+      const activeChapter = activeSession?.chapterId
         ? chapters.find(c => sameId(c.id, activeSession.chapterId))
         : null;
 
@@ -1304,7 +1318,7 @@ const TeacherDashboard = () => {
     if (!activeSession) return;
     setRecoLoading(true);
     try {
-      const activeChapter = activeSession?.chapterId 
+      const activeChapter = activeSession?.chapterId
         ? chapters.find(c => String(c.id) === String(activeSession.chapterId))
         : null;
 
@@ -1329,7 +1343,7 @@ const TeacherDashboard = () => {
     }
   }, [activeSession, grade, chapters]);
 
-   const handleChapterStatusChange = (chId: string, newStatus: string) => {
+  const handleChapterStatusChange = (chId: string, newStatus: string) => {
 
     setChapterStatusState((prev) => ({ ...prev, [chId]: newStatus }));
   };
@@ -1605,7 +1619,7 @@ const TeacherDashboard = () => {
                         </div>
                       </div>
                     ))}
-                    
+
                     {chatLoading && (
                       <div className="flex gap-2 animate-pulse">
                         <div className="w-6 h-6 rounded-full gradient-primary flex items-center justify-center shrink-0">
@@ -1971,49 +1985,49 @@ const TeacherDashboard = () => {
                           <p className="text-xs text-muted-foreground">No present students found. Submit attendance first.</p>
                         )}
                       </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-muted-foreground">
-                            Current question completion: {Object.keys(manualCurrentAnswers).length}/{manualEligibleStudents.length}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={manualQuestionNo <= 1}
-                              onClick={() => setManualQuestionNo((q) => Math.max(1, q - 1))}
-                            >
-                              Prev
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={manualQuestionNo >= (liveQuizSession?.questions.length || 1)}
-                              onClick={() => setManualQuestionNo((q) => Math.min((liveQuizSession?.questions.length || 1), q + 1))}
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        </div>
-                        {/* Option Distribution Chart */}
-                        <div className="h-32 mt-4 bg-background p-2 rounded-lg border border-border">
-                          <p className="text-[10px] font-semibold text-center mb-2">Option Distribution</p>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={[
-                              { name: 'A', value: Object.values(manualCurrentAnswers).filter(v => v === 'A').length, fill: 'hsl(210 70% 55%)' },
-                              { name: 'B', value: Object.values(manualCurrentAnswers).filter(v => v === 'B').length, fill: 'hsl(174 62% 38%)' },
-                              { name: 'C', value: Object.values(manualCurrentAnswers).filter(v => v === 'C').length, fill: 'hsl(38 92% 55%)' },
-                              { name: 'D', value: Object.values(manualCurrentAnswers).filter(v => v === 'D').length, fill: 'hsl(0 72% 55%)' },
-                            ]}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                              <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} width={20} />
-                              <Tooltip cursor={{ fill: 'transparent' }} />
-                              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={20} />
-                            </BarChart>
-                          </ResponsiveContainer>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          Current question completion: {Object.keys(manualCurrentAnswers).length}/{manualEligibleStudents.length}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={manualQuestionNo <= 1}
+                            onClick={() => setManualQuestionNo((q) => Math.max(1, q - 1))}
+                          >
+                            Prev
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={manualQuestionNo >= (liveQuizSession?.questions.length || 1)}
+                            onClick={() => setManualQuestionNo((q) => Math.min((liveQuizSession?.questions.length || 1), q + 1))}
+                          >
+                            Next
+                          </Button>
                         </div>
                       </div>
-                    )}
+                      {/* Option Distribution Chart */}
+                      <div className="h-32 mt-4 bg-background p-2 rounded-lg border border-border">
+                        <p className="text-[10px] font-semibold text-center mb-2">Option Distribution</p>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={[
+                            { name: 'A', value: Object.values(manualCurrentAnswers).filter(v => v === 'A').length, fill: 'hsl(210 70% 55%)' },
+                            { name: 'B', value: Object.values(manualCurrentAnswers).filter(v => v === 'B').length, fill: 'hsl(174 62% 38%)' },
+                            { name: 'C', value: Object.values(manualCurrentAnswers).filter(v => v === 'C').length, fill: 'hsl(38 92% 55%)' },
+                            { name: 'D', value: Object.values(manualCurrentAnswers).filter(v => v === 'D').length, fill: 'hsl(0 72% 55%)' },
+                          ]}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                            <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} axisLine={false} tickLine={false} width={20} />
+                            <Tooltip cursor={{ fill: 'transparent' }} />
+                            <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={20} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Current question: <span className="font-medium text-foreground">{liveQuizStatus?.currentQuestionNo ?? 1}</span>
                     {liveQuizStatus?.progressByQuestion?.[String(liveQuizStatus?.currentQuestionNo ?? 1)] != null
@@ -2368,8 +2382,8 @@ const TeacherDashboard = () => {
                               <span className="text-xs text-muted-foreground">{progress}%</span>
                             </div>
                             {gatingStatus && (
-                              <ChapterGatingBadge 
-                                gatingStatus={gatingStatus.chapters.find(gs => sameId(gs.chapterId, ch.id)) || null} 
+                              <ChapterGatingBadge
+                                gatingStatus={gatingStatus.chapters.find(gs => sameId(gs.chapterId, ch.id)) || null}
                                 gatingEnabled={gatingStatus.gatingEnabled}
                               />
                             )}
@@ -2382,7 +2396,7 @@ const TeacherDashboard = () => {
                       {isExpanded && gatingStatus && gatingStatus.gatingEnabled && (() => {
                         const gs = gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id));
                         if (!gs) return null;
-                        
+
                         return (
                           <div className="px-4 pb-2">
                             {gs.isLocked && (
@@ -2393,8 +2407,8 @@ const TeacherDashboard = () => {
                                   <p className="text-[11px] text-red-600 mt-0.5">{gs.lockReason}</p>
                                 </div>
                                 {gs.assessmentAvailable && !gs.teacherPassed && (
-                                  <Button 
-                                    size="sm" 
+                                  <Button
+                                    size="sm"
                                     className="h-8 text-xs bg-red-600 hover:bg-red-700"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -2409,14 +2423,14 @@ const TeacherDashboard = () => {
                             )}
 
                             {!gs.isLocked && !gs.teacherPassed && gs.assessmentAvailable && (
-                               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 flex items-start gap-3 mb-3">
+                              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 flex items-start gap-3 mb-3">
                                 <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                                 <div className="flex-1">
                                   <p className="text-xs font-semibold text-amber-700">Teaching Unlocked (Assessment Pending)</p>
                                   <p className="text-[11px] text-amber-600 mt-0.5">You can teach, but we recommend passing the assessment first.</p>
                                 </div>
-                                <Button 
-                                  size="sm" 
+                                <Button
+                                  size="sm"
                                   variant="outline"
                                   className="h-8 text-xs border-amber-200 text-amber-700 hover:bg-amber-100"
                                   onClick={(e) => {
@@ -2432,8 +2446,8 @@ const TeacherDashboard = () => {
 
                             {gs.teacherPassed && (
                               <div className="flex items-center gap-2">
-                                <StudentPerformancePanel 
-                                  gatingStatus={gs} 
+                                <StudentPerformancePanel
+                                  gatingStatus={gs}
                                   studentThreshold={gatingStatus.studentThreshold}
                                   onReteach={() => {
                                     if (confirm("Start a new reteach session for this chapter?")) {
@@ -2466,7 +2480,7 @@ const TeacherDashboard = () => {
                               <p className="text-sm text-muted-foreground">Topics are locked until requirements are met.</p>
                             </div>
                           )}
-                          
+
                           {(!gatingStatus?.gatingEnabled || !gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id))?.isLocked) && (
                             chTopics.length > 0 ? chTopics.map((topic) => (
                               <div key={topic.id} className="bg-card rounded-xl border border-border overflow-hidden">
@@ -2503,7 +2517,7 @@ const TeacherDashboard = () => {
 
                                 {expandedTopics[topic.id] && (
                                   <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2 items-center">
-                                    {(() => {
+                                    {gatingStatus?.gatingEnabled && (() => {
                                       const tScore = gatingStatus?.topicScores?.[topic.id];
                                       if (!tScore) {
                                         return (
@@ -2664,27 +2678,27 @@ const TeacherDashboard = () => {
                       <tbody>
                         {classStudents.map(s => {
                           const att = studentAttendance.find(a => a.studentId === s.id);
-                          
+
                           // Real database marks for this specific subject
                           const studentMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id));
-                          
+
                           const fa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA1')?.score;
                           const fa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA2')?.score;
                           const fa3 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA3')?.score;
                           const fa4 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA4')?.score;
                           const sa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'SA1')?.score;
                           const sa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'SA2')?.score;
-                          
+
                           const quizResultsList = studentMarks.filter(r => (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
-                          
-                          const avgFA = ((Number(fa1||0) + Number(fa2||0) + Number(fa3||0) + Number(fa4||0)) / 4);
-                          const avgSA = ((Number(sa1||0) + Number(sa2||0)) / 2);
+
+                          const avgFA = ((Number(fa1 || 0) + Number(fa2 || 0) + Number(fa3 || 0) + Number(fa4 || 0)) / 4);
+                          const avgSA = ((Number(sa1 || 0) + Number(sa2 || 0)) / 2);
                           const quizScore = quizResultsList.reduce((sum, r) => sum + r.score, 0);
                           const totalQuizMax = quizResultsList.reduce((sum, r) => sum + r.total, 0) || 20;
-                          
+
                           // Updated Performance Index calculation including all 6 assessments
-                          const mockPerfIndex = Math.floor((avgFA/100)*30 + (avgSA/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
-                          
+                          const mockPerfIndex = Math.floor((avgFA / 100) * 30 + (avgSA / 100) * 40 + (quizScore / totalQuizMax) * 20 + ((att?.percentage || 0) / 100) * 10) || 0;
+
                           return (
                             <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                               <td className="p-3 text-foreground whitespace-nowrap">{s.rollNo}</td>
@@ -2726,13 +2740,13 @@ const TeacherDashboard = () => {
                                       subjectGrades: subjects.filter(sub => sub.grades.includes(grade)).map(sub => {
                                         const subChaps = chapters.filter(ch => ch.subjectId === sub.id);
                                         const subMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id) && subChaps.some(ch => ch.id === r.chapterId));
-                                        
+
                                         const getScore = (type: string) => subMarks.find(r => r.assessmentType?.toUpperCase() === type)?.score || "—";
-                                        
+
                                         const totalScore = subMarks.reduce((sum, r) => sum + r.score, 0);
                                         const totalMax = subMarks.reduce((sum, r) => sum + r.total, 0);
                                         const pct = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
-                                        
+
                                         let gradeVal = "C";
                                         if (pct >= 90) gradeVal = "A+";
                                         else if (pct >= 80) gradeVal = "A";
@@ -2797,17 +2811,16 @@ const TeacherDashboard = () => {
                     {(["present", "absent", "leave"] as const).map((s) => {
                       const isSelected = todayAttendance?.marked && todayAttendance.status === s;
                       const isDisabled = todayAttendance?.marked;
-                      
+
                       return (
                         <Button
                           key={s}
                           variant={isSelected || (s === "present" && !todayAttendance?.marked) ? "default" : "outline"}
                           disabled={isDisabled}
-                          className={`capitalize flex-1 transition-all ${
-                            isSelected 
+                          className={`capitalize flex-1 transition-all ${isSelected
                               ? (s === "present" ? "bg-green-600 opacity-100 shadow-md" : s === "absent" ? "bg-red-600 text-white opacity-100 shadow-md" : "bg-amber-500 text-white opacity-100 shadow-md")
                               : (s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50")
-                          } ${isDisabled && !isSelected ? "opacity-40 grayscale-[0.5]" : ""}`}
+                            } ${isDisabled && !isSelected ? "opacity-40 grayscale-[0.5]" : ""}`}
                           onClick={async () => {
                             if (!teacherId || isDisabled) return;
                             try {
@@ -2833,150 +2846,157 @@ const TeacherDashboard = () => {
 
             {/* MY ASSESSMENTS TAB */}
             <TabsContent value="my-assessments" className="space-y-4">
-              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" /> My Assessments
-              </h3>
-              <Card className="shadow-card border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-base">Teacher Chapter Assessments</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loadingAssessments ? (
-                    <p className="text-sm text-muted-foreground py-4">Loading assessments...</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {filteredChapters.map((ch) => {
-                        const chId = String(ch.id);
-                        const assessment = assessmentsData.find(a => String(a.chapter_id) === chId);
-                        const gs = gatingStatus?.chapters?.find((g: any) => String(g.chapterId) === chId);
-                        const isLocked = gatingStatus?.gatingEnabled && gs?.isLocked;
-                        
-                        return (
-                          <div key={ch.id} className="border border-border rounded-xl p-4 bg-secondary/20 transition-all hover:shadow-md">
-                            <div className="flex justify-between items-start mb-3">
-                              <div>
-                                <h4 className="font-bold text-md text-foreground">{ch.name}</h4>
-                                <p className="text-xs text-muted-foreground">{currentSubject?.name}</p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1.5">
-                                {isLocked ? (
-                                  <Badge variant="outline" className="bg-muted text-muted-foreground"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
-                                ) : (gs?.teacherPassed || assessment?.passed) ? (
-                                  <Badge className="bg-success text-success-foreground border-none">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" /> PASSED
-                                  </Badge>
-                                ) : assessment ? (
-                                  <Badge variant="destructive" className="border-none">
-                                    <XCircle className="w-3 h-3 mr-1" /> FAILED
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">AVAILABLE</Badge>
-                                )}
-                                {assessment && (
-                                  <div className="flex flex-col items-end gap-0.5">
-                                    <span className="text-[10px] font-bold text-slate-700">
-                                      {assessment.score} / {assessment.total} ({assessment.percentage}%)
-                                    </span>
-                                    <span className="text-[9px] text-muted-foreground uppercase tracking-tight">
-                                      Pass: {assessment.passing_marks || (assessment.percentage >= 20 ? 'Met' : '20%')} | {assessment.attempt_number > 1 ? `${assessment.attempt_number} Attempts` : "1st Attempt"}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {isLocked && (
-                              <p className="text-sm text-muted-foreground mb-4 bg-muted/50 p-3 rounded-md border border-border/50">
-                                <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground mb-0.5" />
-                                {gs?.lockReason || "Locked until previous requirements are met."}
-                              </p>
-                            )}
+                <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-primary" /> My Assessments
+                </h3>
+                <Card className="shadow-card border-border">
+                  <CardHeader>
+                    <CardTitle className="font-display text-base">Teacher Chapter Assessments</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingAssessments ? (
+                      <p className="text-sm text-muted-foreground py-4">Loading assessments...</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {filteredChapters.map((ch) => {
+                          const chId = String(ch.id);
+                          const assessment = assessmentsData.find(a => String(a.chapter_id) === chId);
+                          const gs = gatingStatus?.chapters?.find((g: any) => String(g.chapterId) === chId);
+                          const isLocked = gatingStatus?.gatingEnabled && gs?.isLocked;
 
-                            {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
-                              <div className="mb-4 bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center shadow-sm">
-                                <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-primary">
-                                    {assessment ? "Retake Assessment" : "Assessment Ready"}
-                                  </p>
+                          return (
+                            <div key={ch.id} className="border border-border rounded-xl p-4 bg-secondary/20 transition-all hover:shadow-md">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <h4 className="font-bold text-md text-foreground">{ch.name}</h4>
                                   <p className="text-xs text-muted-foreground">
-                                    Pass threshold: {gatingStatus?.teacherPassThreshold || 70}%
+                                    {currentSubject?.name}
+                                    {assessment && ` • Taken on ${new Date(assessment.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
                                   </p>
                                 </div>
-                                <Button 
-                                  size="sm" 
-                                  className="shadow-lg bg-primary hover:bg-primary/90"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAssessmentChapter({ id: ch.id, name: ch.name });
-                                    setAssessmentOpen(true);
-                                  }}
-                                >
-                                  {assessment ? "Retry Assessment" : "Take Assessment"}
-                                </Button>
+                                <div className="flex flex-col items-end gap-1.5">
+                                  {isLocked ? (
+                                    <Badge variant="outline" className="bg-muted text-muted-foreground"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
+                                  ) : (gs?.teacherPassed || assessment?.passed) ? (
+                                    <Badge className="bg-success text-success-foreground border-none">
+                                      <CheckCircle2 className="w-3 h-3 mr-1" /> PASSED
+                                    </Badge>
+                                  ) : assessment ? (
+                                    <Badge variant="destructive" className="border-none">
+                                      <XCircle className="w-3 h-3 mr-1" /> FAILED
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">AVAILABLE</Badge>
+                                  )}
+                                  {assessment && (
+                                    <div className="flex flex-col items-end gap-0.5">
+                                      <span className="text-[10px] font-bold text-slate-700">
+                                        Score: {assessment.percentage}% ({assessment.score}/{assessment.total})
+                                      </span>
+                                      <span className="text-[9px] text-muted-foreground uppercase tracking-tight">
+                                        Min Pass: {assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}% | Attempt #{assessment.attempt_number}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            )}
 
-                            {assessment && (
-                              <>
-                                <div className="grid grid-cols-4 gap-2 mb-4 text-sm bg-background p-3 rounded-lg border border-border shadow-inner">
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Score</p>
-                                    <p className="font-display font-bold text-foreground">{assessment.score} / {assessment.total}</p>
-                                  </div>
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Pass %</p>
-                                    <p className="font-display font-bold text-foreground">{gatingStatus?.teacherPassThreshold || 70}%</p>
-                                  </div>
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Your %</p>
-                                    <p className={`font-display font-bold ${assessment.passed ? "text-success" : "text-destructive"}`}>
-                                      {assessment.percentage}%
+                              {isLocked && (
+                                <p className="text-sm text-muted-foreground mb-4 bg-muted/50 p-3 rounded-md border border-border/50">
+                                  <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground mb-0.5" />
+                                  {gs?.lockReason || "Locked until previous requirements are met."}
+                                </p>
+                              )}
+
+                              {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
+                                <div className="mb-4 bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center shadow-sm">
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-semibold text-primary">
+                                      {assessment ? "Retake Assessment" : "Assessment Ready"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Pass threshold: {gatingStatus?.teacherPassThreshold || 70}%
                                     </p>
                                   </div>
-                                  <div className="text-center">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Attempts</p>
-                                    <p className="font-display font-bold text-foreground">#{assessment.attempt_number}</p>
-                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="shadow-lg bg-primary hover:bg-primary/90"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setAssessmentChapter({ id: ch.id, name: ch.name });
+                                      setAssessmentOpen(true);
+                                    }}
+                                  >
+                                    {assessment ? "Retry Assessment" : "Take Assessment"}
+                                  </Button>
                                 </div>
+                              )}
 
-                                {assessment.graded_summary && (
-                                  <div className="mt-4 pt-4 border-t border-border flex justify-center">
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 font-semibold"
-                                      onClick={() => {
-                                        try {
-                                          const graded = typeof assessment.graded_summary === 'string' 
-                                            ? JSON.parse(assessment.graded_summary) 
-                                            : assessment.graded_summary;
-                                          setReviewData({
-                                            summary: graded,
-                                            chapterName: ch.name,
-                                            score: assessment.score,
-                                            total: assessment.total,
-                                            passed: assessment.passed
-                                          });
-                                          setReviewDialogOpen(true);
-                                        } catch (e) {
-                                          toast.error("Unable to open assessment review");
-                                        }
-                                      }}
-                                    >
-                                      <FileText className="w-4 h-4" /> View Questions Summary
-                                    </Button>
+                              {assessment && (
+                                <>
+                                  <div className="grid grid-cols-5 gap-2 mb-4 text-sm bg-background p-3 rounded-lg border border-border shadow-inner">
+                                    <div className="text-center border-r border-border last:border-0">
+                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Total Qs</p>
+                                      <p className="font-display font-bold text-foreground">{assessment.total}</p>
+                                    </div>
+                                    <div className="text-center border-r border-border last:border-0">
+                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Correct Qs</p>
+                                      <p className="font-display font-bold text-foreground">{assessment.score}</p>
+                                    </div>
+                                    <div className="text-center border-r border-border last:border-0">
+                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Pass Req %</p>
+                                      <p className="font-display font-bold text-foreground">{assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}%</p>
+                                    </div>
+                                    <div className="text-center border-r border-border last:border-0">
+                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Your Score %</p>
+                                      <p className={`font-display font-bold ${assessment.passed ? "text-success" : "text-destructive"}`}>
+                                        {assessment.percentage}%
+                                      </p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attempts</p>
+                                      <p className="font-display font-bold text-foreground">#{assessment.attempt_number}</p>
+                                    </div>
                                   </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+
+                                  {assessment.graded_summary && (
+                                    <div className="mt-4 pt-4 border-t border-border flex justify-center">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 font-semibold"
+                                        onClick={() => {
+                                          try {
+                                            const graded = typeof assessment.graded_summary === 'string'
+                                              ? JSON.parse(assessment.graded_summary)
+                                              : assessment.graded_summary;
+                                            setReviewData({
+                                              summary: graded,
+                                              chapterName: ch.name,
+                                              score: assessment.score,
+                                              total: assessment.total,
+                                              passed: assessment.passed
+                                            });
+                                            setReviewDialogOpen(true);
+                                          } catch (e) {
+                                            toast.error("Unable to open assessment review");
+                                          }
+                                        }}
+                                      >
+                                        <FileText className="w-4 h-4" /> View Questions Summary
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
             {/* LEAVE TAB */}
             <TabsContent value="leave" className="space-y-4">
@@ -3370,7 +3390,7 @@ const TeacherDashboard = () => {
                   })}
                 </div>
               </div>
-              
+
               {/* Performance graph */}
               <div>
                 <p className="text-sm font-medium">Subject-wise Scores</p>
@@ -3527,7 +3547,7 @@ const TeacherDashboard = () => {
         </DialogContent>
       </Dialog>
       {reviewData && (
-        <TeacherAssessmentHistoryDialog 
+        <TeacherAssessmentHistoryDialog
           open={reviewDialogOpen}
           onOpenChange={setReviewDialogOpen}
           gradedSummary={reviewData.summary}

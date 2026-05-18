@@ -28,6 +28,7 @@ interface TeacherForm {
   phoneNumber: string;
   email: string;
   photo: File | null;
+  password: string;
 }
 
 const steps: { key: StepKey; title: string; desc?: string }[] = [
@@ -83,6 +84,7 @@ const TeacherRegistration: React.FC = () => {
     phoneNumber: "",
     email: "",
     photo: null,
+    password: "",
   });
 
   const handleChange = (k: keyof TeacherForm, v: string | File | null) =>
@@ -141,7 +143,7 @@ const TeacherRegistration: React.FC = () => {
         school_id: schoolId,
         full_name: form.teacherName,
         email: form.email,
-        password: "teach123", // Default password for now
+        password: form.password || "teach123",
         subjects: selectedSubjectIds,
         dob: form.dob,
         gender: form.gender,
@@ -159,7 +161,7 @@ const TeacherRegistration: React.FC = () => {
       setForm({
         teacherName: "", dob: "", gender: "", caste: "", religion: "", motherTongue: "",
         address: "", subjectsHandled: [], classesCanHandle: [], phoneNumber: "",
-        email: "", photo: null,
+        email: "", photo: null, password: "",
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to register teacher";
@@ -217,6 +219,13 @@ const TeacherRegistration: React.FC = () => {
                   placeholder="Email Address"
                   value={form.email}
                   onChange={(e) => handleChange("email", e.target.value)}
+                  className="h-10"
+                />
+                <Input
+                  type="password"
+                  placeholder="Password (for login)"
+                  value={form.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
                   className="h-10"
                 />
               </div>
@@ -349,6 +358,14 @@ const TeacherRegistration: React.FC = () => {
                     <div className="text-xs text-muted-foreground font-medium">Phone</div>
                     <div className="font-medium">{form.phoneNumber || "-"}</div>
                   </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium">Email</div>
+                    <div className="font-medium">{form.email || "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium">Password</div>
+                    <div className="font-medium">{form.password || "-"}</div>
+                  </div>
                 </div>
               </div>
 
@@ -407,7 +424,7 @@ const TeacherRegistration: React.FC = () => {
             <p className="text-muted-foreground mb-6">Teacher <span className="font-semibold text-foreground">{successModalData.name}</span> has been successfully registered.</p>
             {successModalData.id !== "Generated" && (
               <div className="bg-muted rounded-lg p-4 mb-6 text-center">
-                <span className="block text-sm text-muted-foreground mb-1">Generated Teacher ID</span>
+                <span className="block text-sm text-muted-foreground mb-1">ID NO.</span>
                 <span className="block text-3xl font-mono font-bold text-primary">{successModalData.id}</span>
               </div>
             )}

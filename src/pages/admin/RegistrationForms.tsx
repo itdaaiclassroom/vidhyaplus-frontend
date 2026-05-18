@@ -27,6 +27,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
   const [schoolId, setSchoolId] = useState("");
   const [classGrade, setClassGrade] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +82,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
         school_id: schoolId.trim(),
         grade_id: gradeNum,
         password: password.trim(),
+        email: email.trim(),
         ...(photoUrl ? { photo_url: photoUrl } : {}),
       });
       onSuccess?.();
@@ -129,6 +131,10 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
               <Input placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" />
               <Input placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Email (required for login)</Label>
+            <Input type="email" placeholder="Enter email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           </div>
           <div className="space-y-2">
             <Label>Password (required for login)</Label>

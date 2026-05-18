@@ -84,12 +84,12 @@ const BulkUpload: React.FC = () => {
   const downloadSample = () => {
     const data = type === "students" 
       ? [
-          ["Roll No", "First Name", "Last Name", "Grade", "Section", "Password", "Gender", "Category", "Date of Birth", "Father Name", "Mother Name", "Phone", "Aadhaar", "Address", "Village", "Mandal", "District", "State", "Pincode", "Hostel Status", "Disabilities"],
-          ["2024001", "Rahul", "Kumar", 10, "A", "123456", "Male", "General", "2010-05-15", "Suresh Kumar", "Lakshmi Devi", "9876543210", "123456789012", "H.No 1-2-3, Main Road", "Rampur", "Keesara", "Medchal", "Telangana", "500101", "No", "None"],
+          ["First Name", "Last Name", "Date of Birth", "Gender", "Grade", "Section", "Caste", "Religion", "Mother Tongue", "Father Name", "Father Number", "Mother Name", "Mother Number", "Address"],
+          ["Rahul", "Kumar", "2010-05-15", "Male", 10, "A", "General", "Hindu", "Telugu", "Suresh Kumar", "9876543210", "Lakshmi Devi", "9876543211", "H.No 1-2-3, Main Road"],
         ]
       : [
-          ["Full Name", "Email", "Password", "Subjects", "Role", "Date of Birth", "Gender", "Caste", "Religion", "Nationality", "Mother Tongue", "Phone Number", "Emergency Contact", "Address", "Village", "Mandal", "District", "State", "Pincode", "Aadhaar Number", "Disabilities"],
-          ["Priya Sharma", "priya.sharma@school.com", "123456", "Mathematics, Science", "teacher", "1990-08-20", "Female", "OC", "Hindu", "Indian", "Telugu", "9876543210", "9123456780", "H.No 4-5-6, School Street", "Rampur", "Keesara", "Medchal", "Telangana", "500101", "987654321098", "None"],
+          ["Teacher Name", "Email", "Date of Birth", "Gender", "Caste", "Religion", "Mother Tongue", "Address", "Subjects Handled", "Phone Number"],
+          ["Priya Sharma", "priya.sharma@school.com", "1990-08-20", "Female", "OC", "Hindu", "Telugu", "H.No 4-5-6, School Street", "Mathematics, Science", "9876543210"],
         ];
     
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -145,7 +145,7 @@ const BulkUpload: React.FC = () => {
       if (type === "students") {
         // Map data for students
         let sectionMap: Record<string, number> = {};
-        const { sections } = await fetchPrincipalSections();
+        const sections = principalContext?.sections || [];
         sections.forEach(s => {
           const key = `${s.grade_id}-${s.section_code}`.toUpperCase();
           sectionMap[key] = s.id;
@@ -164,24 +164,18 @@ const BulkUpload: React.FC = () => {
             school_id: schoolId,
             section_id: sectionId,
             grade_id: Number(grade),
-            roll_no: row["Roll No"] || row["roll_no"],
             first_name: firstName,
             last_name: lastName || "Student",
-            password: String(row["Password"] || row["password"] || "123456"),
-            category: row["Category"] || row["category"] || "General",
+            password: "123456", // Default password
+            category: row["Caste"] || row["caste"] || "General",
+            religion: row["Religion"] || row["religion"],
+            mother_tongue: row["Mother Tongue"] || row["mother_tongue"],
             joined_at: new Date().toISOString().slice(0, 10),
             father_name: row["Father Name"] || row["father_name"],
+            phone: String(row["Father Number"] || row["father_number"] || ""),
             mother_name: row["Mother Name"] || row["mother_name"],
-            phone: String(row["Phone"] || row["phone"] || ""),
-            aadhaar: String(row["Aadhaar"] || row["aadhaar"] || ""),
+            emergency_contact: String(row["Mother Number"] || row["mother_number"] || ""),
             address: row["Address"] || row["address"],
-            village: row["Village"] || row["village"],
-            mandal: row["Mandal"] || row["mandal"],
-            district: row["District"] || row["district"],
-            state: row["State"] || row["state"],
-            pincode: String(row["Pincode"] || row["pincode"] || ""),
-            hostel_status: row["Hostel Status"] || row["hostel_status"] || "no",
-            disabilities: row["Disabilities"] || row["disabilities"],
             gender: row["Gender"] || row["gender"],
             dob: excelDateToString(row["Date of Birth"] || row["dob"]),
             _rowNum: i + 2
@@ -204,33 +198,24 @@ const BulkUpload: React.FC = () => {
       } else {
         // Map data for teachers
         const teacherPayload = parsedData.map((row, i) => {
-          const fullName = row["Full Name"] || row["full_name"];
+          const fullName = row["Teacher Name"] || row["teacher_name"];
           const email = row["Email"] || row["email"];
-          const subjectsStr = row["Subjects"] || row["subjects"] || "";
+          const subjectsStr = row["Subjects Handled"] || row["subjects_handled"] || "";
 
           return {
             school_id: schoolId,
             full_name: fullName,
             email: email,
-            password: String(row["Password"] || row["password"] || "123456"),
+            password: "teach123", // Default password
             subjects: subjectsStr.split(",").map((s: string) => s.trim()).filter(Boolean),
-            role: row["Role"] || row["role"] || "teacher",
+            role: "teacher",
             dob: excelDateToString(row["Date of Birth"] || row["dob"]),
             gender: row["Gender"] || row["gender"],
             caste: row["Caste"] || row["caste"],
             religion: row["Religion"] || row["religion"],
-            nationality: row["Nationality"] || row["nationality"],
             mother_tongue: row["Mother Tongue"] || row["mother_tongue"],
             phone_number: String(row["Phone Number"] || row["phone_number"] || ""),
-            emergency_contact: String(row["Emergency Contact"] || row["emergency_contact"] || ""),
             address: row["Address"] || row["address"],
-            village: row["Village"] || row["village"],
-            mandal: row["Mandal"] || row["mandal"],
-            district: row["District"] || row["district"],
-            state: row["State"] || row["state"],
-            pincode: String(row["Pincode"] || row["pincode"] || ""),
-            aadhaar_number: String(row["Aadhaar Number"] || row["aadhaar_number"] || ""),
-            disabilities: row["Disabilities"] || row["disabilities"],
             _rowNum: i + 2
           };
         });

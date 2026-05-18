@@ -127,6 +127,8 @@ export default function GatingAdminPanel() {
     );
   }
 
+  const isGatingEnabled = config.gating_enabled === "true";
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -152,291 +154,301 @@ export default function GatingAdminPanel() {
               />
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Teacher Pass Threshold (%)</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  value={config.teacher_pass_percentage || "70"}
-                  onChange={(e) => setConfig(prev => ({
-                    ...prev,
-                    teacher_pass_percentage: e.target.value
-                  }))}
-                  onBlur={(e) => handleUpdateConfig("teacher_pass_percentage", e.target.value)}
-                  className="bg-slate-50 border-slate-200 rounded-xl"
-                  min="0"
-                  max="100"
-                />
-                <Badge variant="outline" className="h-10 px-4 rounded-xl border-slate-200">Required</Badge>
-              </div>
-              <p className="text-[10px] text-slate-400 italic">Score needed by teachers on competency assessments.</p>
-            </div>
+            {isGatingEnabled && (
+              <>
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Teacher Pass Threshold (%)</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      value={config.teacher_pass_percentage || "70"}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        teacher_pass_percentage: e.target.value
+                      }))}
+                      onBlur={(e) => handleUpdateConfig("teacher_pass_percentage", e.target.value)}
+                      className="bg-slate-50 border-slate-200 rounded-xl"
+                      min="0"
+                      max="100"
+                    />
+                    <Badge variant="outline" className="h-10 px-4 rounded-xl border-slate-200">Required</Badge>
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic">Score needed by teachers on competency assessments.</p>
+                </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Student Threshold (%)</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  value={config.student_threshold_percentage || "60"}
-                  onChange={(e) => setConfig(prev => ({ ...prev, student_threshold_percentage: e.target.value }))}
-                  onBlur={(e) => handleUpdateConfig("student_threshold_percentage", e.target.value)}
-                  className="bg-slate-50 border-slate-200 rounded-xl"
-                  min="0"
-                  max="100"
-                />
-                <Badge variant="outline" className="h-10 px-4 rounded-xl border-slate-200">Required</Badge>
-              </div>
-              <p className="text-[10px] text-slate-400 italic">Class average needed to unlock next chapter assessment.</p>
-            </div>
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Student Threshold (%)</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      value={config.student_threshold_percentage || "60"}
+                      onChange={(e) => setConfig(prev => ({ ...prev, student_threshold_percentage: e.target.value }))}
+                      onBlur={(e) => handleUpdateConfig("student_threshold_percentage", e.target.value)}
+                      className="bg-slate-50 border-slate-200 rounded-xl"
+                      min="0"
+                      max="100"
+                    />
+                    <Badge variant="outline" className="h-10 px-4 rounded-xl border-slate-200">Required</Badge>
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic">Class average needed to unlock next chapter assessment.</p>
+                </div>
 
-            <div className="pt-4 border-t border-slate-50">
-              <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl shadow-sm">
-                <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                <p className="text-[11px] text-blue-700 leading-tight">
-                  Global rules apply immediately to all active sessions.
-                </p>
-              </div>
-            </div>
+                <div className="pt-4 border-t border-slate-50">
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl shadow-sm">
+                    <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                    <p className="text-[11px] text-blue-700 leading-tight font-medium">
+                      Global rules apply immediately to all active sessions.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
         {/* Teacher Assessment Configuration */}
-        <Card className="border-0 shadow-sm rounded-2xl overflow-hidden lg:col-span-1">
-          <CardHeader className="bg-white border-b border-slate-50">
-            <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-purple-600" />
+        {isGatingEnabled && (
+          <Card className="border-0 shadow-sm rounded-2xl overflow-hidden lg:col-span-1">
+            <CardHeader className="bg-white border-b border-slate-50">
+              <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4 text-purple-600" />
+                </div>
+                Assessment Config
+              </CardTitle>
+              <CardDescription>Rules for teacher competency exams.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Questions per Chapter</Label>
+                <Input
+                  type="number"
+                  value={config.assessment_question_count || "10"}
+                  onChange={(e) => setConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
+                  onBlur={(e) => {
+                    let val = parseInt(e.target.value, 10);
+                    if (isNaN(val) || val < 1) val = 10;
+                    if (val > 30) val = 30;
+                    const strVal = String(val);
+                    setConfig(prev => ({ ...prev, assessment_question_count: strVal }));
+                    handleUpdateConfig("assessment_question_count", strVal);
+                  }}
+                  className="bg-slate-50 border-slate-200 rounded-xl"
+                  min="1"
+                  max="30"
+                />
+                <p className="text-[10px] text-slate-400 italic">Max 30 questions. Distributed from question bank.</p>
               </div>
-              Assessment Config
-            </CardTitle>
-            <CardDescription>Rules for teacher competency exams.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Questions per Chapter</Label>
-              <Input
-                type="number"
-                value={config.assessment_question_count || "10"}
-                onChange={(e) => setConfig(prev => ({ ...prev, assessment_question_count: e.target.value }))}
-                onBlur={(e) => {
-                  let val = parseInt(e.target.value, 10);
-                  if (isNaN(val) || val < 1) val = 10;
-                  if (val > 30) val = 30;
-                  const strVal = String(val);
-                  setConfig(prev => ({ ...prev, assessment_question_count: strVal }));
-                  handleUpdateConfig("assessment_question_count", strVal);
-                }}
-                className="bg-slate-50 border-slate-200 rounded-xl"
-                min="1"
-                max="30"
-              />
-              <p className="text-[10px] text-slate-400 italic">Max 30 questions. Distributed from question bank.</p>
-            </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Total Assessment Marks</Label>
-              <Input
-                type="number"
-                value={config.assessment_total_marks || "100"}
-                onChange={(e) => setConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
-                onBlur={(e) => handleUpdateConfig("assessment_total_marks", e.target.value)}
-                className="bg-slate-50 border-slate-200 rounded-xl"
-                min="1"
-                max="1000"
-              />
-              <p className="text-[10px] text-slate-400 italic">Distributed equally across selected questions.</p>
-            </div>
-
-            <div className="pt-4 border-t border-slate-50">
-              <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-100 rounded-xl shadow-sm">
-                <Settings2 className="w-4 h-4 text-purple-500 shrink-0" />
-                <p className="text-[11px] text-purple-700 leading-tight font-medium">
-                  Configures the auto-generated teacher quiz interface.
-                </p>
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Total Assessment Marks</Label>
+                <Input
+                  type="number"
+                  value={config.assessment_total_marks || "100"}
+                  onChange={(e) => setConfig(prev => ({ ...prev, assessment_total_marks: e.target.value }))}
+                  onBlur={(e) => handleUpdateConfig("assessment_total_marks", e.target.value)}
+                  className="bg-slate-50 border-slate-200 rounded-xl"
+                  min="1"
+                  max="1000"
+                />
+                <p className="text-[10px] text-slate-400 italic">Distributed equally across selected questions.</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+
+              <div className="pt-4 border-t border-slate-50">
+                <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-100 rounded-xl shadow-sm">
+                  <Settings2 className="w-4 h-4 text-purple-500 shrink-0" />
+                  <p className="text-[11px] text-purple-700 leading-tight font-medium">
+                    Configures the auto-generated teacher quiz interface.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       </div>
 
       {/* Manual Override Form */}
-      <Card className="border-0 shadow-sm rounded-3xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-br from-white to-slate-50 border-b border-slate-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
-                <Unlock className="w-5 h-5 text-amber-500" /> Manual Chapter Override
-              </CardTitle>
-              <CardDescription>Grant bypass for specific teachers.</CardDescription>
+      {isGatingEnabled && (
+        <Card className="border-0 shadow-sm rounded-3xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-br from-white to-slate-50 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
+                  <Unlock className="w-5 h-5 text-amber-500" /> Manual Chapter Override
+                </CardTitle>
+                <CardDescription>Grant bypass for specific teachers.</CardDescription>
+              </div>
+              <div className="h-10 w-10 bg-amber-50 rounded-2xl flex items-center justify-center border border-amber-100">
+                <ShieldCheck className="w-5 h-5 text-amber-500" />
+              </div>
             </div>
-            <div className="h-10 w-10 bg-amber-50 rounded-2xl flex items-center justify-center border border-amber-100">
-              <ShieldCheck className="w-5 h-5 text-amber-500" />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="relative group">
-                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full opacity-0 group-focus-within:opacity-100 transition-all" />
-                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 1: School & Teacher</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <select
-                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
-                    value={targetSchoolId}
-                    onChange={(e) => {
-                      setTargetSchoolId(e.target.value);
-                      setTargetTeacherId("");
-                      setTargetClassId("");
-                      setTargetChapterId("");
-                    }}
-                  >
-                    <option value="">School...</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                  <select
-                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
-                    value={targetTeacherId}
-                    onChange={(e) => {
-                      setTargetTeacherId(e.target.value);
-                      setTargetClassId("");
-                      setTargetChapterId("");
-                    }}
-                  >
-                    <option value="">Teacher...</option>
-                    {teachers
-                      .filter(t => !targetSchoolId || String(t.schoolId) === targetSchoolId)
-                      .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="relative group">
+                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full opacity-0 group-focus-within:opacity-100 transition-all" />
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 1: School & Teacher</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <select
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
+                      value={targetSchoolId}
+                      onChange={(e) => {
+                        setTargetSchoolId(e.target.value);
+                        setTargetTeacherId("");
+                        setTargetClassId("");
+                        setTargetChapterId("");
+                      }}
+                    >
+                      <option value="">School...</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <select
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
+                      value={targetTeacherId}
+                      onChange={(e) => {
+                        setTargetTeacherId(e.target.value);
+                        setTargetClassId("");
+                        setTargetChapterId("");
+                      }}
+                    >
+                      <option value="">Teacher...</option>
+                      {teachers
+                        .filter(t => !targetSchoolId || String(t.schoolId) === targetSchoolId)
+                        .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full opacity-0 group-focus-within:opacity-100 transition-all" />
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 2: Class & Chapter</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <select
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
+                      value={targetClassId}
+                      onChange={(e) => setTargetClassId(e.target.value)}
+                    >
+                      <option value="">Class...</option>
+                      {classes
+                        .filter(c => !targetSchoolId || String(c.schoolId) === targetSchoolId)
+                        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <select
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
+                      value={targetChapterId}
+                      onChange={(e) => setTargetChapterId(e.target.value)}
+                    >
+                      <option value="">Chapter...</option>
+                      {chapters
+                        .filter(ch => {
+                          if (!targetTeacherId) return true;
+                          const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
+                          if (!teacher?.subjects || teacher.subjects.length === 0) return true;
+                          return teacher.subjects.some(subName => {
+                            const sub = data.subjects?.find(s => s.name === subName);
+                            return sub && String(sub.id) === String(ch.subjectId);
+                          });
+                        })
+                        .map(ch => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="relative group">
-                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full opacity-0 group-focus-within:opacity-100 transition-all" />
-                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 2: Class & Chapter</Label>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <select
-                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
-                    value={targetClassId}
-                    onChange={(e) => setTargetClassId(e.target.value)}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 3: Reason for Authorization</Label>
+                  <textarea
+                    className="w-full h-28 p-5 bg-slate-50 border border-slate-200 rounded-[2rem] text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none shadow-sm"
+                    placeholder="Provide detailed justification for the manual unlock..."
+                    value={overrideReason}
+                    onChange={(e) => setOverrideReason(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    className="w-full rounded-2xl py-8 font-bold gap-3 shadow-xl shadow-primary/10 hover:shadow-primary/20 text-lg"
+                    onClick={handleCreateOverride}
+                    disabled={creatingOverride || !targetTeacherId || !targetChapterId}
                   >
-                    <option value="">Class...</option>
-                    {classes
-                      .filter(c => !targetSchoolId || String(c.schoolId) === targetSchoolId)
-                      .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <select
-                    className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
-                    value={targetChapterId}
-                    onChange={(e) => setTargetChapterId(e.target.value)}
-                  >
-                    <option value="">Chapter...</option>
-                    {chapters
-                      .filter(ch => {
-                        if (!targetTeacherId) return true;
-                        const teacher = teachers.find(t => String(t.id) === String(targetTeacherId));
-                        if (!teacher?.subjects || teacher.subjects.length === 0) return true;
-                        return teacher.subjects.some(subName => {
-                          const sub = data.subjects?.find(s => s.name === subName);
-                          return sub && String(sub.id) === String(ch.subjectId);
-                        });
-                      })
-                      .map(ch => <option key={ch.id} value={ch.id}>{ch.name}</option>)}
-                  </select>
+                    {creatingOverride ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
+                    Authorize Manual Unlock
+                  </Button>
+
+                  <p className="text-[10px] text-center text-slate-400 px-4 leading-relaxed">
+                    <AlertCircle className="w-3 h-3 inline mr-1 mb-0.5" />
+                    All manual overrides are logged permanently with your administrator ID for security compliance.
+                  </p>
                 </div>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Step 3: Reason for Authorization</Label>
-                <textarea
-                  className="w-full h-28 p-5 bg-slate-50 border border-slate-200 rounded-[2rem] text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none shadow-sm"
-                  placeholder="Provide detailed justification for the manual unlock..."
-                  value={overrideReason}
-                  onChange={(e) => setOverrideReason(e.target.value)}
-                />
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <Button
-                  className="w-full rounded-2xl py-8 font-bold gap-3 shadow-xl shadow-primary/10 hover:shadow-primary/20 text-lg"
-                  onClick={handleCreateOverride}
-                  disabled={creatingOverride || !targetTeacherId || !targetChapterId}
-                >
-                  {creatingOverride ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
-                  Authorize Manual Unlock
-                </Button>
-
-                <p className="text-[10px] text-center text-slate-400 px-4 leading-relaxed">
-                  <AlertCircle className="w-3 h-3 inline mr-1 mb-0.5" />
-                  All manual overrides are logged permanently with your administrator ID for security compliance.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Override History */}
-      <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
-        <CardHeader className="bg-white border-b border-slate-50 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
-              <History className="w-5 h-5 text-indigo-500" /> Override Audit Trail
-            </CardTitle>
-            <CardDescription>Full history of manual unlocks and gating modifications.</CardDescription>
-          </div>
-          <Button variant="ghost" size="sm" onClick={loadData} className="gap-2">
-            <RefreshCw className="w-4 h-4" /> Refresh
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50/50 border-b border-slate-100">
-                <tr>
-                  <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Teacher</th>
-                  <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Chapter</th>
-                  <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Action</th>
-                  <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Reason</th>
-                  <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Admin</th>
-                  <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {overrides.length > 0 ? overrides.map((ov, i) => (
-                  <tr key={ov.id || i} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-slate-800">{ov.teacher_name}</p>
-                      <p className="text-[10px] text-slate-400">{ov.class_name}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{ov.chapter_name}</td>
-                    <td className="px-6 py-4">
-                      <Badge className={ov.override_type === 'unlock' ? "bg-emerald-100 text-emerald-600 border-0" : "bg-rose-100 text-rose-600 border-0"}>
-                        {ov.override_type === 'unlock' ? 'Manual Unlock' : 'Manual Lock'}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500 italic max-w-xs truncate">{ov.reason || '-'}</td>
-                    <td className="px-6 py-4 text-sm text-slate-500 font-medium">{ov.admin_name || 'System'}</td>
-                    <td className="px-6 py-4 text-sm text-slate-400 text-right">
-                      {new Date(ov.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                )) : (
+      {isGatingEnabled && (
+        <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className="bg-white border-b border-slate-50 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-slate-800 text-lg flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-500" /> Override Audit Trail
+              </CardTitle>
+              <CardDescription>Full history of manual unlocks and gating modifications.</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={loadData} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Refresh
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/50 border-b border-slate-100">
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
-                      <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                      No override records found
-                    </td>
+                    <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Teacher</th>
+                    <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Chapter</th>
+                    <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Action</th>
+                    <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Reason</th>
+                    <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Admin</th>
+                    <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Date</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {overrides.length > 0 ? overrides.map((ov, i) => (
+                    <tr key={ov.id || i} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-medium text-slate-800">{ov.teacher_name}</p>
+                        <p className="text-[10px] text-slate-400">{ov.class_name}</p>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{ov.chapter_name}</td>
+                      <td className="px-6 py-4">
+                        <Badge className={ov.override_type === 'unlock' ? "bg-emerald-100 text-emerald-600 border-0" : "bg-rose-100 text-rose-600 border-0"}>
+                          {ov.override_type === 'unlock' ? 'Manual Unlock' : 'Manual Lock'}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500 italic max-w-xs truncate">{ov.reason || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500 font-medium">{ov.admin_name || 'System'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-400 text-right">
+                        {new Date(ov.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                        No override records found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

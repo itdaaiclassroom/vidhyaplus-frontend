@@ -29,6 +29,8 @@ interface StudentForm {
   motherNumber: string;
   address: string;
   photo: File | null;
+  email: string;
+  password: string;
 }
 
 const steps: { key: StepKey; title: string; desc?: string }[] = [
@@ -74,6 +76,8 @@ const StudentRegistrationWizard: React.FC = () => {
     motherNumber: "",
     address: "",
     photo: null,
+    email: "",
+    password: "",
   });
 
   const handleChange = (k: keyof StudentForm, v: string | File | null) => {
@@ -120,6 +124,8 @@ const StudentRegistrationWizard: React.FC = () => {
         section_id: form.classId,
         first_name: firstName,
         last_name: lastName,
+        email: form.email,
+        password: form.password,
         category: form.caste || 'General',
         joined_at: new Date().toISOString().slice(0, 10),
         grade_id: Number(form.gradeId),
@@ -141,7 +147,8 @@ const StudentRegistrationWizard: React.FC = () => {
       setForm({
         fullName: "", dob: "", gender: "", gradeId: "", classId: "",
         caste: "", religion: "", motherTongue: "", fatherName: "",
-        fatherNumber: "", motherName: "", motherNumber: "", address: "", photo: null
+        fatherNumber: "", motherName: "", motherNumber: "", address: "", photo: null,
+        email: "", password: ""
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to register student";
@@ -193,6 +200,20 @@ const StudentRegistrationWizard: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <Input
+                  type="email"
+                  placeholder="Student Email (for login)"
+                  value={form.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  className="h-10"
+                />
+                <Input
+                  type="password"
+                  placeholder="Password (for login)"
+                  value={form.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  className="h-10"
+                />
               </div>
 
               {/* Right Column */}
@@ -270,6 +291,16 @@ const StudentRegistrationWizard: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
+                  <div className="text-xs text-muted-foreground font-medium">Email</div>
+                  <div className="font-medium">{form.email || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground font-medium">Password</div>
+                  <div className="font-medium">{form.password || "-"}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
                   <div className="text-xs text-muted-foreground font-medium">Father's Name</div>
                   <div className="font-medium">{form.fatherName || "-"}</div>
                 </div>
@@ -298,7 +329,7 @@ const StudentRegistrationWizard: React.FC = () => {
             <h2 className="text-2xl font-bold mb-2">Registration Successful!</h2>
             <p className="text-muted-foreground mb-6">Student <span className="font-semibold text-foreground">{successModalData.name}</span> has been successfully registered.</p>
             <div className="bg-muted rounded-lg p-4 mb-6 text-center">
-              <span className="block text-sm text-muted-foreground mb-1">Generated Student ID</span>
+              <span className="block text-sm text-muted-foreground mb-1">Roll Number</span>
               <span className="block text-3xl font-mono font-bold text-primary">{successModalData.id}</span>
             </div>
             <Button className="w-full" size="lg" onClick={() => setSuccessModalData(null)}>Done</Button>
