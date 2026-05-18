@@ -3,7 +3,7 @@ import { HelpCircle, Plus, Edit2, X, ChevronLeft, ChevronRight, Trash2, Upload, 
 import * as XLSX from "xlsx";
 import {
   fetchQuestionBank, createQuestion, updateQuestion, deleteQuestion, bulkUploadQuestions, fetchSubjectTopics,
-  fetchQuestionBankMetadata,
+  fetchQuestionBankMetadata, bulkDeleteQuestions, deleteAllQuestions,
   QuestionBankEntry, QuestionBankResponse, BulkUploadQuestionsResponse, CreateQuestionBody
 } from '@/api/client';
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,9 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
   const [questions, setQuestions] = useState<QuestionBankEntry[]>([]);
   const [qbLoading, setQbLoading] = useState(false);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Global Metadata for Dropdowns (Fixes Filter Lock)
   const [allChapters, setAllChapters] = useState<string[]>([]);
@@ -95,6 +98,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
 
   const loadQuestions = async () => {
     setQbLoading(true);
+    setSelectedIds([]);
     try {
       const res = await fetchQuestionBank({
         subject_id: qbSubjectId !== "" ? Number(qbSubjectId) : undefined,
@@ -223,6 +227,68 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
     }
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(questions.map((q) => q.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected questions?`)) return;
+    
+    setIsBulkDeleting(true);
+    try {
+      await bulkDeleteQuestions(selectedIds);
+      setSelectedIds([]);
+      toast.success("Successfully deleted questions.");
+      loadQuestions();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete questions.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const isFiltered = qbSubjectId !== "" || qbGrade !== "" || qbChapter !== "" || qbTopicName !== "" || qbLevel !== "";
+    const warningText = isFiltered 
+      ? "Are you sure you want to delete ALL questions matching the current filters? This cannot be undone."
+      : "WARNING: Are you sure you want to delete the ENTIRE question bank? This cannot be undone.";
+
+    if (!window.confirm(warningText)) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const filters = {
+        subject_id: qbSubjectId !== "" ? Number(qbSubjectId) : undefined,
+        grade: qbGrade !== "" ? Number(qbGrade) : undefined,
+        chapter: qbChapter || undefined,
+        topic_name: qbTopicName || undefined,
+        level: qbLevel || undefined
+      };
+      
+      const res = await deleteAllQuestions(filters);
+      setSelectedIds([]);
+      toast.success(`Successfully deleted ${res.deleted_count} questions.`);
+      loadQuestions();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete all questions.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleBulkUpload = async () => {
     if (!bulkFile) {
       toast.error("Please select a file");
@@ -264,6 +330,16 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
           </div>
         </div>
         <div className="flex gap-2">
+          {questions.length > 0 && (
+            <Button variant="destructive" className="rounded-xl" onClick={handleDeleteAll} disabled={isBulkDeleting}>
+              Delete All Matches
+            </Button>
+          )}
+          {selectedIds.length > 0 && (
+            <Button variant="destructive" className="rounded-xl bg-red-600 hover:bg-red-700" onClick={handleDeleteSelected} disabled={isBulkDeleting}>
+              Delete Selected ({selectedIds.length})
+            </Button>
+          )}
           <Button variant="outline" className="rounded-xl" onClick={() => { setBulkFile(null); setBulkResult(null); setBulkOpen(true); }}>
             <Upload className="w-4 h-4 mr-2" /> Upload Excel
           </Button>
@@ -330,6 +406,14 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
+                <th className="px-5 py-4 w-10 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                    checked={questions.length > 0 && selectedIds.length === questions.length}
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase w-12">#</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase w-1/3">Question</th>
                 <th className="px-5 py-4 font-semibold text-slate-500 text-xs uppercase">Chapter</th>
@@ -342,15 +426,23 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
             </thead>
             <tbody className="divide-y divide-slate-100">
               {qbLoading ? (
-                <tr><td colSpan={8} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
+                <tr><td colSpan={9} className="p-8 text-center"><Loader className="w-6 h-6 animate-spin mx-auto text-primary" /></td></tr>
               ) : questions.length === 0 ? (
-                <tr><td colSpan={8} className="p-8 text-center text-slate-500">No questions found</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-slate-500">No questions found</td></tr>
               ) : (
                 questions.map(q => {
                   const isExp = expandedRow === q.id;
                   return (
                     <React.Fragment key={q.id}>
                       <tr className={`hover:bg-slate-50 transition-colors cursor-pointer ${isExp ? 'bg-slate-50' : ''}`} onClick={() => setExpandedRow(isExp ? null : q.id)}>
+                        <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-slate-300 text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                            checked={selectedIds.includes(q.id)}
+                            onChange={(e) => handleSelectRow(q.id, e.target.checked)}
+                          />
+                        </td>
                         <td className="px-5 py-3 text-sm text-slate-400">{q.id}</td>
                         <td className="px-5 py-3 text-sm font-medium text-slate-800 line-clamp-2">{q.question_text}</td>
                         <td className="px-5 py-3 text-sm text-slate-500">{q.chapter || '-'}</td>
@@ -377,7 +469,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
                       </tr>
                       {isExp && (
                         <tr className="bg-slate-50/50">
-                          <td colSpan={8} className="px-10 py-4">
+                          <td colSpan={9} className="px-10 py-4">
                             <div className="grid grid-cols-2 gap-4 max-w-3xl">
                               <OptionBadge option="A" text={q.option_a} isCorrect={q.correct_option === 'A'} />
                               <OptionBadge option="B" text={q.option_b} isCorrect={q.correct_option === 'B'} />
