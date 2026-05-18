@@ -31,7 +31,7 @@ const Login = () => {
     e.preventDefault();
     if (role === "student") {
       try {
-        const data = await studentLogin({ student_id: email.trim(), password });
+        const data = await studentLogin({ email: email.trim(), password });
         login("student", data.full_name, data.id, undefined, undefined, data.token);
         navigate("/student");
       } catch (err) {
@@ -143,7 +143,7 @@ const Login = () => {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {role === "student"
-                ? "Sign in with your Student ID and password"
+                ? "Sign in with your registered email or Student ID"
                 : role === "teacher"
                   ? teacherLoginMode === "id"
                     ? "Sign in with your Teacher ID and password"
@@ -187,7 +187,7 @@ const Login = () => {
             <div>
               <Label htmlFor="email">
                 {role === "student"
-                  ? "Student ID"
+                  ? "Email or Student ID"
                   : role === "teacher" && teacherLoginMode === "id"
                     ? "Teacher ID"
                     : "Email"}

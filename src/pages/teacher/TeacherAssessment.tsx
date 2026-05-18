@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   fetchAssessmentQuestions,
   submitTeacherAssessment,
-  generateTeacherChapterQuiz,
   type AssessmentQuestion,
   type ChapterGatingStatus,
 } from "@/api/client";
@@ -56,7 +55,6 @@ export function TeacherAssessmentDialog({
   onAssessmentComplete,
 }: TeacherAssessmentDialogProps) {
   const [setupMode, setSetupMode] = useState(true);
-  const [selectedCount, setSelectedCount] = useState(15);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
@@ -78,62 +76,53 @@ export function TeacherAssessmentDialog({
   const [source, setSource] = useState("");
   const [assessmentConfig, setAssessmentConfig] = useState<{ totalMarks: number; passingMarks: number; questionCount: number }>({ totalMarks: 100, passingMarks: 70, questionCount: 10 });
 
-  // Initialize state when dialog opens
+  const loadConfigAndQuestions = useCallback(async () => {
+    setLoading(true);
+    setLoadingMessage("Fetching assessment configurations...");
+    try {
+      const data = await fetchAssessmentQuestions(chapterId);
+      setQuestions(data.questions || []);
+      setSource(data.source || "quiz_bank");
+      setAssessmentConfig({
+        totalMarks: data.totalMarks,
+        passingMarks: data.passingMarks,
+        questionCount: data.questionCount,
+      });
+    } catch (err) {
+      toast.error("Failed to load assessment: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
+    }
+  }, [chapterId]);
+
+  // Initialize state and load config/questions when dialog opens
   useEffect(() => {
     if (!open || !chapterId) return;
     setSetupMode(true);
-    setLoading(false);
     setQuestions([]);
     setCurrentIndex(0);
     setAnswers({});
     setSubmitted(false);
     setResult(null);
-    setSelectedCount(15);
-  }, [open, chapterId]);
 
-  const handleGenerateQuiz = async () => {
-    setSetupMode(false);
-    setLoading(true);
-    setLoadingMessage("Initializing AI Microservice...");
+    loadConfigAndQuestions();
+  }, [open, chapterId, loadConfigAndQuestions]);
 
-    // RAG-resilient progressive loading messages
-    const loadingSteps = [
-      "Analyzing chapter content...",
-      "Applying stratified random sampling...",
-      "Generating hard-difficulty questions...",
-      "Validating question quality...",
-      "Finalizing assessment...",
-    ];
-    let stepIndex = 0;
-    const interval = setInterval(() => {
-      if (stepIndex < loadingSteps.length) {
-        setLoadingMessage(loadingSteps[stepIndex]);
-        stepIndex++;
-      }
-    }, 2500);
-
-    try {
-      const data = await generateTeacherChapterQuiz({
-        chapter: chapterName,
-        subject: "Subject", // The backend only needs chapter, but subject helps context.
-        grade: Number(gradeId) || 10,
-        count: selectedCount
-      });
-
-      setQuestions(data.questions || []);
-      setSource(data.source || "ai_generated");
-      setAssessmentConfig({
-        totalMarks: selectedCount * 10,
-        passingMarks: Math.ceil(selectedCount * 10 * 0.7),
-        questionCount: selectedCount,
-      });
-    } catch (err) {
-      toast.error("Failed to generate assessment: " + (err instanceof Error ? err.message : String(err)));
-      setSetupMode(true); // Let them try again
-    } finally {
-      clearInterval(interval);
-      setLoading(false);
+  const handleStartAssessment = () => {
+    if (questions.length === 0) {
+      toast.error("No questions available to start the assessment.");
+      return;
     }
+    setSetupMode(false);
+  };
+
+  const handleRetry = () => {
+    setSetupMode(true);
+    setCurrentIndex(0);
+    setAnswers({});
+    setSubmitted(false);
+    setResult(null);
+    loadConfigAndQuestions();
   };
 
   const currentQuestion = questions[currentIndex];
@@ -178,9 +167,7 @@ export function TeacherAssessmentDialog({
     }
   };
 
-  const handleRetry = () => {
-    setSetupMode(true);
-  };
+
 
   const optionKeys = ["A", "B", "C", "D"] as const;
   const optionLabels: Record<string, string> = {
@@ -230,11 +217,11 @@ export function TeacherAssessmentDialog({
             <div className="py-6 space-y-8 animate-in fade-in zoom-in-95 duration-300">
               <div className="space-y-2 text-center">
                 <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Settings className="w-6 h-6" />
+                  <BrainCircuit className="w-6 h-6 animate-pulse" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">Configure Chapter Assessment</h3>
+                <h3 className="text-lg font-bold text-slate-800">Ready to Start Assessment</h3>
                 <p className="text-sm text-slate-500 max-w-md mx-auto">
-                  Set up the parameters for your competency assessment. Questions will be generated using Stratified Random Sampling.
+                  Review the assessment settings configured by the administrator for this chapter.
                 </p>
               </div>
 
@@ -249,35 +236,30 @@ export function TeacherAssessmentDialog({
                       <SelectItem value={chapterId}>{chapterName}</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-slate-500 px-1">Selected from dashboard.</p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-slate-700 font-semibold">Number of Questions</Label>
-                    <span className="text-lg font-bold text-indigo-600">{selectedCount}</span>
+                <div className="grid grid-cols-3 gap-4 pt-2 text-center">
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Questions</span>
+                    <span className="text-xl font-extrabold text-indigo-600 mt-1">{assessmentConfig.questionCount}</span>
                   </div>
-                  <Slider
-                    value={[selectedCount]}
-                    onValueChange={(vals) => setSelectedCount(vals[0])}
-                    min={5}
-                    max={30}
-                    step={1}
-                    className="py-2"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                    <span>5 (Min)</span>
-                    <span>30 (Max)</span>
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Total Marks</span>
+                    <span className="text-xl font-extrabold text-indigo-600 mt-1">{assessmentConfig.totalMarks}</span>
+                  </div>
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Passing Marks</span>
+                    <span className="text-xl font-extrabold text-indigo-600 mt-1">{assessmentConfig.passingMarks}</span>
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-center pt-4">
                 <Button
-                  onClick={handleGenerateQuiz}
+                  onClick={handleStartAssessment}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 px-8 py-6 rounded-xl text-base font-bold gap-2"
                 >
-                  <Sparkles className="w-5 h-5" /> Generate Assessment
+                  <Sparkles className="w-5 h-5" /> Start Assessment
                 </Button>
               </div>
             </div>
