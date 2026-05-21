@@ -299,6 +299,7 @@ const TeacherDashboard = () => {
   const [aiReportDialogOpen, setAiReportDialogOpen] = useState(false);
   const [aiReportContent, setAiReportContent] = useState("");
   const [aiReportStudentName, setAiReportStudentName] = useState("");
+  const [aiReportStudentId, setAiReportStudentId] = useState<number | string | undefined>(undefined);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Assessment History Dialog State
@@ -2238,15 +2239,10 @@ const TeacherDashboard = () => {
           <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
             <div ref={reportRef}>
               <StudentReportCard
+                studentId={aiReportStudentId}
                 studentName={aiReportStudentName}
                 className={currentClass?.name || "N/A"}
-                rollNumber={aiReportData?.rollNumber || "N/A"}
                 schoolName="VidhyaPlus Academy"
-                attendance={aiReportData?.attendance || 0}
-                perfIndex={aiReportData?.perfIndex || 0}
-                academicYear={aiReportData?.academicYear}
-                subjectGrades={aiReportData?.subjectGrades}
-                aiReportContent={aiReportContent}
                 onClose={() => setAiReportDialogOpen(false)}
                 onDownload={() => downloadReport(aiReportStudentName)}
               />
@@ -2773,63 +2769,10 @@ const TeacherDashboard = () => {
                                 {mockPerfIndex} <span className="text-[9px] text-muted-foreground">/100</span>
                               </td>
                               <td className="p-3 text-center flex flex-col gap-2">
-                                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200" onClick={async () => {
-                                  const promise = fetch(`${getApiBase()}/api/ai/report-card`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ studentName: s.name, studentId: s.id })
-                                  }).then(res => res.json()).then(data => {
-                                    setAiReportContent(data.report);
-                                    setAiReportStudentName(s.name);
-                                    setAiReportData({
-                                      attendance: att?.percentage || 0,
-                                      perfIndex: mockPerfIndex,
-                                      rollNumber: s.rollNo,
-                                      quizScore: quizScore,
-                                      quizTotal: totalQuizMax,
-                                      academicYear: "2023-24",
-                                      subjectGrades: subjects.filter(sub => sub.grades.includes(grade)).map(sub => {
-                                        const subChaps = chapters.filter(ch => ch.subjectId === sub.id);
-                                        const subMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id) && subChaps.some(ch => ch.id === r.chapterId));
-
-                                        const getScore = (type: string) => subMarks.find(r => r.assessmentType?.toUpperCase() === type)?.score || "—";
-
-                                        const totalScore = subMarks.reduce((sum, r) => sum + r.score, 0);
-                                        const totalMax = subMarks.reduce((sum, r) => sum + r.total, 0);
-                                        const pct = totalMax > 0 ? (totalScore / totalMax) * 100 : 0;
-
-                                        let gradeVal = "C";
-                                        if (pct >= 90) gradeVal = "A+";
-                                        else if (pct >= 80) gradeVal = "A";
-                                        else if (pct >= 70) gradeVal = "B+";
-                                        else if (pct >= 60) gradeVal = "B";
-                                        else if (pct >= 50) gradeVal = "C+";
-
-                                        return {
-                                          name: sub.name,
-                                          fa1: getScore('FA1'),
-                                          fa2: getScore('FA2'),
-                                          fa3: getScore('FA3'),
-                                          fa4: getScore('FA4'),
-                                          sa1: getScore('SA1'),
-                                          sa2: getScore('SA2'),
-                                          quiz: totalMax > 0 ? Math.round((totalScore / totalMax) * 50) : 0,
-                                          grade: gradeVal
-                                        };
-                                      })
-                                    });
-                                    setAiReportDialogOpen(true);
-                                    return data;
-                                  });
-
-                                  toast.promise(
-                                    promise,
-                                    {
-                                      loading: `Generating Report Card for ${s.name}...`,
-                                      success: `Report Card Generated for ${s.name}!`,
-                                      error: 'Failed to generate report card'
-                                    }
-                                  );
+                                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200" onClick={() => {
+                                  setAiReportStudentId(s.id);
+                                  setAiReportStudentName(s.name);
+                                  setAiReportDialogOpen(true);
                                 }}>
                                   Generate Report
                                 </Button>
@@ -3582,15 +3525,10 @@ const TeacherDashboard = () => {
         <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
           <div ref={reportRef}>
             <StudentReportCard
+              studentId={aiReportStudentId}
               studentName={aiReportStudentName}
               className={currentClass?.name || "N/A"}
-              rollNumber={aiReportData?.rollNumber || "N/A"}
               schoolName="VidhyaPlus Academy"
-              attendance={aiReportData?.attendance || 0}
-              perfIndex={aiReportData?.perfIndex || 0}
-              academicYear={aiReportData?.academicYear}
-              subjectGrades={aiReportData?.subjectGrades}
-              aiReportContent={aiReportContent}
               onClose={() => setAiReportDialogOpen(false)}
               onDownload={() => downloadReport(aiReportStudentName)}
             />
