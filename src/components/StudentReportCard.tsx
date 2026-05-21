@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { getApiBase } from '@/api/client';
 import {
   Download, X, GraduationCap, Trophy, Users, BarChart3, Star,
   CheckCircle2, AlertCircle, TrendingUp, Calendar, BookOpen,
@@ -26,42 +27,69 @@ interface SubjectGrade {
 }
 
 interface StudentReportCardProps {
-  studentName: string;
-  className: string;
-  rollNumber: string;
-  schoolName: string;
-  attendance: number;
+  studentId?: string | number;
+  studentName?: string;
+  className?: string;
+  rollNumber?: string;
+  schoolName?: string;
+  attendance?: number;
   totalPresent?: number;
   totalDays?: number;
-  perfIndex: number;
+  perfIndex?: number;
   classRank?: string;
   academicYear?: string;
   profilePic?: string;
   subjectGrades?: SubjectGrade[];
-  aiReportContent: string;
+  aiReportContent?: string;
   teacherFeedback?: string;
   onClose: () => void;
   onDownload: () => void;
 }
 
 const StudentReportCard: React.FC<StudentReportCardProps> = ({
-  studentName,
-  className,
-  rollNumber,
-  schoolName,
-  attendance,
+  studentId,
+  studentName = "N/A",
+  className = "N/A",
+  rollNumber = "N/A",
+  schoolName = "VidhyaPlus Academy",
+  attendance = 0,
   totalPresent = 92,
   totalDays = 100,
-  perfIndex,
-  classRank = "5 / 40 (Top 12%)",
+  perfIndex = 0,
+  classRank = "N/A",
   academicYear = "2023-24",
   profilePic,
   subjectGrades,
-  aiReportContent,
-  teacherFeedback = "I encourage Rathod to continue his efforts; his future is bright. Focus on math and language will help him excel as the term continues. I am happy to see his improvement.",
+  aiReportContent = "",
+  teacherFeedback = "",
   onClose,
   onDownload
 }) => {
+  const [data, setData] = useState<any>(null);
+  const [aiInsights, setAiInsights] = useState<any>(null);
+  const [loading, setLoading] = useState(!!studentId);
+
+  useEffect(() => {
+    if (!studentId) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [reportRes, aiRes] = await Promise.all([
+          fetch(`${getApiBase()}/api/reportcard/${studentId}`).then(res => res.json()),
+          fetch(`${getApiBase()}/api/reportcard/${studentId}/generate-insights`, { method: 'POST' }).then(res => res.json())
+        ]);
+        setData(reportRes);
+        if (aiRes.success && aiRes.insights) {
+          setAiInsights(aiRes.insights);
+        }
+      } catch (err) {
+        console.error("Failed to fetch report card data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [studentId]);
   // Mock data for graphs if not provided
   const progressData = [
     { name: 'FA1', score: 50 },
@@ -89,17 +117,86 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
 
   const displayGrades = subjectGrades || defaultSubjectGrades;
 
-  // Simple parser for AI content
+  const displayStudentName = data?.studentDetails?.first_name ? `${data.studentDetails.first_name} ${data.studentDetails.last_name || ''}` : studentName;
+  const displayClassName = data?.studentDetails?.grade_id ? `Class ${data.studentDetails.grade_id}-${data.studentDetails.section_code}` : className;
+  const displayRollNumber = data?.studentDetails?.roll_no || rollNumber;
+  const displaySchoolName = data?.studentDetails?.school_name || schoolName;
+  const displayAttendance = data?.performanceSummary?.attendance_percentage || attendance;
+  const displayPerfIndex = data?.performanceSummary?.performance_index ? parseFloat(data.performanceSummary.performance_index).toFixed(1) : perfIndex;
+  const displayClassRank = data?.performanceSummary?.class_rank || classRank;
+
+  // Map backend academic performance to display format if data exists
+  const dynamicSubjectGrades = useMemo(() => {
+    if (!data?.academicPerformance) return displayGrades;
+    const subjectsMap: Record<string, any> = {};
+    data.academicPerformance.forEach((ap: any) => {
+       const sub = ap.subject_name;
+       if (!subjectsMap[sub]) subjectsMap[sub] = { name: sub, fa1: "-", fa2: "-", fa3: "-", fa4: "-", sa1: "-", sa2: "-", quiz: 0, grade: "-" };
+       const type = ap.exam_type.toLowerCase();
+       if (type in subjectsMap[sub]) {
+          subjectsMap[sub][type] = ap.marks_obtained;
+       }
+    });
+    return Object.values(subjectsMap);
+  }, [data, displayGrades]);
+
+  const dynamicProgressData = useMemo(() => {
+    if (!data?.academicPerformance) return progressData;
+    const exams = ['FA1', 'FA2', 'SA1', 'SA2'];
+    return exams.map(exam => {
+       const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === exam);
+       const totalObtained = marks.reduce((sum: number, ap: any) => sum + ap.marks_obtained, 0);
+       const totalMax = marks.reduce((sum: number, ap: any) => sum + ap.max_marks, 0);
+       const score = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
+       return { name: exam, score: parseFloat(score.toFixed(1)) };
+    });
+  }, [data, progressData]);
+
+  const dynamicQuizPerformanceData = useMemo(() => {
+    if (!data?.academicPerformance) return quizPerformanceData;
+    const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === 'QUIZ');
+    if (marks.length === 0) return quizPerformanceData;
+    return marks.map((ap: any) => {
+       const score = ap.max_marks > 0 ? (ap.marks_obtained / ap.max_marks) * 100 : 0;
+       return { name: ap.subject_name.substring(0, 4), score: parseFloat(score.toFixed(1)) };
+    });
+  }, [data, quizPerformanceData]);
+
+  const progressDataToUse = data ? dynamicProgressData : progressData;
+  const quizPerformanceDataToUse = data ? dynamicQuizPerformanceData : quizPerformanceData;
+
+  const gradesToUse = data ? dynamicSubjectGrades : displayGrades;
+
   const narrative = useMemo(() => {
+    if (aiInsights) {
+       return {
+         strengths: aiInsights.strengths || [],
+         improvement: aiInsights.areasForImprovement || [],
+         summary: aiInsights.summary || "",
+         suggestions: aiInsights.personalizedSuggestions || [],
+         learningPattern: aiInsights.learningPattern || "N/A"
+       };
+    }
     const strengthsMatch = aiReportContent.match(/(?:Strengths|STRENGTHS):?\s*([^.]+)/i);
     const improvementMatch = aiReportContent.match(/(?:Areas to improve|Opportunities|Improvement|WEAKNESSES):?\s*([^.]+)/i);
 
     return {
-      strengths: strengthsMatch ? strengthsMatch[1].trim() : "Strong grasp of Scientific concepts, Good English vocabulary",
-      improvement: improvementMatch ? improvementMatch[1].trim() : "Mathematical problem solving, Class participation",
-      summary: aiReportContent || "Student shows consistent progress across core subjects."
+      strengths: strengthsMatch ? strengthsMatch[1].split(',').map((s: string) => s.trim()) : ["Strong grasp of Scientific concepts", "Good English vocabulary"],
+      improvement: improvementMatch ? improvementMatch[1].split(',').map((s: string) => s.trim()) : ["Mathematical problem solving", "Class participation"],
+      summary: aiReportContent || "Student shows consistent progress across core subjects.",
+      suggestions: [],
+      learningPattern: "Consistent"
     };
-  }, [aiReportContent]);
+  }, [aiReportContent, aiInsights]);
+
+  if (loading) {
+    return (
+      <div className="w-full h-[600px] flex flex-col items-center justify-center bg-[#F8FAFC]">
+         <div className="w-12 h-12 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin"></div>
+         <p className="mt-4 text-slate-500 font-medium tracking-wide animate-pulse">Gathering student data and generating AI insights...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full bg-[#F8FAFC]">
@@ -146,7 +243,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
             <div className="flex items-center gap-4 bg-slate-50 p-2 pr-6 rounded-2xl border border-slate-100">
               <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-md bg-slate-200">
                 {profilePic ? (
-                  <img src={profilePic} alt={studentName} className="w-full h-full object-cover" />
+                  <img src={profilePic} alt={displayStudentName} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-slate-300">
                     <Users className="w-7 h-7 text-slate-400" />
@@ -154,7 +251,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                 )}
               </div>
               <div>
-                <p className="font-black text-slate-900 text-lg leading-tight">{studentName}</p>
+                <p className="font-black text-slate-900 text-lg leading-tight">{displayStudentName}</p>
                 <Badge className="bg-[#DCFCE7] text-[#166534] hover:bg-[#DCFCE7] border-none text-[10px] h-5 mt-1 font-bold">Active</Badge>
               </div>
             </div>
@@ -176,13 +273,13 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                 <CardContent className="p-5 space-y-4">
                   <div className="space-y-3">
                     {[
-                      { label: "Name:", value: studentName },
-                      { label: "Class & Sec:", value: className },
-                      { label: "Roll Number:", value: rollNumber },
-                      { label: "School Name:", value: schoolName },
-                      { label: "Attendance %:", value: `${attendance}%` },
-                      { label: "Class Rank:", value: classRank },
-                      { label: "Performance Index:", value: `${perfIndex}/10` },
+                      { label: "Name:", value: displayStudentName },
+                      { label: "Class & Sec:", value: displayClassName },
+                      { label: "Roll Number:", value: displayRollNumber },
+                      { label: "School Name:", value: displaySchoolName },
+                      { label: "Attendance %:", value: `${displayAttendance}%` },
+                      { label: "Class Rank:", value: displayClassRank },
+                      { label: "Performance Index:", value: `${displayPerfIndex}/10` },
                     ].map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0">
                         <span className="text-slate-500 font-medium">{item.label}</span>
@@ -244,7 +341,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                           </tr>
                         </thead>
                         <tbody className="text-sm">
-                          {displayGrades.map((grade, idx) => (
+                          {gradesToUse.map((grade, idx) => (
                             <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                               <td className="px-4 py-3 border-b border-slate-50 font-bold text-slate-700 text-xs">{grade.name}</td>
                               <td className="px-2 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.fa1}</td>
@@ -311,7 +408,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                           </p>
                           <div className="h-40 w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={progressData}>
+                              <LineChart data={progressDataToUse}>
                                 <defs>
                                   <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#0D9488" stopOpacity={0.1} />
@@ -356,7 +453,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                                   <circle cx="24" cy="24" r="20" fill="none" stroke="#0D9488" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 * (1 - attendance / 100)} strokeLinecap="round" />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="text-[10px] font-black">{attendance}%</span>
+                                  <span className="text-[10px] font-black">{displayAttendance}%</span>
                                 </div>
                               </div>
                               <div>
@@ -388,9 +485,9 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                           </p>
                           <div className="h-28 w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={quizPerformanceData}>
+                              <BarChart data={quizPerformanceDataToUse}>
                                 <Bar dataKey="score" radius={[2, 2, 0, 0]}>
-                                  {quizPerformanceData.map((entry, index) => (
+                                  {quizPerformanceDataToUse.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={index === 4 ? '#94A3B8' : '#0D9488'} fillOpacity={0.8} />
                                   ))}
                                 </Bar>
@@ -465,8 +562,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">STRENGTHS</p>
                     <ul className="text-xs font-bold space-y-2 list-disc list-inside text-white/90">
-                      <li>Strong grasp of Scientific concepts</li>
-                      <li>Good English vocabulary</li>
+                      {narrative.strengths.map((item: string, i: number) => <li key={i}>{item}</li>)}
                     </ul>
                   </div>
 
@@ -476,8 +572,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">AREAS TO IMPROVE</p>
                     <ul className="text-xs font-bold space-y-2 list-disc list-inside text-white/90">
-                      <li>Mathematical problem solving</li>
-                      <li>Class participation</li>
+                      {narrative.improvement.map((item: string, i: number) => <li key={i}>{item}</li>)}
                     </ul>
                   </div>
 
@@ -486,7 +581,8 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                       <BarChart3 className="w-5 h-5 text-white" />
                     </div>
                     <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">LEARNING PATTERN</p>
-                    <div className="h-10 w-full flex items-center">
+                    <p className="text-sm font-bold text-white/90 mb-2">{narrative.learningPattern}</p>
+                    <div className="h-4 w-full flex items-center">
                       <svg className="w-full h-8 overflow-visible">
                         <path d="M0 20 Q 20 5, 40 15 T 80 10 T 120 20" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
                       </svg>
@@ -499,8 +595,11 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                     </div>
                     <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-2">ATTENTION NEEDED</p>
                     <ul className="text-xs font-bold space-y-2 list-disc list-inside text-white/90">
-                      <li>Complex equations</li>
-                      <li>Focus during lectures</li>
+                      {narrative.suggestions.length > 0 ? (
+                        narrative.suggestions.map((item: string, i: number) => <li key={i}>{item}</li>)
+                      ) : (
+                        <li>Continue with current study plan</li>
+                      )}
                     </ul>
                   </div>
                 </div>
