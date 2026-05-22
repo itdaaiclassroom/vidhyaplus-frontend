@@ -130,12 +130,12 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
     if (!data?.academicPerformance) return displayGrades;
     const subjectsMap: Record<string, any> = {};
     data.academicPerformance.forEach((ap: any) => {
-       const sub = ap.subject_name;
-       if (!subjectsMap[sub]) subjectsMap[sub] = { name: sub, fa1: "-", fa2: "-", fa3: "-", fa4: "-", sa1: "-", sa2: "-", quiz: 0, grade: "-" };
-       const type = ap.exam_type.toLowerCase();
-       if (type in subjectsMap[sub]) {
-          subjectsMap[sub][type] = ap.marks_obtained;
-       }
+      const sub = ap.subject_name;
+      if (!subjectsMap[sub]) subjectsMap[sub] = { name: sub, fa1: "-", fa2: "-", fa3: "-", fa4: "-", sa1: "-", sa2: "-", quiz: 0, grade: "-" };
+      const type = ap.exam_type.toLowerCase();
+      if (type in subjectsMap[sub]) {
+        subjectsMap[sub][type] = ap.marks_obtained;
+      }
     });
     return Object.values(subjectsMap);
   }, [data, displayGrades]);
@@ -144,11 +144,11 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
     if (!data?.academicPerformance) return progressData;
     const exams = ['FA1', 'FA2', 'SA1', 'SA2'];
     return exams.map(exam => {
-       const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === exam);
-       const totalObtained = marks.reduce((sum: number, ap: any) => sum + ap.marks_obtained, 0);
-       const totalMax = marks.reduce((sum: number, ap: any) => sum + ap.max_marks, 0);
-       const score = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
-       return { name: exam, score: parseFloat(score.toFixed(1)) };
+      const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === exam);
+      const totalObtained = marks.reduce((sum: number, ap: any) => sum + ap.marks_obtained, 0);
+      const totalMax = marks.reduce((sum: number, ap: any) => sum + ap.max_marks, 0);
+      const score = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
+      return { name: exam, score: parseFloat(score.toFixed(1)) };
     });
   }, [data, progressData]);
 
@@ -157,8 +157,8 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
     const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === 'QUIZ');
     if (marks.length === 0) return quizPerformanceData;
     return marks.map((ap: any) => {
-       const score = ap.max_marks > 0 ? (ap.marks_obtained / ap.max_marks) * 100 : 0;
-       return { name: ap.subject_name.substring(0, 4), score: parseFloat(score.toFixed(1)) };
+      const score = ap.max_marks > 0 ? (ap.marks_obtained / ap.max_marks) * 100 : 0;
+      return { name: ap.subject_name.substring(0, 4), score: parseFloat(score.toFixed(1)) };
     });
   }, [data, quizPerformanceData]);
 
@@ -169,13 +169,13 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
 
   const narrative = useMemo(() => {
     if (aiInsights) {
-       return {
-         strengths: aiInsights.strengths || [],
-         improvement: aiInsights.areasForImprovement || [],
-         summary: aiInsights.summary || "",
-         suggestions: aiInsights.personalizedSuggestions || [],
-         learningPattern: aiInsights.learningPattern || "N/A"
-       };
+      return {
+        strengths: aiInsights.strengths || [],
+        improvement: aiInsights.areasForImprovement || [],
+        summary: aiInsights.summary || "",
+        suggestions: aiInsights.personalizedSuggestions || [],
+        learningPattern: aiInsights.learningPattern || "N/A"
+      };
     }
     const strengthsMatch = aiReportContent.match(/(?:Strengths|STRENGTHS):?\s*([^.]+)/i);
     const improvementMatch = aiReportContent.match(/(?:Areas to improve|Opportunities|Improvement|WEAKNESSES):?\s*([^.]+)/i);
@@ -192,8 +192,8 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
   if (loading) {
     return (
       <div className="w-full h-[600px] flex flex-col items-center justify-center bg-[#F8FAFC]">
-         <div className="w-12 h-12 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin"></div>
-         <p className="mt-4 text-slate-500 font-medium tracking-wide animate-pulse">Gathering student data and generating AI insights...</p>
+        <div className="w-12 h-12 border-4 border-[#0D9488] border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-slate-500 font-medium tracking-wide animate-pulse">Gathering student data and generating AI insights...</p>
       </div>
     );
   }
@@ -279,7 +279,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                       { label: "School Name:", value: displaySchoolName },
                       { label: "Attendance %:", value: `${displayAttendance}%` },
                       { label: "Class Rank:", value: displayClassRank },
-                      { label: "Performance Index:", value: `${displayPerfIndex}/10` },
+                      { label: "Performance Index:", value: `${displayPerfIndex}/100` },
                     ].map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center text-sm border-b border-slate-50 pb-2 last:border-0 last:pb-0">
                         <span className="text-slate-500 font-medium">{item.label}</span>
@@ -353,8 +353,8 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                               <td className="px-3 py-3 border-b border-slate-50 text-center text-slate-600 font-bold text-xs">{grade.quiz}</td>
                               <td className="px-4 py-3 border-b border-slate-50 text-right">
                                 <span className={`font-black text-sm ${grade.grade.startsWith('A') ? 'text-green-600' :
-                                    grade.grade.startsWith('B') ? 'text-[#0D9488]' :
-                                      'text-amber-600'
+                                  grade.grade.startsWith('B') ? 'text-[#0D9488]' :
+                                    'text-amber-600'
                                   }`}>{grade.grade}</span>
                               </td>
                             </tr>
@@ -521,24 +521,36 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                 </div>
                 <CardContent className="p-5">
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {[
-                      { label: "Excellent", color: "bg-[#DCFCE7] text-[#166534]" },
-                      { label: "Communication", color: "bg-[#F0FDF4] text-[#15803d]" },
-                      { label: "Creativity", color: "bg-[#F0FDF9] text-[#0d9488]" },
-                      { label: "Leadership", color: "bg-[#F0F9FF] text-[#0369a1]" },
-                      { label: "Confidence", color: "bg-[#FFF7ED] text-[#c2410c]" },
-                      { label: "Teamwork", color: "bg-[#F0FDF9] text-[#0d9488]" },
-                      { label: "Participation", color: "bg-[#FEFCE8] text-[#854d0e]" },
-                      { label: "Needs Support", color: "bg-[#FEF2F2] text-[#991b1b]" },
-                    ].map((badge, idx) => (
-                      <Badge key={idx} className={`${badge.color} border-none rounded-lg px-4 py-1 text-[11px] font-bold shadow-sm`}>
-                        {badge.label}
-                      </Badge>
-                    ))}
+                    {data?.behavior ? (
+                      [
+                        { key: "communication", label: "Communication", score: data.behavior.communication_score },
+                        { key: "creativity", label: "Creativity", score: data.behavior.creativity_score },
+                        { key: "leadership", label: "Leadership", score: data.behavior.leadership_score },
+                        { key: "confidence", label: "Confidence", score: data.behavior.confidence_score },
+                        { key: "teamwork", label: "Teamwork", score: data.behavior.teamwork_score },
+                        { key: "participation", label: "Participation", score: data.behavior.participation_score },
+                        { key: "discipline", label: "Discipline", score: data.behavior.discipline_score },
+                      ].map((item, idx) => {
+                        let color = "bg-[#F1F5F9] text-slate-600";
+                        if (item.score >= 4) color = "bg-[#F0FDF4] text-[#15803d]";
+                        else if (item.score >= 3) color = "bg-[#F0F9FF] text-[#0369a1]";
+                        else if (item.score >= 2) color = "bg-[#FEFCE8] text-[#854d0e]";
+                        else color = "bg-[#FEF2F2] text-[#991b1b]";
+                        return (
+                          <Badge key={idx} className={`${color} border-none rounded-lg px-4 py-1 text-[11px] font-bold shadow-sm`}>
+                            {item.label}: {item.score}/5
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      <span className="text-xs text-slate-500">No behavior assessment recorded for this term.</span>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 border-dashed">
-                    With 1-line AI remarks: "Demonstrates strong interpersonal skills and active engagement in group discussions."
-                  </p>
+                  {data?.behavior?.remarks && (
+                    <p className="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 border-dashed">
+                      Teacher Remark: "{data.behavior.remarks}"
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>

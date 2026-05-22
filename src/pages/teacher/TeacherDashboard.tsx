@@ -449,7 +449,8 @@ const TeacherDashboard = () => {
         score: score,
         total: 100,
         assessmentType: type,
-        assessedOn: new Date().toISOString()
+        assessedOn: new Date().toISOString(),
+        subjectId: selectedSubject
       });
       // Silent refetch to update UI without global loading
       refetch();
@@ -2727,7 +2728,9 @@ const TeacherDashboard = () => {
                           const att = studentAttendance.find(a => a.studentId === s.id);
 
                           // Real database marks for this specific subject
-                          const studentMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id));
+                          const subChapters = chapters.filter(ch => String(ch.subjectId) === String(selectedSubject));
+                          const chapterIds = subChapters.map(ch => String(ch.id));
+                          const studentMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id) && chapterIds.includes(String(r.chapterId)));
 
                           const fa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA1')?.score;
                           const fa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA2')?.score;
@@ -2738,13 +2741,22 @@ const TeacherDashboard = () => {
 
                           const quizResultsList = studentMarks.filter(r => (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
 
-                          const avgFA = ((Number(fa1 || 0) + Number(fa2 || 0) + Number(fa3 || 0) + Number(fa4 || 0)) / 4);
-                          const avgSA = ((Number(sa1 || 0) + Number(sa2 || 0)) / 2);
-                          const quizScore = quizResultsList.reduce((sum, r) => sum + r.score, 0);
-                          const totalQuizMax = quizResultsList.reduce((sum, r) => sum + r.total, 0) || 20;
+                          const faList = [fa1, fa2, fa3, fa4].filter(v => v != null);
+                          const sumFA = faList.reduce((sum, v) => sum + Number(v), 0);
+                          const percFA = faList.length > 0 ? (sumFA / (faList.length * 100)) * 100 : null;
 
-                          // Updated Performance Index calculation including all 6 assessments
-                          const mockPerfIndex = Math.floor((avgFA / 100) * 30 + (avgSA / 100) * 40 + (quizScore / totalQuizMax) * 20 + ((att?.percentage || 0) / 100) * 10) || 0;
+                          const saList = [sa1, sa2].filter(v => v != null);
+                          const sumSA = saList.reduce((sum, v) => sum + Number(v), 0);
+                          const percSA = saList.length > 0 ? (sumSA / (saList.length * 100)) * 100 : null;
+
+                          const quizScore = quizResultsList.reduce((sum, r) => sum + r.score, 0);
+                          const totalQuizMax = quizResultsList.reduce((sum, r) => sum + r.total, 0);
+                          const percQuiz = totalQuizMax > 0 ? (quizScore / totalQuizMax) * 100 : null;
+
+                          const percAtt = att?.percentage != null ? att.percentage : null;
+
+                          const percentages = [percFA, percSA, percQuiz, percAtt].filter(p => p !== null);
+                          const mockPerfIndex = percentages.length > 0 ? Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length) : 0;
 
                           return (
                             <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
@@ -2812,8 +2824,8 @@ const TeacherDashboard = () => {
                           variant={isSelected || (s === "present" && !todayAttendance?.marked) ? "default" : "outline"}
                           disabled={isDisabled}
                           className={`capitalize flex-1 transition-all ${isSelected
-                              ? (s === "present" ? "bg-green-600 opacity-100 shadow-md" : s === "absent" ? "bg-red-600 text-white opacity-100 shadow-md" : "bg-amber-500 text-white opacity-100 shadow-md")
-                              : (s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50")
+                            ? (s === "present" ? "bg-green-600 opacity-100 shadow-md" : s === "absent" ? "bg-red-600 text-white opacity-100 shadow-md" : "bg-amber-500 text-white opacity-100 shadow-md")
+                            : (s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50")
                             } ${isDisabled && !isSelected ? "opacity-40 grayscale-[0.5]" : ""}`}
                           onClick={async () => {
                             if (!teacherId || isDisabled) return;
@@ -2840,157 +2852,157 @@ const TeacherDashboard = () => {
 
             {/* MY ASSESSMENTS TAB */}
             <TabsContent value="my-assessments" className="space-y-4">
-                <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-primary" /> My Assessments
-                </h3>
-                <Card className="shadow-card border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-base">Teacher Chapter Assessments</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {loadingAssessments ? (
-                      <p className="text-sm text-muted-foreground py-4">Loading assessments...</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredChapters.map((ch) => {
-                          const chId = String(ch.id);
-                          const assessment = assessmentsData.find(a => String(a.chapter_id) === chId);
-                          const gs = gatingStatus?.chapters?.find((g: any) => String(g.chapterId) === chId);
-                          const isLocked = gatingStatus?.gatingEnabled && gs?.isLocked;
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-primary" /> My Assessments
+              </h3>
+              <Card className="shadow-card border-border">
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Teacher Chapter Assessments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingAssessments ? (
+                    <p className="text-sm text-muted-foreground py-4">Loading assessments...</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {filteredChapters.map((ch) => {
+                        const chId = String(ch.id);
+                        const assessment = assessmentsData.find(a => String(a.chapter_id) === chId);
+                        const gs = gatingStatus?.chapters?.find((g: any) => String(g.chapterId) === chId);
+                        const isLocked = gatingStatus?.gatingEnabled && gs?.isLocked;
 
-                          return (
-                            <div key={ch.id} className="border border-border rounded-xl p-4 bg-secondary/20 transition-all hover:shadow-md">
-                              <div className="flex justify-between items-start mb-3">
-                                <div>
-                                  <h4 className="font-bold text-md text-foreground">{ch.name}</h4>
+                        return (
+                          <div key={ch.id} className="border border-border rounded-xl p-4 bg-secondary/20 transition-all hover:shadow-md">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-bold text-md text-foreground">{ch.name}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {currentSubject?.name}
+                                  {assessment && ` • Taken on ${new Date(assessment.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5">
+                                {isLocked ? (
+                                  <Badge variant="outline" className="bg-muted text-muted-foreground"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
+                                ) : (gs?.teacherPassed || assessment?.passed) ? (
+                                  <Badge className="bg-success text-success-foreground border-none">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" /> PASSED
+                                  </Badge>
+                                ) : assessment ? (
+                                  <Badge variant="destructive" className="border-none">
+                                    <XCircle className="w-3 h-3 mr-1" /> FAILED
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">AVAILABLE</Badge>
+                                )}
+                                {assessment && (
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <span className="text-[10px] font-bold text-slate-700">
+                                      Score: {assessment.percentage}% ({assessment.score}/{assessment.total})
+                                    </span>
+                                    <span className="text-[9px] text-muted-foreground uppercase tracking-tight">
+                                      Min Pass: {assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}% | Attempt #{assessment.attempt_number}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {isLocked && (
+                              <p className="text-sm text-muted-foreground mb-4 bg-muted/50 p-3 rounded-md border border-border/50">
+                                <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground mb-0.5" />
+                                {gs?.lockReason || "Locked until previous requirements are met."}
+                              </p>
+                            )}
+
+                            {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
+                              <div className="mb-4 bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center shadow-sm">
+                                <div className="space-y-1">
+                                  <p className="text-sm font-semibold text-primary">
+                                    {assessment ? "Retake Assessment" : "Assessment Ready"}
+                                  </p>
                                   <p className="text-xs text-muted-foreground">
-                                    {currentSubject?.name}
-                                    {assessment && ` • Taken on ${new Date(assessment.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
+                                    Pass threshold: {gatingStatus?.teacherPassThreshold || 70}%
                                   </p>
                                 </div>
-                                <div className="flex flex-col items-end gap-1.5">
-                                  {isLocked ? (
-                                    <Badge variant="outline" className="bg-muted text-muted-foreground"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
-                                  ) : (gs?.teacherPassed || assessment?.passed) ? (
-                                    <Badge className="bg-success text-success-foreground border-none">
-                                      <CheckCircle2 className="w-3 h-3 mr-1" /> PASSED
-                                    </Badge>
-                                  ) : assessment ? (
-                                    <Badge variant="destructive" className="border-none">
-                                      <XCircle className="w-3 h-3 mr-1" /> FAILED
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">AVAILABLE</Badge>
-                                  )}
-                                  {assessment && (
-                                    <div className="flex flex-col items-end gap-0.5">
-                                      <span className="text-[10px] font-bold text-slate-700">
-                                        Score: {assessment.percentage}% ({assessment.score}/{assessment.total})
-                                      </span>
-                                      <span className="text-[9px] text-muted-foreground uppercase tracking-tight">
-                                        Min Pass: {assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}% | Attempt #{assessment.attempt_number}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
+                                <Button
+                                  size="sm"
+                                  className="shadow-lg bg-primary hover:bg-primary/90"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAssessmentChapter({ id: ch.id, name: ch.name });
+                                    setAssessmentOpen(true);
+                                  }}
+                                >
+                                  {assessment ? "Retry Assessment" : "Take Assessment"}
+                                </Button>
                               </div>
+                            )}
 
-                              {isLocked && (
-                                <p className="text-sm text-muted-foreground mb-4 bg-muted/50 p-3 rounded-md border border-border/50">
-                                  <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground mb-0.5" />
-                                  {gs?.lockReason || "Locked until previous requirements are met."}
-                                </p>
-                              )}
-
-                              {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
-                                <div className="mb-4 bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center shadow-sm">
-                                  <div className="space-y-1">
-                                    <p className="text-sm font-semibold text-primary">
-                                      {assessment ? "Retake Assessment" : "Assessment Ready"}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Pass threshold: {gatingStatus?.teacherPassThreshold || 70}%
+                            {assessment && (
+                              <>
+                                <div className="grid grid-cols-5 gap-2 mb-4 text-sm bg-background p-3 rounded-lg border border-border shadow-inner">
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Total Qs</p>
+                                    <p className="font-display font-bold text-foreground">{assessment.total}</p>
+                                  </div>
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Correct Qs</p>
+                                    <p className="font-display font-bold text-foreground">{assessment.score}</p>
+                                  </div>
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Pass Req %</p>
+                                    <p className="font-display font-bold text-foreground">{assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}%</p>
+                                  </div>
+                                  <div className="text-center border-r border-border last:border-0">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Your Score %</p>
+                                    <p className={`font-display font-bold ${assessment.passed ? "text-success" : "text-destructive"}`}>
+                                      {assessment.percentage}%
                                     </p>
                                   </div>
-                                  <Button
-                                    size="sm"
-                                    className="shadow-lg bg-primary hover:bg-primary/90"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setAssessmentChapter({ id: ch.id, name: ch.name });
-                                      setAssessmentOpen(true);
-                                    }}
-                                  >
-                                    {assessment ? "Retry Assessment" : "Take Assessment"}
-                                  </Button>
+                                  <div className="text-center">
+                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attempts</p>
+                                    <p className="font-display font-bold text-foreground">#{assessment.attempt_number}</p>
+                                  </div>
                                 </div>
-                              )}
 
-                              {assessment && (
-                                <>
-                                  <div className="grid grid-cols-5 gap-2 mb-4 text-sm bg-background p-3 rounded-lg border border-border shadow-inner">
-                                    <div className="text-center border-r border-border last:border-0">
-                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Total Qs</p>
-                                      <p className="font-display font-bold text-foreground">{assessment.total}</p>
-                                    </div>
-                                    <div className="text-center border-r border-border last:border-0">
-                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Correct Qs</p>
-                                      <p className="font-display font-bold text-foreground">{assessment.score}</p>
-                                    </div>
-                                    <div className="text-center border-r border-border last:border-0">
-                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Pass Req %</p>
-                                      <p className="font-display font-bold text-foreground">{assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}%</p>
-                                    </div>
-                                    <div className="text-center border-r border-border last:border-0">
-                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Your Score %</p>
-                                      <p className={`font-display font-bold ${assessment.passed ? "text-success" : "text-destructive"}`}>
-                                        {assessment.percentage}%
-                                      </p>
-                                    </div>
-                                    <div className="text-center">
-                                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attempts</p>
-                                      <p className="font-display font-bold text-foreground">#{assessment.attempt_number}</p>
-                                    </div>
+                                {assessment.graded_summary && (
+                                  <div className="mt-4 pt-4 border-t border-border flex justify-center">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 font-semibold"
+                                      onClick={() => {
+                                        try {
+                                          const graded = typeof assessment.graded_summary === 'string'
+                                            ? JSON.parse(assessment.graded_summary)
+                                            : assessment.graded_summary;
+                                          setReviewData({
+                                            summary: graded,
+                                            chapterName: ch.name,
+                                            score: assessment.score,
+                                            total: assessment.total,
+                                            passed: assessment.passed
+                                          });
+                                          setReviewDialogOpen(true);
+                                        } catch (e) {
+                                          toast.error("Unable to open assessment review");
+                                        }
+                                      }}
+                                    >
+                                      <FileText className="w-4 h-4" /> View Questions Summary
+                                    </Button>
                                   </div>
-
-                                  {assessment.graded_summary && (
-                                    <div className="mt-4 pt-4 border-t border-border flex justify-center">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 font-semibold"
-                                        onClick={() => {
-                                          try {
-                                            const graded = typeof assessment.graded_summary === 'string'
-                                              ? JSON.parse(assessment.graded_summary)
-                                              : assessment.graded_summary;
-                                            setReviewData({
-                                              summary: graded,
-                                              chapterName: ch.name,
-                                              score: assessment.score,
-                                              total: assessment.total,
-                                              passed: assessment.passed
-                                            });
-                                            setReviewDialogOpen(true);
-                                          } catch (e) {
-                                            toast.error("Unable to open assessment review");
-                                          }
-                                        }}
-                                      >
-                                        <FileText className="w-4 h-4" /> View Questions Summary
-                                      </Button>
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* LEAVE TAB */}
             <TabsContent value="leave" className="space-y-4">
@@ -3523,6 +3535,7 @@ const TeacherDashboard = () => {
       {/* AI Report Card Result Dialog - Premium Redesign */}
       <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
         <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
+          <DialogTitle className="sr-only">Student Report Card</DialogTitle>
           <div ref={reportRef}>
             <StudentReportCard
               studentId={aiReportStudentId}

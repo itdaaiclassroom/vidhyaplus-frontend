@@ -556,12 +556,30 @@ const ModernAdminDashboard = () => {
                                       const att = data.studentAttendance?.find((a: any) => a.studentId === s.id);
                                       const quizResultsList = data.studentQuizResults.filter((r: any) => String(r.studentId) === String(s.id) && (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
                                       const quizScore = quizResultsList.reduce((sum: number, r: any) => sum + r.score, 0);
-                                      const totalQuizMax = quizResultsList.reduce((sum: number, r: any) => sum + r.total, 0) || 20;
+                                      const totalQuizMax = quizResultsList.reduce((sum: number, r: any) => sum + r.total, 0);
                                       const fa1Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'fa1');
+                                      const fa2Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'fa2');
+                                      const fa3Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'fa3');
+                                      const fa4Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'fa4');
                                       const sa1Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'sa1');
-                                      const mockFA1 = fa1Result && fa1Result.total > 0 ? Math.round((fa1Result.score / fa1Result.total) * 100) : 0;
-                                      const mockSA1 = sa1Result && sa1Result.total > 0 ? Math.round((sa1Result.score / sa1Result.total) * 100) : 0;
-                                      const mockPerfIndex = Math.floor((mockFA1/100)*30 + (mockSA1/100)*40 + (quizScore/totalQuizMax)*20 + ((att?.percentage || 0)/100)*10) || 0;
+                                      const sa2Result = data.studentQuizResults.find((r: any) => String(r.studentId) === String(s.id) && r.assessmentType?.toLowerCase() === 'sa2');
+
+                                      const faList = [fa1Result, fa2Result, fa3Result, fa4Result].filter(v => v !== undefined && v.total > 0);
+                                      const sumFA = faList.reduce((sum, v) => sum + v.score, 0);
+                                      const maxFA = faList.reduce((sum, v) => sum + v.total, 0);
+                                      const percFA = maxFA > 0 ? (sumFA / maxFA) * 100 : null;
+
+                                      const saList = [sa1Result, sa2Result].filter(v => v !== undefined && v.total > 0);
+                                      const sumSA = saList.reduce((sum, v) => sum + v.score, 0);
+                                      const maxSA = saList.reduce((sum, v) => sum + v.total, 0);
+                                      const percSA = maxSA > 0 ? (sumSA / maxSA) * 100 : null;
+
+                                      const percQuiz = totalQuizMax > 0 ? (quizScore / totalQuizMax) * 100 : null;
+                                      const percAtt = att?.percentage != null ? att.percentage : null;
+
+                                      const percentages = [percFA, percSA, percQuiz, percAtt].filter(p => p !== null);
+                                      const mockPerfIndex = percentages.length > 0 ? Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length) : 0;
+
 
                                       const promise = fetch(`${getApiBase()}/api/ai/report-card`, {
                                         method: 'POST',
