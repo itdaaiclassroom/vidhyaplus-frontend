@@ -933,6 +933,7 @@ export async function submitStudentMark(body: {
   assessedOn?: string;
   assessmentType?: string;
   liveQuizSessionId?: string | number;
+  subjectId?: string | number;
 }): Promise<{ ok: boolean; id: number; studentId: number; chapterId: number; score: number; total: number; assessedOn: string; liveQuizSessionId?: number | null }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/student-marks`, {
