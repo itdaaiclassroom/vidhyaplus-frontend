@@ -1039,7 +1039,55 @@ export async function deleteTopicPpt(topicId: string): Promise<{ ok: boolean }> 
   return res.json();
 }
 
+/** Get a presigned PUT URL for direct browser→R2 upload (no base64 overhead). */
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string
+): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/storage/presign`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ key, contentType }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
 
+/**
+ * PUT the file binary directly to a presigned R2 URL.
+ * Bypasses base64 conversion — no browser memory spikes for large PDFs.
+ */
+export async function uploadToR2Direct(uploadUrl: string, file: File): Promise<void> {
+  const res = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "application/pdf" },
+    body: file,
+  });
+  if (!res.ok) {
+    throw new Error(`Direct R2 upload failed with status ${res.status}`);
+  }
+}
+
+/**
+ * Trigger the AI textbook extraction pipeline.
+ * Express calls the Python FastAPI service, segments the PDF into chapters + topics,
+ * and inserts them into MySQL. Returns chapter and topic counts on success.
+ */
+export async function extractTextbookCurriculum(
+  subjectId: string,
+  gradeId: string,
+  payload: { pdf_url: string }
+): Promise<{ ok: boolean; chapters_loaded: number; topics_loaded: number; book_title?: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/${subjectId}/grades/${gradeId}/extract-textbook`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
 
 
 export async function fetchAdminOverview(): Promise<{
