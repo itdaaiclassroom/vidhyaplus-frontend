@@ -159,6 +159,9 @@ function getLocalDateYmd() {
 
 /** Direct file URL (for download / open in new tab). */
 function getMaterialDirectUrl(relativePath: string): string {
+  if (relativePath.startsWith("http://") || relativePath.startsWith("https://")) {
+    return relativePath;
+  }
   const base = getApiBase();
   return `${base}/uploads/${relativePath.replace(/\\/g, "/")}`;
 }
