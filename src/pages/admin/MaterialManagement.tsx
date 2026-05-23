@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2, Settings2, ShieldCheck, BookOpen, Save } from 'lucide-react';
-import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, type ChapterAssessmentConfigItem } from '@/api/client';
+import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, getPresignedUploadUrl, uploadToR2Direct, extractTextbookCurriculum, getApiBase, type ChapterAssessmentConfigItem } from '@/api/client';
 import { toast } from 'sonner';
 import QuestionBankPanel from './QuestionBankPanel';
 
@@ -23,6 +23,10 @@ export default function MaterialManagement() {
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // AI Extraction state
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractResult, setExtractResult] = useState<{ chapters: number; topics: number; bookTitle: string } | null>(null);
 
   // Assessment Config State
   const [assessConfig, setAssessConfig] = useState<Record<string, string>>({});
@@ -220,7 +224,7 @@ export default function MaterialManagement() {
           contentType: file.type || 'application/pdf',
           grade_id: selectedGrade
         } as any);
-        setSuccessMsg("Subject material uploaded successfully!");
+        setSuccessMsg("Reference file uploaded successfully! (Use \"Upload & AI Extract\" to auto-generate chapters & topics.)");
       } else {
         await uploadTopicPpt(selectedTopic, {
           title,
@@ -228,7 +232,7 @@ export default function MaterialManagement() {
           filename: file.name
         });
         setSuccessMsg("Topic presentation uploaded successfully!");
-        loadData(); // Refresh to get the new pptPath
+        loadData();
       }
 
       toast.success("Upload successful!");
@@ -241,6 +245,91 @@ export default function MaterialManagement() {
       toast.error(err.message || "Failed to upload.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  /**
+   * AI Extraction handler — uploads the PDF to R2 (or server fallback),
+   * then triggers the Express AI pipeline to auto-generate chapters & topics.
+   */
+  const handleAiExtract = async () => {
+    if (!file) {
+      setErrorMsg("Please select a PDF file first.");
+      return;
+    }
+    if (!selectedSubject) {
+      setErrorMsg("Please select a subject.");
+      return;
+    }
+    if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+      setErrorMsg("AI extraction requires a PDF file.");
+      return;
+    }
+
+    setIsExtracting(true);
+    setExtractResult(null);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      let publicUrl: string;
+
+      // Step 1: Try presigned R2 upload (fastest, no base64)
+      const safeFilename = file.name.replace(/[^a-z0-9._-]/gi, '_');
+      const r2Key = `textbook/${selectedSubject}_grade${selectedGrade}_${Date.now()}_${safeFilename}`;
+
+      try {
+        const presignResult = await getPresignedUploadUrl(r2Key, file.type || 'application/pdf');
+        await uploadToR2Direct(presignResult.uploadUrl, file);
+        publicUrl = presignResult.publicUrl;
+        console.log('[AI Extract] Uploaded to R2:', publicUrl);
+      } catch (r2Err: any) {
+        // Step 2: Fallback — server-side upload (R2 not configured)
+        console.warn('[AI Extract] R2 upload failed, falling back to server upload:', r2Err.message);
+        const buffer = await file.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const base64File = btoa(binary);
+        const apiBase = getApiBase();
+        const uploadRes = await fetch(`${apiBase}/api/storage/upload-server`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: r2Key, file: base64File, contentType: file.type || 'application/pdf' }),
+        });
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.text().catch(() => uploadRes.statusText);
+          throw new Error(`Server upload also failed: ${uploadErr}`);
+        }
+        const uploadData = await uploadRes.json();
+        publicUrl = uploadData.publicUrl;
+        console.log('[AI Extract] Uploaded via server fallback:', publicUrl);
+      }
+
+      // Step 3: Trigger AI extraction via Express → Python FastAPI
+      const result = await extractTextbookCurriculum(selectedSubject, selectedGrade, { pdf_url: publicUrl });
+
+      setExtractResult({
+        chapters: result.chapters_loaded,
+        topics: result.topics_loaded,
+        bookTitle: result.book_title || title || file.name,
+      });
+
+      toast.success(`✨ AI extracted ${result.chapters_loaded} chapters & ${result.topics_loaded} topics!`);
+
+      // Step 4: Refresh global data — Teacher Dashboard will instantly update
+      await loadData();
+      loadMaterials(selectedSubject, selectedGrade);
+      setFile(null);
+      setTitle('');
+    } catch (err: any) {
+      console.error('[AI Extract] Error:', err);
+      setErrorMsg(err.message || 'AI extraction failed. Please try again.');
+      toast.error(err.message || 'AI extraction failed.');
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -275,6 +364,57 @@ export default function MaterialManagement() {
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+
+      {/* ── AI Extraction Glassmorphic Loading Overlay ─────────────────────── */}
+      {isExtracting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white/10 border border-white/20 rounded-3xl p-10 max-w-md w-full mx-4 shadow-2xl text-center backdrop-blur-xl">
+            {/* Animated gradient ring */}
+            <div className="relative mx-auto mb-6 w-20 h-20">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-violet-500 via-indigo-500 to-purple-500 animate-spin" style={{ animationDuration: '2s' }} />
+              <div className="absolute inset-1 rounded-full bg-slate-900 flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-violet-400 animate-pulse" />
+              </div>
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">VidhyaPlus AI</h3>
+            <p className="text-white/80 font-medium mb-1">Reading your textbook...</p>
+            <p className="text-white/50 text-sm leading-relaxed">
+              Detecting chapters, extracting topics &amp; building your curriculum. This takes 20–40 seconds.
+            </p>
+            <div className="mt-6 flex justify-center gap-1">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-violet-400"
+                  style={{ animation: `bounce 1.2s ease-in-out ${i * 0.15}s infinite` }}
+                />
+              ))}
+            </div>
+            <style>{`@keyframes bounce { 0%, 80%, 100% { transform: scaleY(0.5); opacity:0.4; } 40% { transform: scaleY(1.2); opacity:1; } }`}</style>
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Extraction Success Banner ────────────────────────────────────── */}
+      {extractResult && !isExtracting && (
+        <div className="mb-6 p-5 bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl flex items-start gap-4">
+          <div className="p-3 bg-violet-100 rounded-xl">
+            <Sparkles className="w-6 h-6 text-violet-600" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-bold text-violet-900 text-lg">Curriculum Extracted Successfully!</h4>
+            <p className="text-violet-700 text-sm mt-0.5">
+              <span className="font-semibold">{extractResult.bookTitle}</span> — AI detected{' '}
+              <span className="font-bold text-indigo-700">{extractResult.chapters} chapters</span> and{' '}
+              <span className="font-bold text-violet-700">{extractResult.topics} topics</span> and saved them to the database.
+            </p>
+            <p className="text-violet-500 text-xs mt-1">The Teacher Dashboard has been automatically updated with the new curriculum structure.</p>
+          </div>
+          <button onClick={() => setExtractResult(null)} className="text-violet-400 hover:text-violet-600 p-1">
+            ✕
+          </button>
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-6">
         <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
           <Book className="w-6 h-6" />
@@ -412,17 +552,33 @@ export default function MaterialManagement() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={uploading}
-              className="w-full bg-indigo-600 text-white rounded-xl py-3 font-medium hover:bg-indigo-700 transition-colors flex justify-center items-center gap-2"
-            >
-              {uploading ? (
-                <><Loader className="w-5 h-5 animate-spin" /> Uploading...</>
-              ) : (
-                <><Upload className="w-5 h-5" /> Upload</>
+            <div className="flex flex-col gap-2">
+              <button
+                type="submit"
+                disabled={uploading || isExtracting}
+                className="w-full bg-slate-600 text-white rounded-xl py-3 font-medium hover:bg-slate-700 transition-colors flex justify-center items-center gap-2"
+                title={uploadScope === 'subject' ? 'Save as a reference file only (no AI extraction)' : 'Upload PPT/PDF for this topic'}
+              >
+                {uploading ? (
+                  <><Loader className="w-5 h-5 animate-spin" /> Uploading...</>
+                ) : (
+                  <><Upload className="w-5 h-5" /> {uploadScope === 'subject' ? 'Upload Reference Only' : 'Upload'}</>
+                )}
+              </button>
+
+              {uploadScope === 'subject' && (
+                <button
+                  type="button"
+                  onClick={handleAiExtract}
+                  disabled={uploading || isExtracting || !file}
+                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl py-3 font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all flex justify-center items-center gap-2 shadow-lg shadow-indigo-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                  title="Upload PDF to R2 and auto-extract all chapters & topics using AI"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Upload & AI Extract Curriculum
+                </button>
               )}
-            </button>
+            </div>
           </form>
         </div>
 
