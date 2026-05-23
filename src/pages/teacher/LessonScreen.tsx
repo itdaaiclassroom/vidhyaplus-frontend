@@ -19,7 +19,8 @@ import {
   getStudentAttendance,
   fetchSubjectMaterials,
   getApiBase,
-  fetchGatingConfig
+  fetchGatingConfig,
+  fetchChapterAssessmentConfig
 } from "@/api/client";
 
 import {
@@ -83,15 +84,27 @@ const LessonScreen = () => {
   const [quizSetupQuestions, setQuizSetupQuestions] = useState(10);
   const [quizSetupMode, setQuizSetupMode] = useState<"qr" | "teacher" | "aruco">("qr");
 
-  // Load admin-configured question count
+  // Load admin-configured student quiz question count for this chapter/subject
   useEffect(() => {
-    fetchGatingConfig()
+    if (!activeSession?.subjectId) return;
+    fetchChapterAssessmentConfig(activeSession.subjectId)
       .then((data) => {
-        const count = parseInt(data.config?.assessment_question_count);
-        if (count && count > 0) setQuizSetupQuestions(count);
+        const chConfig = data.chapters?.find((c: any) => String(c.chapterId) === String(activeSession.chapterId));
+        const count = chConfig ? chConfig.questionCount : data.globalDefaults?.questionCount;
+        if (count && count > 0) {
+          setQuizSetupQuestions(count);
+        }
       })
-      .catch(() => { /* use default */ });
-  }, []);
+      .catch(() => {
+        // fallback to gating config student default if above fails
+        fetchGatingConfig()
+          .then((data) => {
+            const count = parseInt(data.config?.student_quiz_question_count);
+            if (count && count > 0) setQuizSetupQuestions(count);
+          })
+          .catch(() => { /* use default */ });
+      });
+  }, [activeSession?.subjectId, activeSession?.chapterId]);
 
   const [sessionAttendance, setSessionAttendance] = useState<Record<string, "present" | "absent">>({});
   const [sessionSubjectMaterials, setSessionSubjectMaterials] = useState<any[]>([]);
@@ -333,7 +346,7 @@ const LessonScreen = () => {
   const handleLaunchQuizConfirm = () => {
     if (!activeSession) return;
     setIsQuizSetupOpen(false);
-    navigate(`/teacher/quiz?sessionId=${activeSession.id}&mode=${quizSetupMode}`);
+    navigate(`/teacher/quiz?sessionId=${activeSession.id}&mode=${quizSetupMode}&questions=${quizSetupQuestions}`);
   };
 
   const handleNextPage = () => setPdfPage(p => p + 1);
