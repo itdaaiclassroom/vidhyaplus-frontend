@@ -1885,7 +1885,7 @@ const TeacherDashboard = () => {
             <DialogHeader className="flex-shrink-0 pr-10 sm:pr-12 text-left">
               <DialogTitle className="font-display">Live Quiz — Internal QR Scanner</DialogTitle>
               <DialogDescription id="quiz-dialog-desc">
-                Step 1: scan this QR from mobile. Step 2: wait for device connection signal. Step 3: start capture and scan all 10 questions for all students from mobile.
+                Step 1: scan this QR from mobile. Step 2: wait for device connection signal. Step 3: start capture and scan all {liveQuizSession?.questions?.length ?? 10} questions for all students from mobile.
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-4 overflow-y-auto overflow-x-hidden py-2 pr-1">
