@@ -17,6 +17,18 @@ import {
 
 const ITEMS_PER_PAGE = 5;
 
+// ── Team Role Config ─────────────────────────────────────────────────────────
+// Must stay in sync with backend ALLOWED_TEAM_ROLES in admin_management.controller.js
+const TEAM_ROLES: { value: string; label: string; color: string }[] = [
+  { value: "material_management",  label: "Material Management",  color: "bg-indigo-100 text-indigo-700" },
+  { value: "school_management",    label: "School Management",    color: "bg-emerald-100 text-emerald-700" },
+  { value: "student_management",   label: "Student Management",   color: "bg-amber-100 text-amber-700" },
+  { value: "teacher_management",   label: "Teacher Management",   color: "bg-purple-100 text-purple-700" },
+];
+
+const getRoleConfig = (role: string) =>
+  TEAM_ROLES.find(r => r.value === role) ?? { value: role, label: role, color: "bg-slate-100 text-slate-600" };
+
 const UserManagementPanel = () => {
   const [activeTab, setActiveTab] = useState("admins");
   
@@ -349,8 +361,8 @@ const UserManagementPanel = () => {
                         <td className="px-6 py-4 text-sm font-medium text-slate-800">{team.team_name}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{team.email}</td>
                         <td className="px-6 py-4 text-sm">
-                          <Badge variant="outline" className="rounded-full bg-slate-50">
-                            {team.role === "material_management" ? "Material Management" : team.role}
+                          <Badge className={`rounded-full border-0 text-xs font-semibold ${getRoleConfig(team.role).color}`}>
+                            {getRoleConfig(team.role).label}
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-500">{team.district || '-'}</td>
@@ -470,8 +482,18 @@ const UserManagementPanel = () => {
                 required
               >
                 <option value="" disabled>Select a role</option>
-                <option value="material_management">Material Management</option>
+                {TEAM_ROLES.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
               </select>
+              {teamForm.role && (
+                <p className="text-xs text-slate-400">
+                  {teamForm.role === "material_management" && "Can upload/manage textbooks, PPTs, and question banks."}
+                  {teamForm.role === "school_management" && "Can create, update, and delete school records."}
+                  {teamForm.role === "student_management" && "Can register students, manage bulk uploads, and update attendance."}
+                  {teamForm.role === "teacher_management" && "Can register teachers, manage bulk uploads, and track attendance."}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>District</Label>
