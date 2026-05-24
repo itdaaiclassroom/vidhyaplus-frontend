@@ -1,51 +1,50 @@
-import { motion } from "framer-motion";
-import { useInView } from "react-intersection-observer";
-import { Settings, BookOpen, QrCode, BarChart3 } from "lucide-react";
+// @ts-nocheck
+import React from "react";
+
+const G = {
+  teal: "#00B98A", teal2: "#00D4A0", navy: "#0A1628",
+  text2: "#4A6274", gold: "#FFB830", sky: "#4FB8F0", purple: "#7C6FEE",
+};
+
+function SectionTag({ icon, label }) {
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "linear-gradient(135deg,rgba(0,185,138,.08),rgba(0,185,138,.04))", border: "1.5px solid rgba(0,185,138,.2)", borderRadius: 50, padding: "6px 16px", marginBottom: "1rem" }}>
+      <div style={{ width: 22, height: 22, background: G.teal, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">{icon}</svg>
+      </div>
+      <span style={{ fontSize: ".75rem", fontWeight: 700, color: "#007A5C", letterSpacing: ".05em", textTransform: "uppercase" }}>{label}</span>
+    </div>
+  );
+}
 
 const steps = [
-  { icon: Settings, label: "Admin Plans", desc: "Configure curriculum, assign lessons" },
-  { icon: BookOpen, label: "Teacher Teaches", desc: "Deliver AI-assisted lessons" },
-  { icon: QrCode, label: "Students Interact", desc: "Respond via QR quiz cards" },
-  { icon: BarChart3, label: "Data Monitored", desc: "Real-time analytics & logs" },
+  { num: "01", bg: "linear-gradient(145deg,#E0FAF3,#B8F0E0)", bc: G.teal, color: G.teal, emoji: "⚙️", title: "Admin Plans", desc: "Configure curriculum, assign lessons per class, register schools, teachers & students with auto-generated QR IDs." },
+  { num: "02", bg: "linear-gradient(145deg,#E8F3FF,#C8E0FF)", bc: G.sky, color: G.sky, emoji: "🖥️", title: "Teacher Teaches", desc: "Deliver AI-assisted live sessions with built-in chatbot, YouTube videos, simulations, PPTs, and attendance tracking." },
+  { num: "03", bg: "linear-gradient(145deg,#FFF3E0,#FFE0A8)", bc: G.gold, color: G.gold, emoji: "🔲", title: "Students Interact", desc: "Respond to quiz questions via QR cards. Web cam scans responses, scores recorded instantly with live leaderboard." },
+  { num: "04", bg: "linear-gradient(145deg,#F0EEFF,#DDD8FF)", bc: G.purple, color: G.purple, emoji: "📊", title: "Data Monitored", desc: "Real-time analytics, stamped activity logs give administrators complete visibility into every school, every day." },
 ];
 
 const WorkflowSection = () => {
-  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 });
-
   return (
-    <section ref={ref} className="py-20">
-      <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          className="text-center mb-12"
-        >
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
-            How It Works
-          </h2>
-        </motion.div>
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0 max-w-4xl mx-auto">
-          {steps.map((step, i) => (
-            <motion.div
-              key={step.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: i * 0.15 }}
-              className="flex items-center gap-4"
-            >
-              <div className="flex flex-col items-center text-center w-40">
-                <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-3 shadow-soft">
-                  <step.icon className="w-7 h-7 text-primary-foreground" />
-                </div>
-                <h4 className="font-display font-semibold text-foreground text-sm">{step.label}</h4>
-                <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
+    <section id="how" style={{ padding: "6rem 0", background: "white" }}>
+      <div className="container-max" style={{ paddingTop: 0, paddingBottom: 0 }}>
+        <div style={{ textAlign: "center", marginBottom: "3.5rem" }}>
+          <SectionTag icon={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></>} label="Workflow" />
+          <h2 style={{ fontFamily: "Nunito,sans-serif", fontWeight: 900, fontSize: "clamp(1.8rem,3vw,2.8rem)", color: G.navy }}>How It <span style={{ color: G.teal }}>Works</span></h2>
+          <p style={{ color: G.text2, fontSize: ".95rem", lineHeight: 1.8, maxWidth: 540, margin: ".75rem auto 0" }}>A seamless four-step cycle running every day in every classroom — from government planning to student interaction.</p>
+        </div>
+        <div className="how-grid">
+          <div className="how-line" style={{ background: `linear-gradient(90deg,${G.teal},${G.sky},${G.gold},${G.purple})` }} />
+          {steps.map(({ num, bg, bc, color, emoji, title, desc }) => (
+            <div key={num} style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", position: "relative", zIndex: 1 }}>
+              <div className="step-circle" style={{ background: bg, boxShadow: "0 8px 28px rgba(0,0,0,.1)" }}>
+                <div style={{ position: "absolute", inset: -4, borderRadius: "50%", border: `2px dashed ${bc}`, opacity: .3 }} />
+                <div style={{ position: "absolute", top: -6, right: -6, width: 28, height: 28, borderRadius: "50%", background: "white", border: `2px solid ${bc}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Nunito,sans-serif", fontWeight: 900, fontSize: ".75rem", color, boxShadow: "0 2px 8px rgba(0,0,0,.1)" }}>{num}</div>
+                <span style={{ fontSize: "2.2rem" }}>{emoji}</span>
               </div>
-              {i < steps.length - 1 && (
-                <div className="hidden md:block w-12 h-0.5 bg-border mx-2 relative">
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary" />
-                </div>
-              )}
-            </motion.div>
+              <div style={{ fontFamily: "Nunito,sans-serif", fontWeight: 800, fontSize: "1rem", color: G.navy, marginBottom: ".5rem" }}>{title}</div>
+              <div style={{ fontSize: ".82rem", color: G.text2, lineHeight: 1.65, maxWidth: 200 }}>{desc}</div>
+            </div>
           ))}
         </div>
       </div>
