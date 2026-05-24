@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import StudentReportCard from "@/components/StudentReportCard";
+import SessionAnalytics from "@/components/SessionAnalytics";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
   MessageSquare, Calendar as CalendarIcon, LogOut, 
@@ -1501,7 +1502,7 @@ const ModernAdminDashboard = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-8 pt-6">
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
                   <p className="text-xs font-bold text-slate-400 uppercase mb-1">Teachers</p>
                   <p className="text-2xl font-bold text-slate-800">{teachers.filter(t => t.schoolId === viewingSchool?.id).length}</p>
@@ -1518,12 +1519,17 @@ const ModernAdminDashboard = () => {
                   <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sections</p>
                   <p className="text-2xl font-bold text-slate-800">{classes.filter(c => c.schoolId === viewingSchool?.id).length}</p>
                 </Card>
+                <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sessions</p>
+                  <p className="text-2xl font-bold text-slate-800">{data.liveSessions.filter(ls => classes.filter(c => c.schoolId === viewingSchool?.id).map(c => c.id).includes(ls.classId)).length}</p>
+                </Card>
              </div>
 
              <Tabs defaultValue="school-teachers" className="space-y-6">
                 <TabsList className="bg-slate-100 p-1 rounded-xl">
                   <TabsTrigger value="school-teachers" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Teachers</TabsTrigger>
                   <TabsTrigger value="school-students" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Students</TabsTrigger>
+                  <TabsTrigger value="school-sessions" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Sessions</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="school-teachers">
@@ -1688,6 +1694,10 @@ const ModernAdminDashboard = () => {
                         </tbody>
                       </table>
                    </div>
+                </TabsContent>
+
+                <TabsContent value="school-sessions">
+                  {viewingSchool && <SessionAnalytics schoolId={viewingSchool.id} />}
                 </TabsContent>
              </Tabs>
           </div>
