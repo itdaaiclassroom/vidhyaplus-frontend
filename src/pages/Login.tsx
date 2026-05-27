@@ -84,6 +84,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [teacherLoginMode, setTeacherLoginMode] = useState<"email" | "id">("email");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -99,36 +100,48 @@ const Login = () => {
     setLoading(true);
     try {
       if (role === "student") {
-        const data = await studentLogin({ student_id: email.trim(), password });
-        login("student", data.full_name, data.id, undefined, undefined, data.token);
-        navigate("/student");
+        try {
+          const data = await studentLogin({ student_id: email.trim(), password });
+          login("student", data.full_name, data.id, undefined, undefined, data.token);
+          navigate("/student");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Login failed");
+        }
       } else if (role === "admin" || role === "team") {
-        let isTeam = role === "team";
-        let data: any;
-        if (isTeam) {
-          data = await teamLogin({ email: email.trim(), password });
-        } else {
-          try {
-            data = await adminLogin({ email: email.trim(), password });
-          } catch {
+        try {
+          let isTeam = role === "team";
+          let data: any;
+
+          if (isTeam) {
+            data = await teamLogin({ email: email.trim(), password });
+          } else {
             try {
-              data = await teamLogin({ email: email.trim(), password });
-              isTeam = true;
-            } catch (err2: any) {
-              throw new Error("Invalid credentials");
+              data = await adminLogin({ email: email.trim(), password });
+            } catch (err: any) {
+              // If admin login fails, try team login automatically
+              try {
+                data = await teamLogin({ email: email.trim(), password });
+                isTeam = true;
+              } catch (err2: any) {
+                throw err; // Throw the original error if both fail
+              }
             }
           }
+
+          if (isTeam) {
+            login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
+            if (data.role) localStorage.setItem("auth.teamRole", data.role);
+          } else {
+            login(data.role || "admin", data.full_name, undefined, undefined, undefined, data.token);
+            localStorage.removeItem("auth.teamRole");
+          }
+          navigate("/admin");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Login failed");
         }
-        if (isTeam) {
-          login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
-          if (data.role) localStorage.setItem("auth.teamRole", data.role);
-        } else {
-          login(data.role || "admin", data.full_name, undefined, undefined, undefined, data.token);
-          localStorage.removeItem("auth.teamRole");
-        }
-        navigate("/admin");
       } else if (role === "teacher") {
         if (teacherLoginMode === "id") {
+          // Teacher ID login — read stored credentials from localStorage
           const storedTeacherId = localStorage.getItem("auth.teacherId");
           const storedEmail = localStorage.getItem("teacher.lastEmail");
           if (!storedTeacherId || !storedEmail) {
@@ -139,29 +152,40 @@ const Login = () => {
             toast.error("Teacher ID does not match. Please check your ID.");
             return;
           }
-          const data = await teacherLogin({ email: storedEmail, password });
-          login((data.role || "teacher") as any, data.full_name, undefined, data.id, undefined, data.token);
-          navigate("/teacher/setup");
+          try {
+            const data = await teacherLogin({ email: storedEmail, password });
+            login((data.role || "teacher") as any, data.full_name, undefined, data.id, undefined, data.token);
+            navigate("/teacher/setup");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Login failed");
+          }
         } else {
-          const data = await teacherLogin({ email: email.trim(), password });
-          localStorage.setItem("teacher.lastEmail", email.trim());
-          login((data.role || "teacher") as any, data.full_name, undefined, data.id, data.school_id, data.token);
-          navigate("/teacher/setup");
+          try {
+            const data = await teacherLogin({ email: email.trim(), password });
+            // Save email for future Teacher ID login
+            localStorage.setItem("teacher.lastEmail", email.trim());
+            login((data.role || "teacher") as any, data.full_name, undefined, data.id, data.school_id, data.token);
+            navigate("/teacher/setup");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Login failed");
+          }
         }
       } else if (role === "principal") {
-        const data = await principalLogin({ email: email.trim(), password });
-        const actualRole = data.role || "principal";
-        login(actualRole as any, data.full_name, undefined, data.id, data.school_id, data.token);
-        navigate("/principal");
+        try {
+          const data = await principalLogin({ email: email.trim(), password });
+          const actualRole = data.role || "principal";
+          login(actualRole as any, data.full_name, undefined, data.id, data.school_id, data.token);
+          navigate("/principal");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Login failed";
+          const friendlyMsg = msg.toLowerCase().includes("teacher not found")
+            ? "Principal account not found. Please check your email and password."
+            : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
+              ? "Invalid email or password. Please try again."
+              : `Login failed: ${msg}`;
+          toast.error(friendlyMsg);
+        }
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Login failed";
-      const friendly = msg.toLowerCase().includes("teacher not found")
-        ? "Account not found. Please check your credentials."
-        : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
-          ? "Invalid credentials. Please try again."
-          : `Login failed: ${msg}`;
-      toast.error(friendly);
     } finally {
       setLoading(false);
     }
@@ -327,171 +351,13 @@ const Login = () => {
               </div>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-
-              {/* Identifier field */}
-              <div>
-                <label htmlFor="email" style={labelStyle}>
-                  {role === "student"
-                    ? "Student ID"
-                    : role === "teacher" && teacherLoginMode === "id"
-                      ? "Teacher ID"
-                      : "Email Address"}
-                </label>
-                <div style={{ position: "relative" }}>
-                  <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={G.text3} strokeWidth="2" strokeLinecap="round">
-                      {role === "student" || (role === "teacher" && teacherLoginMode === "id")
-                        ? <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></>
-                        : <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>
-                      }
-                    </svg>
-                  </div>
-                  <input
-                    id="email"
-                    type={role === "student" || (role === "teacher" && teacherLoginMode === "id") ? "text" : "email"}
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    placeholder={
-                      role === "student" ? "Enter your Student ID"
-                      : role === "teacher" && teacherLoginMode === "id" ? "Enter your Teacher ID"
-                      : "Enter your email"
-                    }
-                    style={{ ...inputStyle, paddingLeft: "2.4rem" }}
-                    onFocus={e => { e.currentTarget.style.borderColor = G.teal; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,185,138,0.12)`; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = "rgba(0,185,138,0.2)"; e.currentTarget.style.boxShadow = "none"; }}
-                  />
-                </div>
-                {role === "student" && (
-                  <p style={{ fontSize: ".73rem", color: G.text3, marginTop: "0.3rem" }}>Use the numeric ID given by your school.</p>
-                )}
-                {role === "teacher" && teacherLoginMode === "id" && (
-                  <p style={{ fontSize: ".73rem", color: G.text3, marginTop: "0.3rem" }}>Use the Teacher ID assigned after your first email login.</p>
-                )}
-              </div>
-
-              {/* Password field */}
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                  <label htmlFor="password" style={{ ...labelStyle, margin: 0 }}>Password</label>
-                  {role === "teacher" && (
-                    <button type="button" onClick={handleForgotPassword} style={{
-                      background: "none", border: "none", cursor: "pointer",
-                      fontSize: ".75rem", fontWeight: 700, color: G.teal,
-                      fontFamily: "Nunito,sans-serif", padding: 0,
-                    }}>
-                      Forgot Password?
-                    </button>
-                  )}
-                </div>
-                <div style={{ position: "relative" }}>
-                  <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={G.text3} strokeWidth="2" strokeLinecap="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                  </div>
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    placeholder="Enter your password"
-                    style={{ ...inputStyle, paddingLeft: "2.4rem", paddingRight: "2.8rem" }}
-                    onFocus={e => { e.currentTarget.style.borderColor = G.teal; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,185,138,0.12)`; }}
-                    onBlur={e => { e.currentTarget.style.borderColor = "rgba(0,185,138,0.2)"; e.currentTarget.style.boxShadow = "none"; }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: G.text3, display: "flex", padding: 0 }}
-                    tabIndex={-1}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      {showPassword
-                        ? <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
-                        : <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></>
-                      }
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: "100%", padding: "0.9rem",
-                  background: loading ? "rgba(0,185,138,0.5)" : `linear-gradient(135deg,${G.teal},${G.teal2})`,
-                  color: "white", border: "none", borderRadius: 12,
-                  fontFamily: "Poppins,sans-serif", fontWeight: 700, fontSize: "0.95rem",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  boxShadow: loading ? "none" : `0 6px 20px rgba(0,185,138,0.35)`,
-                  transition: "all .25s",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  marginTop: "0.25rem",
-                }}
-                onMouseOver={e => { if (!loading) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 28px rgba(0,185,138,0.45)`; }}}
-                onMouseOut={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = loading ? "none" : `0 6px 20px rgba(0,185,138,0.35)`; }}
-              >
-                {loading ? (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{ animation: "spin 1s linear infinite" }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                    Signing In…
-                  </>
-                ) : (
-                  <>
-                    Sign In as {ROLE_CONFIG[role].label}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Footer note */}
-            <p style={{ fontSize: ".73rem", color: G.text3, textAlign: "center", marginTop: "1.25rem", lineHeight: 1.6 }}>
-              All roles require a password set by your admin or during registration.
-            </p>
-
-            {/* Other portal links */}
-            <div style={{ marginTop: "1.25rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(0,185,138,0.1)" }}>
-              <p style={{ fontSize: ".73rem", color: G.text3, textAlign: "center", marginBottom: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>Other Portals</p>
-              <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: ".5rem" }}>
-                {(["student", "teacher", "principal", "admin"] as const).filter(r => r !== role).map(r => (
-                  <Link
-                    key={r}
-                    to={`/login?role=${r}`}
-                    style={{
-                      fontSize: ".73rem", fontWeight: 700, color: G.text2,
-                      textDecoration: "none", padding: "4px 12px",
-                      borderRadius: 50, border: "1px solid rgba(0,185,138,0.18)",
-                      background: "rgba(0,185,138,0.04)", transition: "all .2s",
-                    }}
-                    onMouseOver={e => { e.currentTarget.style.background = "rgba(0,185,138,0.1)"; e.currentTarget.style.color = G.tealDark; e.currentTarget.style.borderColor = "rgba(0,185,138,0.3)"; }}
-                    onMouseOut={e => { e.currentTarget.style.background = "rgba(0,185,138,0.04)"; e.currentTarget.style.color = G.text2; e.currentTarget.style.borderColor = "rgba(0,185,138,0.18)"; }}
-                  >
-                    {ROLE_CONFIG[r].emoji} {ROLE_CONFIG[r].label}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Signing In..." : `Sign In as ${roleLabels[role]}`}
+            </Button>
           </div>
-        </div>
-
-        {/* District badge */}
-        <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
-          <span style={{
-            background: "rgba(0,185,138,0.08)", border: "1px solid rgba(0,185,138,0.2)",
-            borderRadius: 8, padding: "6px 16px",
-            color: G.tealDark, fontSize: ".72rem", fontWeight: 700,
-          }}>
-            🏛 Tribal Government Schools · Kumuram Bheem Asifabad
-          </span>
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            All roles require a password. Use the credentials set by your admin or during registration.
+          </p>
         </div>
       </div>
 
