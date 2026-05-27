@@ -84,7 +84,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [teacherLoginMode, setTeacherLoginMode] = useState<"email" | "id">("email");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
