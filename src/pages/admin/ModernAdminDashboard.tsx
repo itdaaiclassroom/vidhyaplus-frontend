@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import StudentReportCard from "@/components/StudentReportCard";
+import SessionAnalytics from "@/components/SessionAnalytics";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
   MessageSquare, Calendar as CalendarIcon, LogOut, 
@@ -405,23 +406,35 @@ const ModernAdminDashboard = () => {
   ];
 
   const teamRole = localStorage.getItem("auth.teamRole")?.toLowerCase() || "";
+
+  // Map each team sub-role to the nav tab IDs it is allowed to see.
+  // Kept as a lookup so adding a new role only touches this one object.
+  const TEAM_ROLE_NAV_MAP: Record<string, string[]> = {
+    material_management: ["materials"],
+    school_management:   ["schools"],
+    student_management:  ["students"],
+    teacher_management:  ["teachers"],
+  };
+
   const navItems = rawNavItems.filter(item => {
-    if (role === "admin") return true; // Super admin sees all
+    if (role === "admin") return true; // Super admin sees everything
     if (role === "team") {
-      if (teamRole.includes("material") && item.id === "materials") return true;
-      if (teamRole.includes("timetable") && item.id === "timetable") return true;
-      if (teamRole.includes("attendance") && item.id === "logs") return true;
-      if (teamRole.includes("syllabus") && item.id === "materials") return true;
-      if (item.id === "profile") return true; // Everyone sees profile
-      return false;
+      if (item.id === "profile") return true; // Profile always visible
+      const allowed = TEAM_ROLE_NAV_MAP[teamRole] ?? [];
+      return allowed.includes(item.id);
     }
     return false;
   });
 
+  // When a team member lands on a tab they cannot see (e.g. "overview"),
+  // auto-redirect them to their first allowed tab.
   useEffect(() => {
-    if (role === "team" && activeTab === "overview") {
-      const firstTab = navItems[0]?.id;
-      if (firstTab) setActiveTab(firstTab);
+    if (role === "team") {
+      const allowedIds = navItems.map(n => n.id);
+      if (!allowedIds.includes(activeTab)) {
+        const firstTab = navItems[0]?.id;
+        if (firstTab) setActiveTab(firstTab);
+      }
     }
   }, [role, navItems, activeTab]);
 
@@ -439,7 +452,20 @@ const ModernAdminDashboard = () => {
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
             <GraduationCap className="w-6 h-6" />
           </div>
-          <span className="font-display font-bold text-xl text-slate-800">Vidhyaplus</span>
+          <div>
+            <span className="font-display font-bold text-xl text-slate-800">Vidhyaplus</span>
+            {role === "team" && teamRole && (
+              <div className={`mt-0.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                teamRole === "material_management" ? "bg-indigo-100 text-indigo-700" :
+                teamRole === "school_management"   ? "bg-emerald-100 text-emerald-700" :
+                teamRole === "student_management"  ? "bg-amber-100 text-amber-700" :
+                teamRole === "teacher_management"  ? "bg-purple-100 text-purple-700" :
+                "bg-slate-100 text-slate-600"
+              }`}>
+                {teamRole.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+              </div>
+            )}
+          </div>
         </div>
         
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto py-4">
@@ -1946,7 +1972,7 @@ const ModernAdminDashboard = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-8 pt-6">
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
                   <p className="text-xs font-bold text-slate-400 uppercase mb-1">Teachers</p>
                   <p className="text-2xl font-bold text-slate-800">{teachers.filter(t => t.schoolId === viewingSchool?.id).length}</p>
@@ -1963,12 +1989,17 @@ const ModernAdminDashboard = () => {
                   <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sections</p>
                   <p className="text-2xl font-bold text-slate-800">{classes.filter(c => c.schoolId === viewingSchool?.id).length}</p>
                 </Card>
+                <Card className="bg-slate-50 border-0 p-4 rounded-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Sessions</p>
+                  <p className="text-2xl font-bold text-slate-800">{data.liveSessions.filter(ls => classes.filter(c => c.schoolId === viewingSchool?.id).map(c => c.id).includes(ls.classId)).length}</p>
+                </Card>
              </div>
 
              <Tabs defaultValue="school-teachers" className="space-y-6">
                 <TabsList className="bg-slate-100 p-1 rounded-xl">
                   <TabsTrigger value="school-teachers" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Teachers</TabsTrigger>
                   <TabsTrigger value="school-students" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Students</TabsTrigger>
+                  <TabsTrigger value="school-sessions" className="rounded-lg px-6 py-2 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">Sessions</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="school-teachers">
@@ -2133,6 +2164,10 @@ const ModernAdminDashboard = () => {
                         </tbody>
                       </table>
                    </div>
+                </TabsContent>
+
+                <TabsContent value="school-sessions">
+                  {viewingSchool && <SessionAnalytics schoolId={viewingSchool.id} />}
                 </TabsContent>
              </Tabs>
           </div>

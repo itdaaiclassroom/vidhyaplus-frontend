@@ -1,26 +1,31 @@
+import "@/components/homepage/IndexPage.css";
 import Navbar from "@/components/homepage/Navbar";
 import HeroSection from "@/components/homepage/HeroSection";
+import MarqueeSection from "@/components/homepage/MarqueeSection";
 import AboutSection from "@/components/homepage/AboutSection";
-import ChallengesSection from "@/components/homepage/ChallengesSection";
-import FeaturesSection from "@/components/homepage/FeaturesSection";
+import PortalsSection from "@/components/homepage/PortalsSection";
+import QRSection from "@/components/homepage/QRSection";
 import WorkflowSection from "@/components/homepage/WorkflowSection";
-import ImpactSection from "@/components/homepage/ImpactSection";
-import BenefitsSection from "@/components/homepage/BenefitsSection";
+import FeaturesSection from "@/components/homepage/FeaturesSection";
+import ChallengesSection from "@/components/homepage/ChallengesSection";
+import CTASection from "@/components/homepage/CTASection";
 import FooterSection from "@/components/homepage/FooterSection";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <Navbar />
       <HeroSection />
+      <MarqueeSection />
       <AboutSection />
-      <ChallengesSection />
-      <FeaturesSection />
+      <PortalsSection />
+      <QRSection />
       <WorkflowSection />
-      <ImpactSection />
-      <BenefitsSection />
+      <FeaturesSection />
+      <ChallengesSection />
+      <CTASection />
       <FooterSection />
-    </div>
+    </>
   );
 };
 
