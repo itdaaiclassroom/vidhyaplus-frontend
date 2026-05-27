@@ -18,6 +18,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [teacherLoginMode, setTeacherLoginMode] = useState<"email" | "id">("email");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -29,92 +30,97 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === "student") {
-      try {
-        const data = await studentLogin({ email: email.trim(), password });
-        login("student", data.full_name, data.id, undefined, undefined, data.token);
-        navigate("/student");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Login failed");
-      }
-    } else if (role === "admin" || role === "team") {
-      try {
-        let isTeam = role === "team";
-        let data: any;
+    setLoading(true);
+    try {
+      if (role === "student") {
+        try {
+          const data = await studentLogin({ student_id: email.trim(), password });
+          login("student", data.full_name, data.id, undefined, undefined, data.token);
+          navigate("/student");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Login failed");
+        }
+      } else if (role === "admin" || role === "team") {
+        try {
+          let isTeam = role === "team";
+          let data: any;
 
-        if (isTeam) {
-          data = await teamLogin({ email: email.trim(), password });
-        } else {
-          try {
-            data = await adminLogin({ email: email.trim(), password });
-          } catch (err: any) {
-            // If admin login fails, try team login automatically
+          if (isTeam) {
+            data = await teamLogin({ email: email.trim(), password });
+          } else {
             try {
-              data = await teamLogin({ email: email.trim(), password });
-              isTeam = true;
-            } catch (err2: any) {
-              throw err; // Throw the original error if both fail
+              data = await adminLogin({ email: email.trim(), password });
+            } catch (err: any) {
+              // If admin login fails, try team login automatically
+              try {
+                data = await teamLogin({ email: email.trim(), password });
+                isTeam = true;
+              } catch (err2: any) {
+                throw err; // Throw the original error if both fail
+              }
             }
           }
-        }
 
-        if (isTeam) {
-          login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
-          if (data.role) localStorage.setItem("auth.teamRole", data.role);
+          if (isTeam) {
+            login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
+            if (data.role) localStorage.setItem("auth.teamRole", data.role);
+          } else {
+            login(data.role || "admin", data.full_name, undefined, undefined, undefined, data.token);
+            localStorage.removeItem("auth.teamRole");
+          }
+          navigate("/admin");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Login failed");
+        }
+      } else if (role === "teacher") {
+        if (teacherLoginMode === "id") {
+          // Teacher ID login — read stored credentials from localStorage
+          const storedTeacherId = localStorage.getItem("auth.teacherId");
+          const storedEmail = localStorage.getItem("teacher.lastEmail");
+          if (!storedTeacherId || !storedEmail) {
+            toast.error("Please login once using email before using Teacher ID.");
+            return;
+          }
+          if (email.trim() !== storedTeacherId) {
+            toast.error("Teacher ID does not match. Please check your ID.");
+            return;
+          }
+          try {
+            const data = await teacherLogin({ email: storedEmail, password });
+            login((data.role || "teacher") as any, data.full_name, undefined, data.id, undefined, data.token);
+            navigate("/teacher/setup");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Login failed");
+          }
         } else {
-          login(data.role || "admin", data.full_name, undefined, undefined, undefined, data.token);
-          localStorage.removeItem("auth.teamRole");
+          try {
+            const data = await teacherLogin({ email: email.trim(), password });
+            // Save email for future Teacher ID login
+            localStorage.setItem("teacher.lastEmail", email.trim());
+            login((data.role || "teacher") as any, data.full_name, undefined, data.id, data.school_id, data.token);
+            navigate("/teacher/setup");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Login failed");
+          }
         }
-        navigate("/admin");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Login failed");
-      }
-    } else if (role === "teacher") {
-      if (teacherLoginMode === "id") {
-        // Teacher ID login — read stored credentials from localStorage
-        const storedTeacherId = localStorage.getItem("auth.teacherId");
-        const storedEmail = localStorage.getItem("teacher.lastEmail");
-        if (!storedTeacherId || !storedEmail) {
-          toast.error("Please login once using email before using Teacher ID.");
-          return;
-        }
-        if (email.trim() !== storedTeacherId) {
-          toast.error("Teacher ID does not match. Please check your ID.");
-          return;
-        }
+      } else if (role === "principal") {
         try {
-          const data = await teacherLogin({ email: storedEmail, password });
-          login((data.role || "teacher") as any, data.full_name, undefined, data.id, undefined, data.token);
-          navigate("/teacher/setup");
+          const data = await principalLogin({ email: email.trim(), password });
+          const actualRole = data.role || "principal";
+          login(actualRole as any, data.full_name, undefined, data.id, data.school_id, data.token);
+          navigate("/principal");
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Login failed");
-        }
-      } else {
-        try {
-          const data = await teacherLogin({ email: email.trim(), password });
-          // Save email for future Teacher ID login
-          localStorage.setItem("teacher.lastEmail", email.trim());
-          login((data.role || "teacher") as any, data.full_name, undefined, data.id, data.school_id, data.token);
-          navigate("/teacher/setup");
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Login failed");
+          const msg = err instanceof Error ? err.message : "Login failed";
+          const friendlyMsg = msg.toLowerCase().includes("teacher not found")
+            ? "Principal account not found. Please check your email and password."
+            : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
+              ? "Invalid email or password. Please try again."
+              : `Login failed: ${msg}`;
+          toast.error(friendlyMsg);
         }
       }
-    } else if (role === "principal") {
-      try {
-        const data = await principalLogin({ email: email.trim(), password });
-        const actualRole = data.role || "principal";
-        login(actualRole as any, data.full_name, undefined, data.id, data.school_id, data.token);
-        navigate("/principal");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Login failed";
-        const friendlyMsg = msg.toLowerCase().includes("teacher not found")
-          ? "Principal account not found. Please check your email and password."
-          : msg.toLowerCase().includes("invalid") || msg.toLowerCase().includes("password")
-            ? "Invalid email or password. Please try again."
-            : `Login failed: ${msg}`;
-        toast.error(friendlyMsg);
-      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -232,8 +238,8 @@ const Login = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full" size="lg">
-              Sign In as {roleLabels[role]}
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Signing In..." : `Sign In as ${roleLabels[role]}`}
             </Button>
           </form>
           <p className="text-xs text-muted-foreground text-center mt-4">

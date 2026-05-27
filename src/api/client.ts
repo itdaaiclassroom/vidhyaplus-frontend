@@ -1090,7 +1090,7 @@ export async function extractTextbookCurriculum(
 }
 
 
-export async function fetchAdminOverview(): Promise<{
+export async function fetchAdminOverview(date?: string): Promise<{
   totalSchools: number;
   totalTeachers: number;
   totalStudents: number;
@@ -1098,18 +1098,20 @@ export async function fetchAdminOverview(): Promise<{
   sessionsTotal: number;
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/admin/overview`, { headers: getAuthHeaders() });
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  const res = await fetch(`${API_BASE}/api/admin/overview${query}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
-export async function fetchAdminAnalytics(): Promise<{
+export async function fetchAdminAnalytics(date?: string): Promise<{
   students: Array<{ date: string; active: number }>;
   teachers: Array<{ date: string; active: number }>;
   sessions: { completed: number; remaining: number; total: number };
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/admin/analytics`, { headers: getAuthHeaders() });
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  const res = await fetch(`${API_BASE}/api/admin/analytics${query}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
@@ -1132,6 +1134,15 @@ export async function createAnnouncement(payload: {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchAdminAnnouncements(): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/admin/announcements`, {
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
