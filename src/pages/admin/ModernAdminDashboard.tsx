@@ -33,6 +33,7 @@ import MaterialManagement from "./MaterialManagement";
 import GatingAdminPanel from "./GatingAdminPanel";
 import UserManagementPanel from "./UserManagementPanel";
 import { ReportsPanel } from "./ReportsPanel";
+import TeacherReportsDialog from "@/components/TeacherReportsDialog";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -79,6 +80,9 @@ const ModernAdminDashboard = () => {
   const [analytics, setAnalytics] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
+
+  const [selectedReportTeacherId, setSelectedReportTeacherId] = useState<string | null>(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   // ── Audit Logs state ──────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -1147,7 +1151,20 @@ const ModernAdminDashboard = () => {
                                 <td className="px-6 py-4 text-sm text-slate-500">{schools.find(sc => sc.id === t.schoolId)?.name || 'Main School'}</td>
                                 <td className="px-6 py-4 text-sm text-slate-500">{teacherSubjects || 'Not Assigned'}</td>
                                 <td className="px-6 py-4 text-sm text-right">
-                                  <Badge className="bg-emerald-100 text-emerald-600 border-0">Active</Badge>
+                                  <div className="flex items-center justify-end gap-3">
+                                    <Badge className="bg-emerald-100 text-emerald-600 border-0">Active</Badge>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-7 text-xs font-medium border-slate-200 hover:bg-slate-50 shadow-sm"
+                                      onClick={() => {
+                                        setSelectedReportTeacherId(t.id);
+                                        setReportModalOpen(true);
+                                      }}
+                                    >
+                                      View Reports
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             )
@@ -2255,11 +2272,12 @@ const ModernAdminDashboard = () => {
       {/* AI Report Card Result Dialog */}
       <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
         <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
-          <div ref={reportRef}>
+          <div className="bg-white sticky top-0 z-10 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold text-slate-800 tracking-tight">AI Generated Report</DialogTitle>
+          </div>
+          <div className="p-6">
             <StudentReportCard
               studentName={aiReportStudentName}
-              className={aiReportData?.className || "N/A"}
-              rollNumber={aiReportData?.rollNumber || "N/A"}
               schoolName="VidhyaPlus Academy"
               attendance={aiReportData?.attendance || 0}
               perfIndex={aiReportData?.perfIndex || 0}
@@ -2272,6 +2290,12 @@ const ModernAdminDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TeacherReportsDialog 
+        open={reportModalOpen} 
+        onOpenChange={setReportModalOpen} 
+        teacherId={selectedReportTeacherId} 
+      />
     </div>
   );
 };
