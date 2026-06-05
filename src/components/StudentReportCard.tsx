@@ -74,9 +74,25 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
     const fetchData = async () => {
       setLoading(true);
       try {
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json"
+        };
+        const token = localStorage.getItem("auth.token");
+        const teacherId = localStorage.getItem("auth.teacherId");
+        const schoolId = localStorage.getItem("auth.schoolId");
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        if (teacherId) headers["x-principal-id"] = teacherId;
+        if (schoolId) headers["x-school-id"] = schoolId;
+
         const [reportRes, aiRes] = await Promise.all([
-          fetch(`${getApiBase()}/api/reportcard/${studentId}`).then(res => res.json()),
-          fetch(`${getApiBase()}/api/reportcard/${studentId}/generate-insights`, { method: 'POST' }).then(res => res.json())
+          fetch(`${getApiBase()}/api/reportcard/${studentId}`, { headers }).then(res => {
+            if (!res.ok) throw new Error("Fetch failed");
+            return res.json();
+          }),
+          fetch(`${getApiBase()}/api/reportcard/${studentId}/generate-insights`, { method: 'POST', headers }).then(res => {
+            if (!res.ok) throw new Error("Insights failed");
+            return res.json();
+          })
         ]);
         setData(reportRes);
         if (aiRes.success && aiRes.insights) {
@@ -90,32 +106,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
     };
     fetchData();
   }, [studentId]);
-  // Mock data for graphs if not provided
-  const progressData = [
-    { name: 'FA1', score: 50 },
-    { name: 'FA2', score: 61.2 },
-    { name: 'SA1', score: 65.6 },
-    { name: 'SA2', score: 85 },
-  ];
 
-  const quizPerformanceData = [
-    { name: 'Qui1', score: 55 },
-    { name: 'Qui2', score: 70 },
-    { name: 'Qui3', score: 68 },
-    { name: 'Qui4', score: 80 },
-    { name: 'SA2', score: 45 },
-  ];
-
-  const defaultSubjectGrades: SubjectGrade[] = [
-    { name: "English", fa1: 15, fa2: 14, fa3: 15, fa4: 13, sa1: 42, sa2: 45, quiz: 38, grade: "A" },
-    { name: "Mathematics", fa1: 12, fa2: 13, fa3: 12, fa4: 14, sa1: 38, sa2: 40, quiz: 35, grade: "B+" },
-    { name: "Science", fa1: 15, fa2: 15, fa3: 15, fa4: 15, sa1: 45, sa2: 48, quiz: 45, grade: "A+" },
-    { name: "Social Studies", fa1: 14, fa2: 14, fa3: 13, fa4: 14, sa1: 40, sa2: 42, quiz: 40, grade: "A" },
-    { name: "Second Language", fa1: 12, fa2: 12, fa3: 13, fa4: 12, sa1: 35, sa2: 38, quiz: 32, grade: "B" },
-    { name: "Computer Science", fa1: 15, fa2: 15, fa3: 15, fa4: 15, sa1: 48, sa2: 50, quiz: 48, grade: "A+" },
-  ];
-
-  const displayGrades = subjectGrades || defaultSubjectGrades;
 
   const displayStudentName = data?.studentDetails?.first_name ? `${data.studentDetails.first_name} ${data.studentDetails.last_name || ''}` : studentName;
   const displayClassName = data?.studentDetails?.grade_id ? `Class ${data.studentDetails.grade_id}-${data.studentDetails.section_code}` : className;
@@ -127,7 +118,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
 
   // Map backend academic performance to display format if data exists
   const dynamicSubjectGrades = useMemo(() => {
-    if (!data?.academicPerformance) return displayGrades;
+    if (!data?.academicPerformance || data.academicPerformance.length === 0) return [];
     const subjectsMap: Record<string, any> = {};
     data.academicPerformance.forEach((ap: any) => {
       const sub = ap.subject_name;
@@ -138,10 +129,10 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
       }
     });
     return Object.values(subjectsMap);
-  }, [data, displayGrades]);
+  }, [data]);
 
   const dynamicProgressData = useMemo(() => {
-    if (!data?.academicPerformance) return progressData;
+    if (!data?.academicPerformance || data.academicPerformance.length === 0) return [];
     const exams = ['FA1', 'FA2', 'SA1', 'SA2'];
     return exams.map(exam => {
       const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === exam);
@@ -150,22 +141,21 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
       const score = totalMax > 0 ? (totalObtained / totalMax) * 100 : 0;
       return { name: exam, score: parseFloat(score.toFixed(1)) };
     });
-  }, [data, progressData]);
+  }, [data]);
 
   const dynamicQuizPerformanceData = useMemo(() => {
-    if (!data?.academicPerformance) return quizPerformanceData;
+    if (!data?.academicPerformance || data.academicPerformance.length === 0) return [];
     const marks = data.academicPerformance.filter((ap: any) => ap.exam_type === 'QUIZ');
-    if (marks.length === 0) return quizPerformanceData;
+    if (marks.length === 0) return [];
     return marks.map((ap: any) => {
       const score = ap.max_marks > 0 ? (ap.marks_obtained / ap.max_marks) * 100 : 0;
       return { name: ap.subject_name.substring(0, 4), score: parseFloat(score.toFixed(1)) };
     });
-  }, [data, quizPerformanceData]);
+  }, [data]);
 
-  const progressDataToUse = data ? dynamicProgressData : progressData;
-  const quizPerformanceDataToUse = data ? dynamicQuizPerformanceData : quizPerformanceData;
-
-  const gradesToUse = data ? dynamicSubjectGrades : displayGrades;
+  const progressDataToUse = dynamicProgressData;
+  const quizPerformanceDataToUse = dynamicQuizPerformanceData;
+  const gradesToUse = dynamicSubjectGrades;
 
   const narrative = useMemo(() => {
     if (aiInsights) {
