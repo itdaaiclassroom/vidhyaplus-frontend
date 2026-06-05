@@ -1096,6 +1096,21 @@ export async function fetchAdminOverview(date?: string): Promise<{
   totalStudents: number;
   sessionsCompleted: number;
   sessionsTotal: number;
+  studentAttendance?: {
+    total: number;
+    present: number;
+    absent: number;
+  };
+  teacherAttendance?: {
+    total: number;
+    present: number;
+    absent: number;
+    leave?: number;
+  };
+  sessions?: {
+    total: number;
+    completed: number;
+  };
 }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const query = date ? `?date=${encodeURIComponent(date)}` : "";

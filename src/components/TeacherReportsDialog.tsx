@@ -97,8 +97,34 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
     const relevantChapterIds = new Set(relevantChapters.map(c => c.id));
     const relevantTopics = data.topics.filter(t => relevantChapterIds.has(t.chapterId)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    const totalTopics = relevantTopics.length;
-    const completedTopics = relevantTopics.filter(t => t.status === "completed" || t.status === "done").length;
+    const topicStatusMap = new Map<string, string>();
+    const teacherLiveSessions = data.liveSessions?.filter(ls => {
+      if (ls.teacherId !== teacher.id) return false;
+      if (reportType === "individual" && selectedGrade) {
+        const cls = data.classes.find(c => c.id === ls.classId);
+        if (cls?.grade !== selectedGrade) return false;
+      }
+      return true;
+    }) || [];
+
+    teacherLiveSessions.forEach(ls => {
+      const existing = topicStatusMap.get(ls.topicId);
+      if (existing === 'completed' || existing === 'done') return;
+      const st = ls.status?.toLowerCase();
+      if (st === 'completed' || st === 'done' || st === 'ended') {
+        topicStatusMap.set(ls.topicId, 'completed');
+      } else {
+        topicStatusMap.set(ls.topicId, 'in_progress');
+      }
+    });
+
+    const dynamicTopics = relevantTopics.map(t => {
+      const dynamicStatus = topicStatusMap.get(t.id);
+      return { ...t, status: dynamicStatus || "not_started" };
+    });
+
+    const totalTopics = dynamicTopics.length;
+    const completedTopics = dynamicTopics.filter(t => t.status === "completed" || t.status === "done").length;
     let completionRate = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
     // Dynamically retrieve attendance percentage from classStatus logs or teacherEffectiveness
@@ -125,12 +151,12 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
 
     return {
       chapters: relevantChapters,
-      topics: relevantTopics,
+      topics: dynamicTopics,
       attendancePct,
       completionRate
     };
 
-  }, [teacher, reportType, selectedGrade, selectedSubjectId, data.chapters, data.topics, data.classStatus, data.teacherEffectiveness, teacherSubjects, teacherGrades]);
+  }, [teacher, reportType, selectedGrade, selectedSubjectId, data.chapters, data.topics, data.classStatus, data.teacherEffectiveness, teacherSubjects, teacherGrades, data.liveSessions, data.classes]);
 
   const handleSelectType = (type: "individual" | "overall") => {
     setReportType(type);
@@ -159,20 +185,20 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
         <DialogTitle className="sr-only">Reports for {teacher.name}</DialogTitle>
 
         {/* Modal Header */}
-        <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-green-600 border-b border-green-700 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             {step > 1 && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setStep(step - 1)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-white hover:bg-green-700 hover:text-white" onClick={() => setStep(step - 1)}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
             <div>
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight">Teacher Reports</h2>
-              <p className="text-sm text-slate-500 font-medium">{teacher.name}</p>
+              <h2 className="text-xl font-bold text-white tracking-tight">Teacher Reports</h2>
+              <p className="text-sm text-green-100 font-medium">{teacher.name}</p>
             </div>
           </div>
           {step === 4 && (
-             <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0 px-3 py-1 text-sm font-medium">
+             <Badge className="bg-white/20 text-white hover:bg-white/30 border-0 px-3 py-1 text-sm font-medium">
                {reportType === "overall" ? "Overall Report" : "Class Report"}
              </Badge>
           )}
@@ -368,25 +394,27 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
                       
                       return (
                         <div key={chapter.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                          <h4 className="text-lg font-bold text-slate-800 mb-4">{chapter.name}</h4>
+                          <div className="p-2 -mx-2 mb-4 rounded-lg hover:bg-green-500 transition-colors group/chapter">
+                            <h4 className="text-lg font-bold text-slate-800 group-hover/chapter:text-white">{chapter.name}</h4>
+                          </div>
                           {chapterTopics.length === 0 ? (
                              <p className="text-sm text-slate-400 italic">No topics found for this chapter.</p>
                           ) : (
-                            <div className="space-y-3 pl-4">
+                            <div className="space-y-1 pl-4">
                               {chapterTopics.map(topic => {
                                 const isCompleted = topic.status === "completed" || topic.status === "done";
                                 const isInProgress = topic.status === "in_progress" || topic.status === "active";
                                 
                                 return (
-                                  <div key={topic.id} className="flex items-center gap-3">
+                                  <div key={topic.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-500 transition-colors group/topic cursor-default">
                                     {isCompleted ? (
-                                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                                      <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 group-hover/topic:text-white" />
                                     ) : isInProgress ? (
-                                      <Clock className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                                      <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 group-hover/topic:text-white" />
                                     ) : (
-                                      <Circle className="w-5 h-5 text-slate-300 flex-shrink-0" />
+                                      <Circle className="w-5 h-5 text-slate-300 flex-shrink-0 group-hover/topic:text-white" />
                                     )}
-                                    <span className={`text-base font-medium ${isCompleted ? 'text-slate-800' : 'text-slate-600'}`}>
+                                    <span className={`text-base font-medium ${isCompleted ? 'text-slate-800' : 'text-slate-600'} group-hover/topic:text-white`}>
                                       {topic.name}
                                     </span>
                                   </div>
