@@ -78,6 +78,8 @@ const ModernAdminDashboard = () => {
   const [announcementTarget, setAnnouncementTarget] = useState<string>("all");
   const [analytics, setAnalytics] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
+  const [overviewDate, setOverviewDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'));
+  const [overviewLoading, setOverviewLoading] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
 
   const [selectedReportTeacherId, setSelectedReportTeacherId] = useState<string | null>(null);
@@ -236,9 +238,19 @@ const ModernAdminDashboard = () => {
 
   // Load Admin specific data
   useEffect(() => {
-    fetchAdminOverview("").then(setOverview).catch(console.error);
-    fetchAdminAnalytics("").then(setAnalytics).catch(console.error);
-  }, []);
+    setOverviewLoading(true);
+    const startTime = Date.now();
+    fetchAdminOverview(overviewDate)
+      .then(setOverview)
+      .catch(console.error)
+      .finally(() => {
+        const elapsed = Date.now() - startTime;
+        const delay = Math.max(0, 1000 - elapsed);
+        setTimeout(() => {
+          setOverviewLoading(false);
+        }, delay);
+      });
+  }, [overviewDate]);
 
   useEffect(() => {
     fetchTeacherLogs().then(setLogs).catch(console.error);
@@ -509,10 +521,33 @@ const ModernAdminDashboard = () => {
               <p className="text-slate-500">Here's what's happening today.</p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input className="pl-10 w-64 bg-white border-slate-200" placeholder="Search everything..." />
-              </div>
+              {activeTab === "overview" && (
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-slate-300">
+                  <CalendarIcon className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-bold text-slate-500">Overview Date:</span>
+                  <input
+                    type="date"
+                    value={overviewDate}
+                    onChange={(e) => setOverviewDate(e.target.value)}
+                    className="text-xs p-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-slate-700 font-extrabold font-mono"
+                  />
+                  {overviewDate !== new Date().toLocaleDateString('en-CA') && (
+                    <button
+                      onClick={() => setOverviewDate(new Date().toLocaleDateString('en-CA'))}
+                      className="text-[10px] text-primary hover:text-primary/80 font-bold bg-primary/10 px-2 py-0.5 rounded-md transition-colors"
+                      title="Reset to today"
+                    >
+                      Today
+                    </button>
+                  )}
+                </div>
+              )}
+              {activeTab !== "overview" && (
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input className="pl-10 w-64 bg-white border-slate-200" placeholder="Search everything..." />
+                </div>
+              )}
               {activeTab === "schools" && (
                 <Button className="rounded-xl px-6" onClick={() => { setEditingSchool(null); setSchoolFormOpen(true); }}>
                   <Plus className="w-4 h-4 mr-2" /> Add School
@@ -524,9 +559,25 @@ const ModernAdminDashboard = () => {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           {/* Overview Content */}
-          <TabsContent value="overview" className="space-y-8 animate-in fade-in duration-300">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <TabsContent value="overview" className="relative min-h-[400px] space-y-8 animate-in fade-in duration-300">
+            {overviewLoading && (
+              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50/70 backdrop-blur-md rounded-3xl transition-all duration-300">
+                <div className="flex flex-col items-center space-y-4 bg-white/80 p-8 rounded-3xl border border-slate-100/80 shadow-2xl shadow-slate-200/50 backdrop-blur-xl max-w-sm">
+                  {/* Premium Spinner */}
+                  <div className="relative w-16 h-16">
+                    <div className="absolute inset-0 rounded-full border-4 border-primary/10" />
+                    <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h4 className="text-slate-800 font-extrabold text-base tracking-tight animate-bounce">Please wait</h4>
+                    <p className="text-slate-500 text-xs font-semibold animate-pulse">Loading your data...</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className={overviewLoading ? "hidden" : "space-y-8"}>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <SummaryCard 
                 title="Total Schools" 
                 value={overview?.totalSchools || 0} 
@@ -557,8 +608,180 @@ const ModernAdminDashboard = () => {
               />
             </div>
 
+            {/* Daily Telemetry Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Student Attendance Card */}
+              <Card className="border-0 shadow-sm rounded-3xl overflow-hidden bg-white hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Student Attendance</h4>
+                      <p className="text-2xl font-black text-slate-800 tracking-tight font-display">
+                        {overview?.studentAttendance?.present !== undefined 
+                          ? `${overview.studentAttendance.present} Present` 
+                          : "No Data"}
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-500">Daily Attendance Rate</span>
+                      <span className="text-teal-600 font-mono">
+                        {overview?.studentAttendance?.total && overview?.studentAttendance?.total > 0
+                          ? `${Math.round((overview.studentAttendance.present / overview.studentAttendance.total) * 100)}%`
+                          : "0%"}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-teal-500 rounded-full transition-all duration-500" 
+                        style={{ 
+                          width: `${overview?.studentAttendance?.total && overview?.studentAttendance?.total > 0 
+                            ? Math.round((overview.studentAttendance.present / overview.studentAttendance.total) * 100) 
+                            : 0}%` 
+                        }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Total Students</span>
+                      <p className="text-base font-extrabold text-slate-700 font-mono mt-0.5">
+                        {overview?.studentAttendance?.total ?? "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Absent Students</span>
+                      <p className="text-base font-extrabold text-rose-500 font-mono mt-0.5">
+                        {overview?.studentAttendance?.absent ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Teacher Attendance Card */}
+              <Card className="border-0 shadow-sm rounded-3xl overflow-hidden bg-white hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Teacher Attendance</h4>
+                      <p className="text-2xl font-black text-slate-800 tracking-tight font-display">
+                        {overview?.teacherAttendance?.present !== undefined 
+                          ? `${overview.teacherAttendance.present} Present` 
+                          : "No Data"}
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                      <Users className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-500">Daily Attendance Rate</span>
+                      <span className="text-purple-600 font-mono">
+                        {overview?.teacherAttendance?.total && overview?.teacherAttendance?.total > 0
+                          ? `${Math.round((overview.teacherAttendance.present / overview.teacherAttendance.total) * 100)}%`
+                          : "0%"}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-purple-500 rounded-full transition-all duration-500" 
+                        style={{ 
+                          width: `${overview?.teacherAttendance?.total && overview?.teacherAttendance?.total > 0 
+                            ? Math.round((overview.teacherAttendance.present / overview.teacherAttendance.total) * 100) 
+                            : 0}%` 
+                        }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Total Teachers</span>
+                      <p className="text-base font-extrabold text-slate-700 font-mono mt-0.5">
+                        {overview?.teacherAttendance?.total ?? "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Absent Teachers</span>
+                      <p className="text-base font-extrabold text-rose-500 font-mono mt-0.5">
+                        {overview?.teacherAttendance?.absent ?? "—"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Session Metrics Card */}
+              <Card className="border-0 shadow-sm rounded-3xl overflow-hidden bg-white hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Daily Sessions</h4>
+                      <p className="text-2xl font-black text-slate-800 tracking-tight font-display">
+                        {overview?.sessions?.completed !== undefined 
+                          ? `${overview.sessions.completed} Completed` 
+                          : "No Data"}
+                      </p>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                      <Activity className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-slate-500">Daily Completion Rate</span>
+                      <span className="text-emerald-600 font-mono">
+                        {overview?.sessions?.total && overview?.sessions?.total > 0
+                          ? `${Math.round((overview.sessions.completed / overview.sessions.total) * 100)}%`
+                          : "0%"}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
+                        style={{ 
+                          width: `${overview?.sessions?.total && overview?.sessions?.total > 0 
+                            ? Math.round((overview.sessions.completed / overview.sessions.total) * 100) 
+                            : 0}%` 
+                        }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-center">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Total Scheduled</span>
+                      <p className="text-base font-extrabold text-slate-700 font-mono mt-0.5">
+                        {overview?.sessions?.total ?? "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400">Remaining</span>
+                      <p className="text-base font-extrabold text-amber-500 font-mono mt-0.5">
+                        {overview?.sessions?.total && overview?.sessions?.completed !== undefined
+                          ? Math.max(0, overview.sessions.total - overview.sessions.completed)
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            </div>
+
             {/* Analytics Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {false && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Student Analytics Card */}
               <Card className="border-0 shadow-sm rounded-3xl overflow-hidden bg-white hover:shadow-lg transition-all duration-300">
                 <CardHeader className="bg-white border-b border-slate-50 py-5 px-6">
@@ -832,6 +1055,7 @@ const ModernAdminDashboard = () => {
                 </CardContent>
               </Card>
             </div>
+            )}
           </TabsContent>
 
           {/* Students Content */}
