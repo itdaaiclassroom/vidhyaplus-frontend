@@ -1872,7 +1872,7 @@ export async function deleteAllQuestions(filters: any): Promise<{ deleted_count:
   return res.json();
 }
 
-/** POST /api/subjects/:id/question-bank/bulk â bulk upload from base64 Excel/CSV */
+/** POST /api/subjects/:id/question-bank/bulk — bulk upload from base64 Excel/CSV */
 export async function bulkUploadQuestions(
   file: File
 ): Promise<BulkUploadQuestionsResponse> {
@@ -2004,6 +2004,90 @@ export async function getReportAnalytics(filters?: any): Promise<any> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const query = filters ? "?" + new URLSearchParams(filters).toString() : "";
   const res = await fetch(`${API_BASE}/api/admin/reports/ai-analytics${query}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+// ── Curriculum Structure APIs ─────────────────────────────────────────────────
+
+export interface CurriculumTopic {
+  id: number;
+  topic_name: string;
+  topic_order: number | null;
+  subtopics: string[];
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface CurriculumChapter {
+  subject_id: number;
+  subject_name: string;
+  grade: number;
+  chapter_name: string;
+  chapter_order: number | null;
+  learning_intent: string | null;
+  source: 'excel' | 'ai' | 'manual';
+  topics: CurriculumTopic[];
+}
+
+export interface CurriculumStructureResponse {
+  total_topics: number;
+  chapters: CurriculumChapter[];
+}
+
+export interface BulkUploadCurriculumResponse {
+  ok: boolean;
+  uploaded: number;
+  skipped: number;
+  failed: number;
+  errors: Array<{ row: number; reason: string }>;
+}
+
+/** POST /api/subjects/curriculum/bulk — upload curriculum Excel (subject, grade, chapter, topic) */
+export async function bulkUploadCurriculum(file: File): Promise<BulkUploadCurriculumResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const buffer = await file.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  const base64 = btoa(binary);
+  const dataUrl = `data:${file.type || 'application/octet-stream'};base64,${base64}`;
+  const res = await fetch(`${API_BASE}/api/subjects/curriculum/bulk`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ file: dataUrl }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** GET /api/subjects/curriculum — fetch curriculum grouped by chapter */
+export async function fetchCurriculumStructure(params?: {
+  subject_id?: number | string;
+  grade?: number;
+  chapter?: string;
+}): Promise<CurriculumStructureResponse> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const query = new URLSearchParams(
+    Object.entries(params || {})
+      .filter(([, v]) => v !== undefined && v !== "" && v !== 0)
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
+  const res = await fetch(
+    `${API_BASE}/api/subjects/curriculum${query ? `?${query}` : ""}`,
+    { headers: getAuthHeaders() }
+  );
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+/** DELETE /api/subjects/curriculum/:id — delete a single curriculum entry */
+export async function deleteCurriculumEntry(id: number): Promise<{ ok: boolean; deleted: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/subjects/curriculum/${id}`, {
+    method: "DELETE",
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
