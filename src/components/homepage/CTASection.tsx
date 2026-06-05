@@ -14,7 +14,7 @@ const CTASection = () => {
       <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.1) 1px,transparent 1px)", backgroundSize: "24px 24px" }} />
       <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
         <h2 style={{ fontFamily: "Nunito,sans-serif", fontWeight: 900, fontSize: "clamp(1.8rem,3.5vw,2.8rem)", color: "white", marginBottom: "1rem", lineHeight: 1.2 }}>Empowering Government Schools with Smart Learning</h2>
-        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "1rem", marginBottom: "2.5rem", lineHeight: 1.8 }}>A district-level government initiative deploying AI-powered teaching, QR-based assessments, and real-time monitoring across tribal government schools of Kumuram Bheem Asifabad — improving accountability and student outcomes every day.</p>
+        <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "1rem", marginBottom: "2.5rem", lineHeight: 1.8 }}>A district-level government initiative deploying AI-powered teaching, QR-based assessments, and real-time monitoring across government schools of Kumuram Bheem Asifabad — improving accountability and student outcomes every day.</p>
         <div style={{ display: "flex", justifyContent: "center", gap: "1rem", flexWrap: "wrap" }}>
           <button onClick={() => document.getElementById("about")?.scrollIntoView({ behavior: "smooth" })} style={{ border: "2px solid rgba(255,255,255,.5)", color: "white", padding: ".9rem 2.2rem", borderRadius: 50, fontWeight: 700, fontSize: ".95rem", background: "transparent", cursor: "pointer", fontFamily: "Poppins,sans-serif", display: "inline-flex", alignItems: "center", gap: 8 }}>Learn About the Initiative →</button>
         </div>

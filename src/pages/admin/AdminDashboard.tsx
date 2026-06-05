@@ -37,6 +37,7 @@ import { createSchool, updateSchool, deleteSchool, getTeacherAssignments, update
 import { uploadFileToR2, deleteFileFromR2 } from "@/services/uploadService";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { ReportsPanel } from "./ReportsPanel";
 
 const AdminDashboard = () => {
   const { data, loading, error, isFromApi, refetch } = useAppData();
@@ -800,6 +801,7 @@ const AdminDashboard = () => {
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="classstatus">Class Status</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
           <div className="relative inline-block" ref={registrationRef}>
             <Button variant="ghost" onClick={() => setShowRegistrationMenu(v => !v)} className="h-9">Registration</Button>
             {showRegistrationMenu && (
@@ -2158,6 +2160,11 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* REPORTS */}
+        <TabsContent value="reports" className="space-y-4">
+          <ReportsPanel />
         </TabsContent>
       </Tabs>
 

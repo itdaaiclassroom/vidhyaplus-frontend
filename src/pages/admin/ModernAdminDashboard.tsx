@@ -32,6 +32,7 @@ import type { AuditLogEntry } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
 import GatingAdminPanel from "./GatingAdminPanel";
 import UserManagementPanel from "./UserManagementPanel";
+import { ReportsPanel } from "./ReportsPanel";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -399,6 +400,7 @@ const ModernAdminDashboard = () => {
     { id: "students", label: "Students", icon: GraduationCap },
     { id: "materials", label: "Materials", icon: BookOpen },
     { id: "logs", label: "Logs", icon: ClipboardList },
+    { id: "reports", label: "Reports", icon: ClipboardList },
     { id: "announcements", label: "Announcements", icon: MessageSquare },
     { id: "gating", label: "Gating Controls", icon: ShieldCheck },
     { id: "profile", label: "Profile", icon: Settings },
@@ -1825,6 +1827,11 @@ const ModernAdminDashboard = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* Reports Content */}
+          <TabsContent value="reports" className="space-y-6">
+            <ReportsPanel />
           </TabsContent>
         </Tabs>
       </main>
