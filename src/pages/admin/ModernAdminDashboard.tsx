@@ -403,12 +403,12 @@ const ModernAdminDashboard = () => {
     { id: "teachers", label: "Teachers", icon: Users },
     { id: "students", label: "Students", icon: GraduationCap },
     { id: "materials", label: "Materials", icon: BookOpen },
-    { id: "logs", label: "Logs", icon: ClipboardList },
+    { id: "gating", label: "Gating Controls", icon: ShieldCheck },
     { id: "reports", label: "Reports", icon: ClipboardList },
     { id: "announcements", label: "Announcements", icon: MessageSquare },
-    { id: "gating", label: "Gating Controls", icon: ShieldCheck },
-    { id: "profile", label: "Profile", icon: Settings },
     { id: "usermanagement", label: "User Management", icon: Shield },
+    { id: "logs", label: "Activity Logs", icon: ClipboardList },
+    { id: "profile", label: "Profile", icon: Settings },
   ];
 
   const teamRole = localStorage.getItem("auth.teamRole")?.toLowerCase() || "";

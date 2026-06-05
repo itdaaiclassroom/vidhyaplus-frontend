@@ -1976,7 +1976,7 @@ export async function deleteSchoolAnnouncement(id: number): Promise<{ ok: boolea
 
 export async function generateReportSummary(payload: any): Promise<any> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/reports/generate`, {
+  const res = await fetch(`${API_BASE}/api/admin/reports/generate-summary`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -1988,7 +1988,7 @@ export async function generateReportSummary(payload: any): Promise<any> {
 export async function getReportAnalytics(filters?: any): Promise<any> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const query = filters ? "?" + new URLSearchParams(filters).toString() : "";
-  const res = await fetch(`${API_BASE}/api/reports/analytics${query}`, {
+  const res = await fetch(`${API_BASE}/api/admin/reports/ai-analytics${query}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
