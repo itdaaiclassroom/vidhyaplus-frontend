@@ -230,21 +230,20 @@ const generateAIAnalysis = (
     }
   }
 
-  // Calculate health score (0-100)
+  // Calculate Platform Adoption Rate (0-100)
   const engagementScore = Math.min(100, (engagementRate / 80) * 100);
-  const academicScore = Math.min(100, (averageScore / 85) * 100);
   const attendanceScore = Math.min(100, (attendanceRate / 85) * 100);
-  const healthScore = Math.round((engagementScore + academicScore + attendanceScore) / 3);
+  const healthScore = Math.round((engagementScore * 0.6) + (attendanceScore * 0.4));
 
   let projectStatus = "";
   if (healthScore >= 85) {
-    projectStatus = "🌟 THRIVING - Project is exceeding all success metrics";
+    projectStatus = "🌟 EXCELLENT - High platform adoption and engagement";
   } else if (healthScore >= 70) {
-    projectStatus = "✅ ON TRACK - Project is progressing well toward goals";
+    projectStatus = "✅ GOOD - Steady platform adoption across classrooms";
   } else if (healthScore >= 50) {
-    projectStatus = "⚠️ AT RISK - Project needs attention to meet objectives";
+    projectStatus = "⚠️ FAIR - Platform adoption needs improvement";
   } else {
-    projectStatus = "🚨 CRITICAL - Immediate action required to prevent setback";
+    projectStatus = "🚨 LOW - Critical intervention required to boost adoption";
   }
 
   return { analysis, projectStatus, healthScore };
@@ -828,11 +827,11 @@ export function ReportsPanel() {
     const deltaBadge = (val: number) => val === 0 ? "—" : (val > 0 ? `+${val}%` : `${val}%`);
 
     const metrics = [
-      { label: "Total Students", value: totalStudents.toLocaleString(), icon: Users, change: totalStudents > 0 ? `${totalStudents} enrolled` : "—", tone: "primary" as const },
+      { label: "Total Students", value: totalStudents.toLocaleString(), icon: Users, change: "—", tone: "primary" as const },
       { label: "Active Students", value: activeStudents.toLocaleString(), icon: Activity, change: totalStudents > 0 ? `${Math.round((activeStudents / Math.max(1, totalStudents)) * 100)}% of total` : "—", tone: "primary" as const },
       { label: "Engagement Rate", value: formatPercent(engagementRate), icon: TrendingUp, change: deltaBadge(activityDelta), tone: "success" as const },
       { label: "Quizzes Attempted", value: quizzesAttempted.toLocaleString(), icon: ClipboardList, change: quizzesAttempted > 0 ? "Live" : "—", tone: "primary" as const },
-      { label: "Average Score", value: averageScore > 0 ? formatPercent(averageScore) : "—", icon: Award, change: averageScore > 0 ? "Real data" : "No quizzes", tone: "accent" as const },
+      { label: "Average Score", value: averageScore > 0 ? formatPercent(averageScore) : "—", icon: Award, change: "—", tone: "accent" as const },
       { label: "QR Attendance", value: attendanceRate > 0 ? formatPercent(attendanceRate) : "—", icon: QrCode, change: attendanceRate > 0 ? "Tracked" : "No data", tone: "success" as const },
     ];
 
@@ -1410,8 +1409,8 @@ export function ReportsPanel() {
     csvContent += `Selected School,${school}\r\n`;
     csvContent += `Selected Class,${klass}\r\n`;
     csvContent += `Selected Subject,${subject}\r\n`;
-    csvContent += `Project Status,${reportModel.projectStatus ?? "N/A"}\r\n`;
-    csvContent += `Health Score,${reportModel.healthScore ?? 0}/100\r\n\r\n`;
+    csvContent += `Adoption Status,${reportModel.projectStatus ?? "N/A"}\r\n`;
+    csvContent += `Adoption Rate,${reportModel.healthScore ?? 0}%\r\n\r\n`;
 
     csvContent += "EXECUTIVE SUMMARY\r\n";
     reportModel.executiveSummary.forEach((line) => {
@@ -1466,7 +1465,8 @@ export function ReportsPanel() {
     reportModel.teacherActivity.sessionsConducted === 0;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <>
+      <div className="space-y-6 max-w-6xl mx-auto pb-12 print:hidden">
       {/* Header Panel */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
         <div>
@@ -1476,22 +1476,7 @@ export function ReportsPanel() {
           <p className="text-slate-500 text-sm mt-1">
             Polished, multi-page briefing summaries and learning analytics for administration review.
           </p>
-          {/* Live Data / Demo badge */}
-          <div className="mt-2">
-            {isLoading ? (
-              <Badge className="bg-slate-100 text-slate-500 border-slate-200 border text-[10px] font-bold animate-pulse">
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Connecting...
-              </Badge>
-            ) : isFromApi ? (
-              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[10px] font-bold">
-                <Database className="h-3 w-3 mr-1" /> Live Data
-              </Badge>
-            ) : (
-              <Badge className="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 mr-1" /> No API Connection
-              </Badge>
-            )}
-          </div>
+          {/* Removed Live Data / Demo badge */}
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -1621,21 +1606,7 @@ export function ReportsPanel() {
                   <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Executive Summary</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                  {aiFromCache && !isGeneratingAI && (
-                    <Badge className="bg-amber-50 text-amber-700 border-amber-100 border text-[10px] font-bold">
-                      <Zap className="h-3 w-3 mr-1" /> From Cache
-                    </Badge>
-                  )}
-                  {!aiFromCache && aiSummary && !isGeneratingAI && aiSummary.fromCache === false && (
-                    <Badge className="bg-teal-50 text-teal-700 border-teal-100 border text-[10px] font-bold">
-                      <Brain className="h-3 w-3 mr-1" /> Fresh AI
-                    </Badge>
-                  )}
-                  {isGeneratingAI && (
-                    <Badge className="bg-teal-50 text-teal-700 border-teal-100 border text-[10px] font-bold animate-pulse">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...
-                    </Badge>
-                  )}
+                  {/* Badges removed by request */}
                 </div>
               </div>
               {isGeneratingAI ? (
@@ -1665,10 +1636,10 @@ export function ReportsPanel() {
             </div>
           </div>
 
-          {/* Project Health Score Card */}
+          {/* Platform Adoption Rate Card */}
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center min-h-[220px]">
             <div>
-              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-4">Project Health Score</h3>
+              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-4">Platform Adoption Rate</h3>
               <div className="relative flex items-center justify-center">
                 <svg className={cn("w-32 h-32 transform -rotate-90", isGeneratingAI && "animate-pulse")}>
                   <circle cx="64" cy="64" r="54" stroke="#f1f5f9" strokeWidth="10" fill="transparent" />
@@ -1687,7 +1658,7 @@ export function ReportsPanel() {
               <span className="text-xs font-extrabold px-4 py-1.5 bg-blue-50 border border-blue-100 text-blue-800 uppercase tracking-widest rounded-full shadow-sm">
                 {isGeneratingAI ? "ANALYZING" : (displaySummary.projectStatus ? displaySummary.projectStatus.split(" - ")[0] : "STATUS")}
               </span>
-              <p className="text-xs text-slate-400 mt-3 font-medium">Composite District Rating</p>
+              <p className="text-xs text-slate-400 mt-3 font-medium">Usage & Engagement Metric</p>
             </div>
           </div>
         </div>
@@ -2122,9 +2093,10 @@ export function ReportsPanel() {
         </div>
       </div>
       )}
+      </div>
 
-      {/* Hidden print template for high-fidelity A4 PDF generation */}
-      <div style={{ position: "absolute", left: "-9999px", top: "-9999px", width: "900px", pointerEvents: "none" }}>
+      {/* Hidden print template for high-fidelity A4 PDF generation & native printing */}
+      <div className="absolute -left-[9999px] -top-[9999px] w-[900px] pointer-events-none print:static print:w-full print:bg-white print:pointer-events-auto print:z-[99999]">
         <PrintTemplate
           reportRef={reportRef}
           reportModel={reportModel}
@@ -2135,7 +2107,7 @@ export function ReportsPanel() {
           displaySummary={displaySummary}
         />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -2253,10 +2225,10 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
               </div>
             </div>
 
-            {/* Right Column: Health Score Ring */}
+            {/* Right Column: Platform Adoption Ring */}
             <div className="col-span-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-3xl p-6 border border-blue-100/60 flex flex-col justify-between items-center text-center">
               <div>
-                <h3 className="font-bold text-blue-900 text-xs uppercase tracking-wider mb-2">Project Health</h3>
+                <h3 className="font-bold text-blue-900 text-xs uppercase tracking-wider mb-2">Platform Adoption</h3>
                 <div className="relative flex items-center justify-center mt-3">
                   {/* Ring SVG */}
                   <svg className="w-24 h-24 transform -rotate-90">
@@ -2276,7 +2248,7 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
                 <span className="text-[10px] font-extrabold px-3 py-1 bg-white border border-blue-100 text-blue-800 uppercase tracking-widest rounded-full shadow-sm">
                   {displaySummary.projectStatus ? displaySummary.projectStatus.split(" - ")[0] : "STATUS"}
                 </span>
-                <p className="text-[10px] text-slate-400 mt-2 font-medium">Compliance & Outcome Metric</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-medium">Usage & Engagement Metric</p>
               </div>
             </div>
           </div>
