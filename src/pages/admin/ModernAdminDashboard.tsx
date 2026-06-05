@@ -1121,7 +1121,7 @@ const ModernAdminDashboard = () => {
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Class</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">School</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-center">Performance</th>
-                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Action</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Reports</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1175,7 +1175,7 @@ const ModernAdminDashboard = () => {
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
-                                    className="text-primary border-primary/20 hover:bg-primary/5 rounded-lg font-semibold"
+                                    className="text-primary border-primary/20 hover:bg-green-600 hover:text-white hover:border-green-600 rounded-lg font-semibold transition-colors"
                                     onClick={() => {
                                       const studentClass = classes.find(c => c.id === s.classId);
                                       const att = data.studentAttendance?.find((a: any) => a.studentId === s.id);
@@ -1353,7 +1353,8 @@ const ModernAdminDashboard = () => {
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Name</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">School</th>
                           <th className="px-6 py-4 font-semibold text-slate-700 text-sm">Subject</th>
-                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Status</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-center">Status</th>
+                          <th className="px-6 py-4 font-semibold text-slate-700 text-sm text-right">Reports</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1372,21 +1373,21 @@ const ModernAdminDashboard = () => {
                                 <td className="px-6 py-4 text-sm font-medium text-slate-800">{t.name}</td>
                                 <td className="px-6 py-4 text-sm text-slate-500">{schools.find(sc => sc.id === t.schoolId)?.name || 'Main School'}</td>
                                 <td className="px-6 py-4 text-sm text-slate-500">{teacherSubjects || 'Not Assigned'}</td>
+                                <td className="px-6 py-4 text-sm text-center">
+                                  <Badge className="bg-emerald-100 text-emerald-600 border-0">Active</Badge>
+                                </td>
                                 <td className="px-6 py-4 text-sm text-right">
-                                  <div className="flex items-center justify-end gap-3">
-                                    <Badge className="bg-emerald-100 text-emerald-600 border-0">Active</Badge>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="h-7 text-xs font-medium border-slate-200 hover:bg-slate-50 shadow-sm"
-                                      onClick={() => {
-                                        setSelectedReportTeacherId(t.id);
-                                        setReportModalOpen(true);
-                                      }}
-                                    >
-                                      View Reports
-                                    </Button>
-                                  </div>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-7 text-xs font-medium border-slate-200 hover:bg-green-600 hover:text-white hover:border-green-600 shadow-sm transition-colors"
+                                    onClick={() => {
+                                      setSelectedReportTeacherId(t.id);
+                                      setReportModalOpen(true);
+                                    }}
+                                  >
+                                    View Reports
+                                  </Button>
                                 </td>
                               </tr>
                             )
@@ -1642,7 +1643,7 @@ const ModernAdminDashboard = () => {
                               {isExpanded && (
                                 <tr key={`${log.id}-expanded`} className="bg-slate-50/80">
                                   <td colSpan={6} className="px-6 py-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                                       <div className="space-y-1">
                                         <p className="font-bold text-slate-400 uppercase tracking-wider">Status</p>
                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${log.status === "success" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
@@ -1651,18 +1652,20 @@ const ModernAdminDashboard = () => {
                                         {log.error_msg && <p className="text-red-500 mt-1">{log.error_msg}</p>}
                                       </div>
                                       <div className="space-y-1">
-                                        <p className="font-bold text-slate-400 uppercase tracking-wider">IP / User Agent</p>
-                                        <p className="text-slate-600 font-mono">{log.ip_address || "—"}</p>
-                                        <p className="text-slate-400 truncate max-w-xs" title={log.user_agent || ""}>{log.user_agent ? log.user_agent.slice(0, 60) + (log.user_agent.length > 60 ? "…" : "") : "—"}</p>
-                                      </div>
-                                      <div className="space-y-1">
-                                        <p className="font-bold text-slate-400 uppercase tracking-wider">Meta Payload</p>
+                                        <p className="font-bold text-slate-400 uppercase tracking-wider">Action Summary</p>
                                         {log.meta ? (
-                                          <pre className="bg-slate-800 text-emerald-400 rounded-lg p-3 text-[10px] overflow-x-auto max-h-32 leading-relaxed">
-                                            {JSON.stringify(log.meta, null, 2)}
-                                          </pre>
+                                          <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-xs text-slate-600">
+                                            <p className="font-medium mb-2">Modified Fields:</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {Object.keys(log.meta).map(key => (
+                                                <Badge key={key} variant="secondary" className="bg-white text-slate-500 border-slate-200 capitalize">
+                                                  {key.replace(/_/g, ' ')}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
                                         ) : (
-                                          <p className="text-slate-400">No metadata</p>
+                                          <p className="text-slate-400">No additional details</p>
                                         )}
                                       </div>
                                     </div>
