@@ -1,0 +1,85 @@
+Created At: 2026-05-29T07:07:02Z
+Completed At: 2026-05-29T07:07:02Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2192
+Total Bytes: 116579
+Showing lines 1190 to 1300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1190:     setSchool(tempSchool);
+1191:     setKlass(tempKlass);
+1192:     setSubject(tempSubject);
+1193:     setCustomStartDate(tempCustomStartDate);
+1194:     setCustomEndDate(tempCustomEndDate);
+1195:   };
+1196: 
+1197:   const handleDownloadPDF = () => {
+1198:     if (!reportRef.current) return;
+1199:     const element = reportRef.current;
+1200:     const filename = `vidhyaplus-${reportType.toLowerCase()}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+1201:     const printWindow = window.open("", "", "width=900,height=700");
+1202:     if (!printWindow) return;
+1203: 
+1204:     const reportContent = element.innerHTML;
+1205:     const printHTML = `
+1206:       <!DOCTYPE html>
+1207:       <html>
+1208:         <head>
+1209:           <title>${filename}</title>
+1210:           <style>
+1211:             @media print {
+1212:               body { margin: 0; padding: 20px; }
+1213:               .no-print { display: none !important; }
+1214:               * { page-break-inside: avoid !important; }
+1215:             }
+1216:             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+1217:             .report-content { background: white; padding: 20px; }
+1218:             h1 { font-size: 28px; margin: 20px 0 5px 0; color: #007bff; }
+1219:             h2 { font-size: 18px; margin: 20px 0 10px 0; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+1220:             h3 { font-size: 14px; margin: 15px 0 8px 0; }
+1221:             .metric { display: inline-block; width: 31%; marg
+<truncated 2158 bytes>
+nt += `Selected Subject,${subject}\r\n`;
+1258:     csvContent += `Project Status,${reportModel.projectStatus ?? "N/A"}\r\n`;
+1259:     csvContent += `Health Score,${reportModel.healthScore ?? 0}/100\r\n\r\n`;
+1260: 
+1261:     csvContent += "EXECUTIVE SUMMARY\r\n";
+1262:     reportModel.executiveSummary.forEach((line) => {
+1263:       csvContent += `"${line}"\r\n`;
+1264:     });
+1265: 
+1266:     csvContent += "\r\nAI ANALYSIS\r\n";
+1267:     (reportModel.aiAnalysis ?? []).forEach((line) => {
+1268:       csvContent += `"${line}"\r\n`;
+1269:     });
+1270: 
+1271:     csvContent += "SUMMARY METRICS\r\n";
+1272:     csvContent += "Metric,Value,Change\r\n";
+1273:     reportModel.metrics.forEach((m) => {
+1274:       csvContent += `"${m.label}","${m.value}","${m.change}"\r\n`;
+1275:     });
+1276: 
+1277:     csvContent += "\r\nSCHOOL-WISE PERFORMANCE\r\n";
+1278:     csvContent += "School,Engagement %,Students,Teachers\r\n";
+1279:     schoolPerf.forEach((s) => {
+1280:       csvContent += `"${s.school}",${s.avgEngagement},${s.studentCount},${s.teacherCount}\r\n`;
+1281:     });
+1282: 
+1283:     csvContent += "\r\nSUBJECT-WISE PERFORMANCE\r\n";
+1284:     csvContent += "Subject,Avg Score %,Quizzes\r\n";
+1285:     subjectPerf.forEach((s) => {
+1286:       csvContent += `"${s.subject}",${s.avgScore},${s.quizzesCount}\r\n`;
+1287:     });
+1288: 
+1289:     csvContent += "\r\nRECOMMENDATIONS\r\n";
+1290:     reportModel.recommendations.forEach((r) => {
+1291:       csvContent += `"${r}"\r\n`;
+1292:     });
+1293: 
+1294:     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+1295:     const link = document.createElement("a");
+1296:     link.href = URL.createObjectURL(blob);
+1297:     link.download = `vidhyaplus-${reportType.toLowerCase()}-report-${new Date().toISOString().split('T')[0]}.csv`;
+1298:     link.click();
+1299:   };
+1300: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

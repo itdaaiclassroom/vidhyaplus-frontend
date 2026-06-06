@@ -1,0 +1,75 @@
+Created At: 2026-05-29T07:04:57Z
+Completed At: 2026-05-29T07:04:57Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 1180 to 1340
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1180:       schoolScores,
+1181:     };
+1182:   }, [school, klass, subject, reportType, customStartDate, customEndDate, selectedDateRange, source]);
+1183: 
+1184:   const handleSearch = () => {
+1185:     setReportType(tempReportType);
+1186:     setSchool(tempSchool);
+1187:     setKlass(tempKlass);
+1188:     setSubject(tempSubject);
+1189:     setCustomStartDate(tempCustomStartDate);
+1190:     setCustomEndDate(tempCustomEndDate);
+1191:   };
+1192: 
+1193:   const handleDownloadPDF = () => {
+1194:     if (!reportRef.current) return;
+1195:     const element = reportRef.current;
+1196:     const filename = `vidhyaplus-${reportType.toLowerCase()}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+1197:     const printWindow = window.open("", "", "width=900,height=700");
+1198:     if (!printWindow) return;
+1199: 
+1200:     const reportContent = element.innerHTML;
+1201:     const printHTML = `
+1202:       <!DOCTYPE html>
+1203:       <html>
+1204:         <head>
+1205:           <title>${filename}</title>
+1206:           <style>
+1207:             @media print {
+1208:               body { margin: 0; padding: 20px; }
+1209:               .no-print { display: none !important; }
+1210:               * { page-break-inside: avoid !important; }
+1211:             }
+1212:             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+1213:             .report-content { background: white; padding: 20px; }
+1214:             h1 { font-size: 28px; margin: 20px 0 5px 0; color: #007bff; }
+1215:             
+<truncated 5069 bytes>
+     >
+1312:             <FileSpreadsheet className="h-4 w-4 text-slate-500" /> Excel
+1313:           </Button>
+1314:           <Button
+1315:             onClick={handleDownloadPDF}
+1316:             className="inline-flex items-center gap-2 rounded-xl h-10 bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm px-4"
+1317:           >
+1318:             <Download className="h-4 w-4" /> Download PDF
+1319:           </Button>
+1320:         </div>
+1321:       </div>
+1322: 
+1323:       {isLoading && <div className="p-4">Loading reports…</div>}
+1324:       {isError && <div className="p-4 text-destructive text-sm font-semibold">Failed to load report data</div>}
+1325: 
+1326:       <div className="bg-card rounded-2xl p-5 shadow-card border border-border/60">
+1327:         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+1328:           <FilterSelect label="Report Type" value={tempReportType} onChange={setTempReportType} options={["All Time", "Daily", "Weekly", "Monthly", "Custom"]} />
+1329:           <FilterSelect label="Select School" value={tempSchool} onChange={handleSchoolChange} options={schoolOptions} />
+1330:           <FilterSelect label="Select Class" value={tempKlass} onChange={setTempKlass} options={classOptions} />
+1331:           <FilterSelect label="Select Subject" value={tempSubject} onChange={setTempSubject} options={subjectOptions} />
+1332:         </div>
+1333: 
+1334:         {tempReportType === "Custom" && (
+1335:           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-in fade-in slide-in-from-top-1 duration-200">
+1336:             <div>
+1337:               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Start Date</label>
+1338:               <input
+1339:                 type="date"
+1340:                 value={tempCustomStartDate}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

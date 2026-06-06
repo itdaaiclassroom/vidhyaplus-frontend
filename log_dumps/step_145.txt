@@ -1,0 +1,43 @@
+Created At: 2026-05-29T07:07:20Z
+Completed At: 2026-05-29T07:07:20Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2179
+Total Bytes: 115185
+Showing lines 2145 to 2179
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2145:     </div>
+2146:   );
+2147: }
+2148: 
+2149: const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+2150:   <div className="space-y-1.5">
+2151:     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+2152:     <select
+2153:       value={value}
+2154:       onChange={(e) => onChange(e.target.value)}
+2155:       className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+2156:     >
+2157:       {options.map((opt) => (
+2158:         <option key={opt} value={opt}>
+2159:           {opt}
+2160:         </option>
+2161:       ))}
+2162:     </select>
+2163:   </div>
+2164: );
+2165: 
+2166: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+2167:   <div className={cn(
+2168:     "p-4 rounded-xl border",
+2169:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+2170:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+2171:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+2172:     tone === "muted" && "bg-slate-50 border-slate-100",
+2173:   )}>
+2174:     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{label}</span>
+2175:     <span className="text-sm font-bold text-slate-800 block mt-1 truncate" title={value}>{value}</span>
+2176:     <span className="text-xs text-slate-500 block mt-0.5">{sub}</span>
+2177:   </div>
+2178: );
+2179: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

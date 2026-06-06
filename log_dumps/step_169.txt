@@ -1,0 +1,97 @@
+Created At: 2026-05-29T07:09:20Z
+Completed At: 2026-05-29T07:09:20Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 1869
+Total Bytes: 97335
+Showing lines 1000 to 1200
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1000:       return {
+1001:         data: sortedMonths.map(key => {
+1002:           const subjects = monthBuckets.get(key)!;
+1003:           const d = new Date(key + "-01");
+1004:           const point: Record<string, string | number> = {
+1005:             month: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+1006:           };
+1007:           allSubjects.forEach(subj => {
+1008:             const stats = subjects.get(subj);
+1009:             point[subj] = stats ? Math.round(stats.total / stats.count) : 0;
+1010:           });
+1011:           return point;
+1012:         }),
+1013:         subjects: Array.from(allSubjects),
+1014:       };
+1015:     })();
+1016: 
+1017:     // ══════════════════════════════════════════════════════
+1018:     // PHASE 2 — Radar Chart Data (per-subject score for selected class)
+1019:     // ══════════════════════════════════════════════════════
+1020:     const radarData = subjectPerf.slice(0, 6).map(sp => ({
+1021:       subject: sp.subject.length > 12 ? sp.subject.slice(0, 10) + "…" : sp.subject,
+1022:       fullName: sp.subject,
+1023:       score: sp.avgScore,
+1024:       fullMark: 100,
+1025:     }));
+1026: 
+1027:     // ═════════════════════════════════════════════════════
+<truncated 6985 bytes>
+
+1142:         name: schoolObj.name,
+1143:         score: clampPercent(score),
+1144:         rank: 0,
+1145:         quizScore: Math.round(quizScore),
+1146:         attScore: Math.round(attScore),
+1147:       };
+1148:     }).sort((a, b) => b.score - a.score);
+1149:     
+1150:     schoolScores.forEach((s, i) => { s.rank = i + 1; });
+1151: 
+1152:     return {
+1153:       activityData,
+1154:       quizPerf,
+1155:       schoolCompare: comparisonData,
+1156:       comparisonTitle,
+1157:       comparisonData,
+1158:       subjectPerf,
+1159:       schoolPerf,
+1160:       metrics,
+1161:       alerts,
+1162:       actions,
+1163:       highlights,
+1164:       executiveSummary,
+1165:       recommendations,
+1166:       dateRange,
+1167:       strongestTopics,
+1168:       weakestTopics,
+1169:       aiAnalysis: ai.analysis,
+1170:       projectStatus: ai.projectStatus,
+1171:       healthScore: ai.healthScore,
+1172:       // Phase 1
+1173:       studentPerformanceTable,
+1174:       attentionNeeded,
+1175:       aiInsights,
+1176:       // Phase 2
+1177:       improvementTracker,
+1178:       radarData,
+1179:       // Phase 3
+1180:       classComparison,
+1181:       teacherActivity,
+1182:       enhancedAlerts,
+1183:       // Phase 4
+1184:       schoolScores,
+1185:     };
+1186:   }, [school, klass, subject, reportType, customStartDate, customEndDate, selectedDateRange, source]);
+1187: 
+1188:   const handleSearch = () => {
+1189:     setReportType(tempReportType);
+1190:     setSchool(tempSchool);
+1191:     setKlass(tempKlass);
+1192:     setSubject(tempSubject);
+1193:     setCustomStartDate(tempCustomStartDate);
+1194:     setCustomEndDate(tempCustomEndDate);
+1195:   };
+1196: 
+1197:   const handleDownloadPDF = async () => {
+1198:     const pages = reportRef.current?.querySelectorAll(".pdf-report-page");
+1199:     if (!pages || pages.length === 0) return;
+1200: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,520 @@
+1: import { useMemo, useState, useRef } from "react";
+2: import {
+3:   Calendar, Download, FileSpreadsheet, TrendingUp, Users, Activity,
+4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+5:   Sparkles, Target, Lightbulb, FileText, School, Search,
+6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7:   Brain, Eye, BarChart3,
+8: } from "lucide-react";
+9: import {
+10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13:   AreaChart, Area,
+14: } from "recharts";
+15: import { cn } from "@/lib/utils";
+16: import { useAppData } from "@/contexts/DataContext";
+17: import { useAuth } from "@/contexts/AuthContext";
+18: import { Button } from "@/components/ui/button";
+19: 
+20: type SchoolMetric = { name: string; value: number; color: string };
+21: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+22: type ActionItem = { title: string; description: string };
+23: 
+24: const fallbackSchoolOptions = ["All Schools"];
+25: const fallbackClassOptions = ["All Classes", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+26: 
+27: const asRecord = (value: unknown) => {
+28:   if (!value || typeof value !== "object") {
+29:     return {} as Record<string, unknown>;
+30:   }
+31:   return value as Record<string, unknown>;
+32: };
+33: 
+34: const asNumber = (value: unknown, fallback = 0) => {
+35:   if (typeof value === "number
+141: const buildMonthBuckets = (start: Date, end: Date) => {
+142:   const buckets: Array<{ key: string; label: string; date: Date }> = [];
+143:   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+144:   const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+145:   while (cursor <= endMonth) {
+146:     const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+147:     const label = cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+148:     buckets.push({ key, label, date: new Date(cursor) });
+149:     cursor.setMonth(cursor.getMonth() + 1);
+150:   }
+151:   return buckets;
+152: };
+153: 
+154: const generateAIAnalysis = (
+155:   engagementRate: number,
+211:     } else {
+212:       analysis.push(`📉📉 Concerning downward trend: Activity declining by ${Math.round(Math.abs(trend))}%. Investigate root causes and re-energize user engagement immediately.`);
+213:     }
+214:   }
+215: 
+216:   // Quiz Performance Deep Dive
+217:   if (quizzesAttempted > 0) {
+218:     const quizEngagementRate = (quizzesAttempted / (Math.max(1, totalStudents) * 10)) * 100;
+219:     if (quizEngagementRate > 80) {
+220:       analysis.push(`🎯 Exceptional quiz completion rate: ${Math.round(quizEngagementRate)}% of expected quizzes have been attempted. Students are highly focused on assessment.`);
+221:     } else if (quizEngagementRate > 50) {
+222:       analysis.push(`✅ Good quiz participation: ${Math.round(quizEngagementRate)}% of expected attempts. Some students need encouragement to take more quizzes.`);
+223:     } else {
+224:       analysis.push(`⚠️ Low quiz participation: Only ${Math.round(quizEngagementRate)}% engagement. Consider making quizzes more relevant or incentivizing participation.`);
+225:     }
+226:   }
+227: 
+228:   // Calculate health score (0-100)
+229:   const engagementScore = Math.min(100, (engagementRate / 80) * 100);
+230:   const academicScore = Math.min(100, (averageScore / 85) * 100);
+231:   const attendanceScore = Math.min(100, (attendanceRate / 85) * 100);
+232:   const healthScore = Math.round((engagementScore + academicScore + attendanceScore) / 3);
+233: 
+234:   let projectStatus = "";
+235:   if (healthScore >= 85) {
+236:     projectStatus = "🌟 THRIVING - Project is exceeding all success metrics";
+237:   } else if (healthScore >= 70) {
+238:     projectStatus = "✅ ON TRACK - Project is progressing well toward goals";
+239:   } else if (healthScore >= 50) {
+240:     projectStatus = "⚠️ AT RISK - Project needs attention to meet objectives";
+241:   } else {
+242:     projectStatus = "🚨 CRITICAL - Immediate action required to prevent setback";
+243:   }
+244: 
+245:   return { analysis, projectStatus, healthScore };
+246: };
+247: 
+248: export function ReportsPanel() {
+249:   const { data, loading: isLoading, error } = useAppData();
+250:   const isError = !!error;
+251:   const { userName } = useAuth();
+252:   
+253:   const reportRef = useRef<HTMLDivElement>(null);
+254:   
+255:   const source = data ?? { 
+256:     schools: [], 
+257:     students: [], 
+258:     teachers: [], 
+259:     subjects: [],
+260:     chapters: [],
+261:     liveSessions: [], 
+262:     studentQuizResults: [],
+263:     activityLogs: [],
+264:     classes: [],
+265:     studentAttendance: []
+266:   };
+267: 
+268:   // Temporary state for selections (before clicking search)
+269:   const [tempReportType, setTempReportType] = useState("All Time");
+270:   const presetRange = getPresetDateRange("All Time");
+271:   const [tempCustomStartDate, setTempCustomStartDate] = useState(formatInputDate(presetRange[0]));
+272:   const [tempCustomEndDate, setTempCustomEndDate] = useState(formatInputDate(presetRange[1]));
+273:   const [tempSchool, setTempSchool] = useState("All Schools");
+274:   const [tempKlass, setTempKlass] = useState("All Classes");
+275:   const [tempSubject, setTempSubject] = useState("All Subjects");
+276: 
+277:   // Active filters (applied to the report data after clicking search)
+278:   const [reportType, setReportType] = useState("All Time");
+279:   const [customStartDate, setCustomStartDate] = useState(formatInputDate(presetRange[0]));
+280:   const [customEndDate, setCustomEndDate] = useState(formatInputDate(presetRange[1]));
+281:   const [school, setSchool] = useState("All Schools");
+282:   const [klass, setKlass] = useState("All Classes");
+283:   const [subject, setSubject] = useState("All Subjects");
+284: 
+285:   // Extract subject options dynamically from the source data
+286:   const subjectOptions = useMemo(() => {
+287:     const rawSubjects = Array.isArray(source.subjects) ? source.subjects : [];
+288:     const names = rawSubjects.map((s, index) => {
+289:       const row = asRecord(s);
+290:       return asString(row.name, asString(row.subjectName, asString(row.subject_name, asString(row.title, `Subject ${index + 1}`))));
+291:     });
+292:     return ["All Subjects", ...Array.from(new Set(names))].filter(Boolean);
+293:   }, [source.subjects]);
+294: 
+295:   const schoolOptions = useMemo(() => {
+296:     const rawSchools = Array.isArray(source.schools) ? source.schools : [];
+297:     const names = rawSchools.map((s, index) => {
+298:       const row = asRecord(s);
+299:       return asString(row.name, asString(row.schoolName, asString(row.school_name, asString(row.title, `School ${index + 1}`))));
+300:     });
+301:     return ["All Schools", ...Array.from(new Set(names))].filter(Boolean);
+302:   }, [source.schools]);
+303: 
+304:   const classOptions = useMemo(() => {
+305:     const rawSchools = Array.isArray(source.schools) ? source.schools : [];
+306:     const rawClasses = Array.isArray(source.classes) ? source.classes : [];
+307:     
+308:     return [
+309:       "All Cl
+424:         subjectId: asString(row.subjectId, asString(row.subject_id, "")),
+425:         subjectName: asString(row.subjectName, asString(row.subject_name, asString(row.subject, ""))),
+426:         chapterId: asString(row.chapterId, asString(row.chapter_id, "")),
+427:         topicId: asString(row.topicId, asString(row.topic_id, "")),
+428:         topicName: asString(row.topicName, asString(row.topic_name, asString(row.title, `Topic ${index + 1}`))),
+429:         createdAt: row.createdAt || row.created_at || row.startTime || row.start_time || row.session_date,
+430:         avgScore: asNumber(row.avgScore, asNumber(row.avg_score, 0)),
+431:         teacherId: asString(row.teacherId, asString(row.teacher_id, "")),
+432:         teacherName: asString(row.teacherName, asString(row.teacher_name, "")),
+433:         attendanceMarked: row.attendanceMarked === true || row.attendance_marked === true,
+434:       };
+435:     });
+436: 
+437:     const normalizedAttendance = rawStudentAttendance.map((item) => {
+438:       const row = asRecord(item);
+439:       const studentId = asString(row.studentId, asString(row.student_id, ""));
+440:       const present = asNumber(row.present, 0);
+441:       const total = asNumber(row.total, 1);
+442:       const percentage = asNumber(row.percentage, total > 0 ? (present / total) * 100 : 0);
+443:       return { studentId, present, total, percentage };
+444:     });
+445: 
+446:     const [dateStart, dateEnd] = selectedDateRange;
+447:     // Use monthly buckets for wide date ranges (> 35 days), daily for narrower windows
+448:     const daySpan = Math.round((dateEnd.getTime() - dateStart.getTime()) / (1000 * 60 * 60 * 24));
+449:     const useMonthlyBuckets = daySpan > 35;
+450:     const timelineBuckets = useMonthlyBuckets
+451:       ? buildMonthBuckets(dateStart, dateEnd)
+452:       : buildDayBuckets(dateStart, dateEnd);
+453:     const bucketKeyFn = useMonthlyBuckets
+454:       ? (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+455:       : (d: Date) => formatInputDate(d);
+456: 
+457:     const subjectIdToName = new Map<string, string>();
+458:     rawSubjects.forEach((item, index) => {
+459:       const row = asRecord(item);
+460:       const subjectId = asString(row.id, asString(row._id, ""));
+461:       const subjectName = asString(row.name, asString(row.title, `Subject ${index + 1}`));
+462:       if (subjectId) {
+463:         subjectIdToName.set(subjectId, subjectName);
+464:       }
+465:     });
+466: 
+467:     const chapterIdToSubjectId = new Map<string, string>();
+468:     const chapterIdToTopicName = new Map<string, string>();
+469:     rawChapters.forEach((item, index) => {
+470:       const row = asRecord(item);
+471:       const chapterId = asString(row.id, asString(row._id, ""));
+472:       const subjectId = asString(row.subjectId, "");
+473:       const topicName = asString(row.name, asString(row.title, `Topic ${index + 1}`));
+474:       if (chapterId) {
+475:         chapterIdToSubjectId.set(chapterId, subjectId);
+476:         chapterIdToTopicName.set(chapterId, topicName);
+477:       }
+478:     });
+479: 
+480:     const resultRecordsInRange = normalizedQuizResults.filter((row) => {
+1140:         rank: 0,
+1141:         quizScore: Math.round(quizScore),
+1142:         attScore: Math.round(attScore),
+1143:       };
+1144:     }).sort((a, b) => b.score - a.score);
+1145:     
+1146:     schoolScores.forEach((s, i) => { s.rank = i + 1; });
+1147: 
+1148:     return {
+1149:       activityData,
+1150:       quizPerf,
+1151:       schoolCompare: comparisonData,
+1152:       comparisonTitle,
+1153:       comparisonData,
+1154:       subjectPerf,
+1155:       schoolPerf,
+1156:       metrics,
+1157:       alerts,
+1158:       actions,
+1159:       highlights,
+1160:       executiveSummary,
+1161:       recommendations,
+1162:       dateRange,
+1163:       strongestTopics,
+1164:       weakestTopics,
+1165:       aiAnalysis: ai.analysis,
+1166:       projectStatus: ai.projectStatus,
+1167:       healthScore: ai.healthScore,
+1168:       // Phase 1
+1169:       studentPerformanceTable,
+1170:       attentionNeeded,
+1171:       aiInsights,
+1172:       // Phase 2
+1173:       improvementTracker,
+1174:       radarData,
+1175:       // Phase 3
+1176:       classComparison,
+1177:       teacherActivity,
+1178:       enhancedAlerts,
+1179:       // Phase 4
+1180:       schoolScores,
+1181:     };
+1182:   }, [school, klass, subject, reportType, customStartDate, customEndDate, selectedDateRange, source]);
+1183: 
+1184:   const handleSearch = () => {
+1185:     setReportType(tempReportType);
+1186:     setSchool(tempSchool);
+1187:     setKlass(tempKlass);
+1188:     setSubject(tempSubject);
+1189:     setCustomStartDate(tempCustomStartDate);
+1190:     setCustomEndDate(tempCustomEndDate);
+1191:   };
+1192: 
+1193:   const handleDownloadPDF = () => {
+1194:     if (!reportRef.current) return;
+1195:     const element = reportRef.current;
+1196:     const filename = `vidhyaplus-${reportType.toLowerCase()}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+1197:     const printWindow = window.open("", "", "width=900,height=700");
+1198:     if (!printWindow) return;
+1199: 
+1200:     const reportContent = element.innerHTML;
+1201:     const printHTML = `
+1202:       <!DOCTYPE html>
+1203:       <html>
+1204:         <head>
+1205:           <title>${filename}</title>
+1206:           <style>
+1207:             @media print {
+1208:               body { margin: 0; padding: 20px; }
+1209:               .no-print { display: none !important; }
+1210:               * { page-break-inside: avoid !important; }
+1211:             }
+1212:             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; }
+1213:             .report-content { background: white; padding: 20px; }
+1214:             h1 { font-size: 28px; margin: 20px 0 5px 0; color: #007bff; }
+1215:             
+1312:             <FileSpreadsheet className="h-4 w-4 text-slate-500" /> Excel
+1313:           </Button>
+1314:           <Button
+1315:             onClick={handleDownloadPDF}
+1316:             className="inline-flex items-center gap-2 rounded-xl h-10 bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm px-4"
+1317:           >
+1318:             <Download className="h-4 w-4" /> Download PDF
+1319:           </Button>
+1320:         </div>
+1321:       </div>
+1322: 
+1323:       {isLoading && <div className="p-4">Loading reports…</div>}
+1324:       {isError && <div className="p-4 text-destructive text-sm font-semibold">Failed to load report data</div>}
+1325: 
+1326:       <div className="bg-card rounded-2xl p-5 shadow-card border border-border/60">
+1327:         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+1328:           <FilterSelect label="Report Type" value={tempReportType} onChange={setTempReportType} options={["All Time", "Daily", "Weekly", "Monthly", "Custom"]} />
+1329:           <FilterSelect label="Select School" value={tempSchool} onChange={handleSchoolChange} options={schoolOptions} />
+1330:           <FilterSelect label="Select Class" value={tempKlass} onChange={setTempKlass} options={classOptions} />
+1331:           <FilterSelect label="Select Subject" value={tempSubject} onChange={setTempSubject} options={subjectOptions} />
+1332:         </div>
+1333: 
+1334:         {tempReportType === "Custom" && (
+1335:           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 animate-in fade-in slide-in-from-top-1 duration-200">
+1336:             <div>
+1337:               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Start Date</label>
+1338:               <input
+1339:                 type="date"
+1340:                 value={tempCustomStartDate}
+1341:                 onChange={(e) => setTempCustomStartDate(e.target.value)}
+1342:                 className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+1343:               />
+1344:             </div>
+1345:             <div>
+1346:               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">End Date</label>
+1347:               <input
+1348:                 type="date"
+1349:                 value={tempCustomEndDate}
+1350:                 onChange={(e) => setTempCustomEndDate(e.target.value)}
+1351:                 className="mt-1.5 w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+1352:               />
+1353:             </div>
+1354:           </div>
+1355:         )}
+1356: 
+1357:         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-5 pt-4 border-t border-border/40 gap-4">
+1358:           <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+1359:             <Calendar className="h-4 w-4 text-slate-400" />
+1360:             <span>Active Reporting Window:</span>
+1361:             <span className="text-slate-700 font-semibold">
+1362:               {reportType === "All Time" ? "All Available Data" : `${reportModel.dateRange[0]} — ${reportModel.dateRange[1]}`}
+1363:             </
+1515:                 <Legend wrapperStyle={{ fontSize: 12 }} />
+1516:                 <Bar dataKey="avg" name="Avg Score %" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+1517:                 <Bar dataKey="attempts" name="Attempts" fill="hsl(var(--accent))" radius={[8, 8, 0, 0]} />
+1518:               </BarChart>
+1519:             </ResponsiveContainer>
+1520:           </div>
+1521:         </div>
+1522: 
+1523:         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+1524:           <div className="bg-card rounded-2xl p-6 shadow-sm border border-border/60">
+1525:             <div className="flex items-center gap-2 mb-4">
+1526:               <AlertTriangle className="h-5 w-5 text-amber-500" />
+1527:               <h3 className="font-semibold text-slate-800">Issues & Alerts</h3>
+1528:             </div>
+1529:             <ul className="space-y-3">
+1530:               {(reportModel.alerts.length > 0 ? reportModel.alerts : [{ title: "No alerts", description: "The current dataset has no active issues.", severity: "low" as const }]).map((alert) => (
+1531:                 <li key={`${alert.title}-${alert.description}`} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+1532:                   <span className={cn(
+1533:                     "h-2 w-2 rounded-full mt-1.5 shrink-0",
+1534:                     alert.severity === "high" && "bg-rose-500",
+1535:                     alert.severity === "med" && "bg-amber-500",
+1536:                     alert.severity === "low" && "bg-primary",
+1537:                   )} />
+1538:                   <div className="flex-1">
+1539:                     <p className="text-sm font-medium text-slate-800">{alert.title}</p>
+1540:                     <p className="text-xs text-slate-500 mt-0.5">{alert.description}</p>
+1541:                   </div>
+1542:                 </li>
+1543:               ))}
+1544:             </ul>
+1545:           </div>
+1546: 
+1547:           <div className="bg-card rounded-2xl p-6 shadow-sm border border-border/60">
+1548:             <div className="flex items-center gap-2 mb-4">
+1549:               <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+1550:               <h3 className="font-semibold text-slate-800">Actions & Next Steps</h3>
+1551:             </div>
+1552:             <ul className="space-y-3">
+1553:               {reportModel.actions.map((action) => (
+1554:                 <li key={action.title} className="flex items-start gap-3">
+1555:                   <div className="h-5 w-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mt-0.5 shrink-0">
+1556:                     <CheckCircle2 className="h-3 w-3" />
+1557:                   </div>
+1558:                   <div>
+1559:                     <p className="text-sm text-slate-700 font-medium">{action.title}</p>
+1560:                     <p className="text-xs text-slate-500 mt-0.5">{action.description}</p>
+1561:                   </div>
+1562:                 </li>
+1563:               ))}
+1564:             </ul>
+1565:           </div>
+1566:         </div>
+1567: 
+1568:         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+1569:           <div className="bg-card rounded-2xl p-6 shadow-sm border border-border/60">
+1570:             <h3 
+1774:                           {s.risk}
+1775:                         </span>
+1776:                       </td>
+1777:                     </tr>
+1778:                   ))
+1779:                 ) : (
+1780:                   <tr><td colSpan={6} className="text-center py-6 text-slate-400 text-sm">No student data available</td></tr>
+1781:                 )}
+1782:               </tbody>
+1783:             </table>
+1784:           </div>
+1785:         </div>
+1786: 
+1787:         {/* ═══════════════════════════════════════════════════════════════════
+1788:             PHASE 2 — Improvement Tracker + Radar Chart (Side by Side)
+1789:             ═══════════════════════════════════════════════════════════════════ */}
+1790:         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+1791:           {/* Improvement Tracker — multi-subject line chart */}
+1792:           <div className="lg:col-span-2 bg-card rounded-2xl p-5 shadow-sm border border-border/60">
+1793:             <div className="flex items-center gap-2 mb-4">
+1794:               <BarChart3 className="h-5 w-5 text-primary" />
+1795:               <h3 className="font-semibold text-slate-800">Improvement Tracker</h3>
+1796:               <span className="text-[10px] text-slate-400 ml-auto">Avg score per subject over time</span>
+1797:             </div>
+1798:             <div className="h-72">
+1799:               {reportModel.improvementTracker.data.length > 0 ? (
+1800:                 <ResponsiveContainer width="100%" height="100%">
+1801:                   <AreaChart data={reportModel.improvementTracker.data}>
+1802:                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+1803:                     <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+1804:                     <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} />
+1805:                     <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: 12 }} />
+1806:                     <Legend wrapperStyle={{ fontSize: 11 }} />
+1807:                     {reportModel.improvementTracker.subjects.map((subj, idx) => {
+1808:                       const colors = ["#0ea5e9", "#00B98A", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+1809:                       return (
+1810:                         <Area key={subj} type="monotone" dataKey={subj} name={subj}
+1811:                           stroke={colors[idx % colors.length]} fill={colors[idx % colors.length]}
+1812:                           fillOpacity={0.08} strokeWidth={2} dot={{ r: 3 }}
+1813:                         />
+1814:                       );
+1815:                     })}
+1816:                   </AreaChart>
+1817:                 </ResponsiveContainer>
+1818:               ) : (
+1819:                 <div className="h-full flex items-center justify-center text-sm text-slate-400">No improvement data available</div>
+1820: 
+1978:                   <p className="text-xs font-bold text-slate-600">Students at Risk</p>
+1979:                 </div>
+1980:                 <p className="text-sm font-bold text-slate-800 mt-1">
+1981:                   {reportModel.enhancedAlerts.studentsAtRisk > 0 ? `${reportModel.enhancedAlerts.studentsAtRisk} students need immediate intervention` : "No students at high risk"}
+1982:                 </p>
+1983:               </div>
+1984:             </div>
+1985:           </div>
+1986:         </div>
+1987: 
+1988:         {/* ═══════════════════════════════════════════════════════════════════
+1989:             PHASE 4 — School Performance Scores
+1990:             ═══════════════════════════════════════════════════════════════════ */}
+1991:         {reportModel.schoolScores.length > 0 && (
+1992:           <div className="bg-card rounded-2xl p-6 shadow-sm border border-border/60">
+1993:             <div className="flex items-center gap-2 mb-4">
+1994:               <Award className="h-5 w-5 text-amber-500" />
+1995:               <h3 className="font-semibold text-slate-800">School Performance Scores</h3>
+1996:               <span className="text-[10px] text-slate-400 ml-auto">Formula: 40% Quiz + 30% Attendance + 30% Sessions</span>
+1997:             </div>
+1998:             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+1999:               {reportModel.schoolScores.map((ss) => (
+2000:                 <div key={ss.name} className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-100 relative overflow-hidden">
+2001:                   <div className="absolute top-2 right-3">
+2002:                     <span className={cn(
+2003:                       "text-xs font-bold px-2 py-0.5 rounded-full",
+2004:                       ss.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+2005:                     )}>#{ss.rank}</span>
+2006:                   </div>
+2007:                   <p className="text-sm font-semibold text-slate-800 truncate pr-10">{ss.name}</p>
+2008:                   <div className="flex items-end gap-1 mt-2">
+2009:                     <span className="text-3xl font-black text-teal-600">{ss.score}</span>
+2010:                     <span className="text-sm text-slate-400 pb-1">/100</span>
+2011:                   </div>
+2012:                   <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2 overflow-hidden">
+2013:                     <div className={cn("h-full rounded-full transition-all", ss.score >= 70 ? "bg-teal-500" : ss.score >= 50 ? "bg-amber-500" : "bg-rose-500")}
+2014:                       style={{ width: `${ss.score}%` }} />
+2015:                   </div>
+2016:                   <div className="flex justify-between text-[10px] text-slate-400 mt-1.5">
+2017:                     <span>Quiz: {ss.quizScore}%</span>
+2018:                     <span>Attendance: {ss.attScore}%</span>
+2019:                   </div>
+2020:                 </div>
+2149:               </Button>
+2150:             </div>
+2151:           </div>
+2152:         </div>
+2153:       </div>
+2154:     </div>
+2155:   );
+2156: }
+2157: 
+2158: const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+2159:   <div className="space-y-1.5">
+2160:     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+2161:     <select
+2162:       value={value}
+2163:       onChange={(e) => onChange(e.target.value)}
+2164:       className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+2165:     >
+2166:       {options.map((opt) => (
+2167:         <option key={opt} value={opt}>
+2168:           {opt}
+2169:         </option>
+2170:       ))}
+2171:     </select>
+2172:   </div>
+2173: );
+2174: 
+2175: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+2176:   <div className={cn(
+2177:     "p-4 rounded-xl border",
+2178:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+2179:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+2180:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+2181:     tone === "muted" && "bg-slate-50 border-slate-100",
+2182:   )}>
+2183:     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{label}</span>
+2184:     <span className="text-sm font-bold text-slate-800 block mt-1 truncate" title={value}>{value}</span>
+2185:     <span className="text-xs text-slate-500 block mt-0.5">{sub}</span>
+2186:   </div>
+2187: );
+2188: 

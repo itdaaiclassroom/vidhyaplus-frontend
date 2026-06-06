@@ -1,0 +1,68 @@
+Created At: 2026-05-29T07:58:36Z
+Completed At: 2026-05-29T07:58:36Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/repair_reports.py`
+Total Lines: 879
+Total Bytes: 53930
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import os
+2: 
+3: file_path = r"c:\Users\venky\Desktop\Vidya_Plus_\vidhyaplus-frontend\src\pages\admin\ReportsPanel.tsx"
+4: 
+5: # Read original lines up to 1368
+6: with open(file_path, "r", encoding="utf-8") as f:
+7:     lines = f.readlines()
+8: 
+9: header_code = "".join(lines[:1368])
+10: 
+11: # New implementation code
+12: new_body_code = """
+13:       {/* Responsive On-Screen Dashboard */}
+14:       <div className="space-y-6">
+15:         {/* Row 1: Executive Summary & Health */}
+16:         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+17:           {/* AI Executive Summary Card */}
+18:           <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+19:             <div>
+20:               <div className="flex items-center gap-2 mb-3">
+21:                 <Sparkles className="h-5 w-5 text-teal-600 animate-pulse" />
+22:                 <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Executive Summary</h3>
+23:               </div>
+24:               <p className="text-slate-600 leading-relaxed text-sm">
+25:                 {reportModel.executiveSummary.join(" ")}
+26:               </p>
+27:               {reportModel.aiAnalysis && reportModel.aiAnalysis.length > 0 && (
+28:                 <div className="mt-4">
+29:                   <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Analytical Insights:</p>
+30:                   <ul className="text-xs text-slate-500 list-disc list-inside mt-2 space-y-1.5 pl-1 leading-relaxed">
+31:       
+<truncated 45284 bytes>
+══════════════════════════════════════════════ */}
+721:       <div className="pdf-report-page w-[900px] h-[1273px] bg-white p-10 flex flex-col justify-between border border-slate-200 relative overflow-hidden select-none">
+722:         <div className="space-y-6">
+723:           {/* Header */}
+724:           <div className="pb-4 border-b border-slate-200">
+725:             <p className="text-[10px] font-black text-slate-400 tracking-[0.25em] uppercase">
+726:               Section II: Operational Audits & Administrative rankings
+727:             </p>
+728:             <h3 className="text-lg font-black text-blue-900 mt-0.5 uppercase tracking-tight">
+729:               School Rankings & Teacher compliance
+730:             </h3>
+731:           </div>
+732: 
+733:           {/* School leaderboards (Top 3) & Teacher compliance */}
+734:           <div className="grid grid-cols-12 gap-6">
+735:             {/* Leaderboards */}
+736:             <div className="col-span-7 bg-slate-50 rounded-3xl p-5 border border-slate-200/50 space-y-3">
+737:               <div className="flex items-center justify-between">
+738:                 <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">School Performance Rankings</h4>
+739:                 <span className="text-[8px] font-bold text-slate-400 font-mono">Quiz 40% | Attendance 30% | Sessions 30%</span>
+740:               </div>
+741:               <div className="space-y-2.5">
+742:                 {reportModel.schoolScores.slice(0, 3).map((ss: any) => (
+743:                   <div key={ss.name} className="p-3 rounded-xl bg-white border border-slate-100 relative shadow-sm">
+744:                     <div className="absolute top-2.5 right-3">
+745:                       <span className="text-[10px] font-extrabold text-teal-60
+<truncated 4492 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.

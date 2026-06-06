@@ -1,0 +1,49 @@
+Created At: 2026-05-29T06:56:16Z
+Completed At: 2026-05-29T06:56:16Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 240 to 280
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+240:     projectStatus = "⚠️ AT RISK - Project needs attention to meet objectives";
+241:   } else {
+242:     projectStatus = "🚨 CRITICAL - Immediate action required to prevent setback";
+243:   }
+244: 
+245:   return { analysis, projectStatus, healthScore };
+246: };
+247: 
+248: export function ReportsPanel() {
+249:   const { data, loading: isLoading, error } = useAppData();
+250:   const isError = !!error;
+251:   const { userName } = useAuth();
+252:   
+253:   const reportRef = useRef<HTMLDivElement>(null);
+254:   
+255:   const source = data ?? { 
+256:     schools: [], 
+257:     students: [], 
+258:     teachers: [], 
+259:     subjects: [],
+260:     chapters: [],
+261:     liveSessions: [], 
+262:     studentQuizResults: [],
+263:     activityLogs: [],
+264:     classes: [],
+265:     studentAttendance: []
+266:   };
+267: 
+268:   // Temporary state for selections (before clicking search)
+269:   const [tempReportType, setTempReportType] = useState("All Time");
+270:   const presetRange = getPresetDateRange("All Time");
+271:   const [tempCustomStartDate, setTempCustomStartDate] = useState(formatInputDate(presetRange[0]));
+272:   const [tempCustomEndDate, setTempCustomEndDate] = useState(formatInputDate(presetRange[1]));
+273:   const [tempSchool, setTempSchool] = useState("All Schools");
+274:   const [tempKlass, setTempKlass] = useState("All Classes");
+275:   const [tempSubject, setTempSubject] = useState("All Subjects");
+276: 
+277:   // Active filters (applied to the report data after clicking search)
+278:   const [reportType, setReportType] = useState("All Time");
+279:   const [customStartDate, setCustomStartDate] = useState(formatInputDate(presetRange[0]));
+280:   const [customEndDate, setCustomEndDate] = useState(formatInputDate(presetRange[1]));
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

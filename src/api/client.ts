@@ -1332,7 +1332,7 @@ export async function fetchStudentAttendanceSummary(schoolId?: string, date?: st
   return res.json();
 }
 
-export async function fetchPrincipalSubjects(): Promise<any[]> {
+export async function fetchPrincipalSubjects(): Promise<any> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/principal/subjects`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await parseErrorResponse(res));

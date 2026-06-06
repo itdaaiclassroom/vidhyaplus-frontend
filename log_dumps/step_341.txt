@@ -1,0 +1,39 @@
+Created At: 2026-05-29T07:58:41Z
+Completed At: 2026-05-29T07:58:41Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1350 to 1380
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1350:         )}
+1351: 
+1352:         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 pt-5 border-t border-slate-100 gap-4">
+1353:           <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+1354:             <Calendar className="h-4.5 w-4.5 text-slate-400" />
+1355:             <span>Active Reporting Window:</span>
+1356:             <span className="text-slate-700 font-bold">
+1357:               {reportType === "All Time" ? "All Available Data" : `${reportModel.dateRange[0]} — ${reportModel.dateRange[1]}`}
+1358:             </span>
+1359:           </div>
+1360:           <Button
+1361:             onClick={handleSearch}
+1362:             className="w-full sm:w-auto rounded-xl h-11 px-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all shadow-md shadow-teal-600/10 flex items-center justify-center gap-2"
+1363:           >
+1364:             <Search className="h-4 w-4" /> Get Report
+1365:           </Button>
+1366:         </div>
+1367:       </div>
+1368:       
+1369:       {/* Responsive On-Screen Dashboard */}
+1370:       <div className="space-y-6">
+1371:         {/* Row 1: Executive Summary & Health */}
+1372:         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+1373:           {/* AI Executive Summary Card */}
+1374:           <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
+1375:             <div>
+1376:               <div className="flex items-center gap-2 mb-3">
+1377:                 <Sparkles className="h-5 w-5 text-teal-600 animate-pulse" />
+1378:                 <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Executive Summary</h3>
+1379:               </div>
+1380:               <p className="text-slate-600 leading-relaxed text-sm">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

@@ -1,0 +1,65 @@
+Created At: 2026-05-29T07:58:28Z
+Completed At: 2026-05-29T07:58:28Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1301 to 1500
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1301:           <Button
+1302:             variant="outline"
+1303:             onClick={handleDownloadExcel}
+1304:             className="inline-flex items-center gap-2 rounded-xl h-11 border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-sm px-4"
+1305:           >
+1306:             <FileSpreadsheet className="h-4.5 w-4.5 text-slate-500" /> Export CSV
+1307:           </Button>
+1308:           <Button
+1309:             onClick={handleDownloadPDF}
+1310:             className="inline-flex items-center gap-2 rounded-xl h-11 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm px-5 shadow-lg shadow-teal-600/10"
+1311:           >
+1312:             <Download className="h-4.5 w-4.5" /> Download Report PDF
+1313:           </Button>
+1314:         </div>
+1315:       </div>
+1316: 
+1317:       {isLoading && <div className="p-8 text-center text-slate-500 font-medium">Loading reports...</div>}
+1318:       {isError && <div className="p-8 text-center text-rose-500 font-semibold">Failed to load report data</div>}
+1319: 
+1320:       {/* Filter Options */}
+1321:       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+1322:         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+1323:           <FilterSelect label="Report Type" value={tempReportType} onChange={setTempReportType} options={["All Time", "Daily", "Weekly", "Monthly", "Custom"]} />
+1324:           <FilterSelect label="Select School" value={tempSchool} onChange={handleSchoolChange} options={schoolOptions} />
+1325:   
+<truncated 9009 bytes>
+          ))}
+1471:             </ul>
+1472:           </div>
+1473: 
+1474:           {/* Directives */}
+1475:           <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
+1476:             <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
+1477:               <CheckCircle2 className="h-5 w-5 text-teal-600" />
+1478:               <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Collector Directive Checklist</h4>
+1479:             </div>
+1480:             <ul className="space-y-3">
+1481:               {reportModel.actions.map((action, idx) => (
+1482:                 <li key={idx} className="flex gap-3 items-start p-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl">
+1483:                   <div className="h-5 w-5 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
+1484:                     <CheckCircle2 className="h-3 w-3" />
+1485:                   </div>
+1486:                   <div>
+1487:                     <p className="text-sm font-bold text-slate-800 leading-tight">{action.title}</p>
+1488:                     <p className="text-xs text-slate-500 leading-tight mt-1">{action.description}</p>
+1489:                   </div>
+1490:                 </li>
+1491:               ))}
+1492:             </ul>
+1493:           </div>
+1494:         </div>
+1495: 
+1496:         {/* Row 4: Charts (Activity Timeline & Subject competency Radar) */}
+1497:         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+1498:           {/* Activity Timeline (2/3 width) */}
+1499:           <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+1500:             <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4">District Activity Timeline (Students vs Assessments)</h4>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

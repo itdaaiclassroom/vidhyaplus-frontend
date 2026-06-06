@@ -1,0 +1,51 @@
+Created At: 2026-05-29T07:05:23Z
+Completed At: 2026-05-29T07:05:23Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 1140 to 1182
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1140:         rank: 0,
+1141:         quizScore: Math.round(quizScore),
+1142:         attScore: Math.round(attScore),
+1143:       };
+1144:     }).sort((a, b) => b.score - a.score);
+1145:     
+1146:     schoolScores.forEach((s, i) => { s.rank = i + 1; });
+1147: 
+1148:     return {
+1149:       activityData,
+1150:       quizPerf,
+1151:       schoolCompare: comparisonData,
+1152:       comparisonTitle,
+1153:       comparisonData,
+1154:       subjectPerf,
+1155:       schoolPerf,
+1156:       metrics,
+1157:       alerts,
+1158:       actions,
+1159:       highlights,
+1160:       executiveSummary,
+1161:       recommendations,
+1162:       dateRange,
+1163:       strongestTopics,
+1164:       weakestTopics,
+1165:       aiAnalysis: ai.analysis,
+1166:       projectStatus: ai.projectStatus,
+1167:       healthScore: ai.healthScore,
+1168:       // Phase 1
+1169:       studentPerformanceTable,
+1170:       attentionNeeded,
+1171:       aiInsights,
+1172:       // Phase 2
+1173:       improvementTracker,
+1174:       radarData,
+1175:       // Phase 3
+1176:       classComparison,
+1177:       teacherActivity,
+1178:       enhancedAlerts,
+1179:       // Phase 4
+1180:       schoolScores,
+1181:     };
+1182:   }, [school, klass, subject, reportType, customStartDate, customEndDate, selectedDateRange, source]);
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

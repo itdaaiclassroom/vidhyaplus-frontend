@@ -25,12 +25,14 @@ interface PrincipalContextType {
   refetchStudents: () => Promise<void>;
   refetchTeachers: () => Promise<void>;
   refetchSections: () => Promise<void>;
+  schoolId: string | number | null;
 }
 
 const PrincipalContext = createContext<PrincipalContextType | undefined>(undefined);
 
-export const PrincipalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { schoolId } = useAuth();
+export const PrincipalProvider: React.FC<{ children: ReactNode, schoolIdOverride?: string }> = ({ children, schoolIdOverride }) => {
+  const { schoolId: authSchoolId } = useAuth();
+  const schoolId = schoolIdOverride || authSchoolId;
   
   const [students, setStudents] = useState<PrincipalStudent[]>([]);
   const [teachers, setTeachers] = useState<PrincipalTeacher[]>([]);
@@ -115,7 +117,8 @@ export const PrincipalProvider: React.FC<{ children: ReactNode }> = ({ children 
     refetch: fetchAllData,
     refetchStudents,
     refetchTeachers,
-    refetchSections
+    refetchSections,
+    schoolId
   }), [students, teachers, grades, sections, profile, loading, error, schoolId]);
 
   return (

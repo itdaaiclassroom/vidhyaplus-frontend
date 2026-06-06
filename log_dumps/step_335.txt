@@ -1,0 +1,47 @@
+Created At: 2026-05-29T07:58:34Z
+Completed At: 2026-05-29T07:58:34Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1920 to 1970
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1920:                     <InsightTile label="Remedial Topic" value={reportModel.weakestTopics[0]?.topic ?? "N/A"} sub={`Avg score ${reportModel.weakestTopics[0]?.avg ?? 0}%`} tone="warning" />
+1921:                     <InsightTile label="Top School" value={reportModel.schoolCompare[0]?.name ?? "N/A"} sub={`${Math.round(reportModel.schoolCompare[0]?.value ?? 0)}% eng.`} tone="primary" />
+1922:                     <InsightTile label="Lowest School" value={reportModel.schoolCompare.slice(-1)[0]?.name ?? "N/A"} sub={`${Math.round(reportModel.schoolCompare.slice(-1)[0]?.value ?? 0)}% eng.`} tone="muted" />
+1923:                   </div>
+1924:                 </div>
+1925:               </div>
+1926: 
+1927:               {/* Student Activity Trend Line Chart */}
+1928:               <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200/50">
+1929:                 <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-3">District Activity Timeline (Students vs Assessments)</h4>
+1930:                 <div className="h-[280px]">
+1931:                   <ResponsiveContainer width="100%" height="100%">
+1932:                     <AreaChart data={reportModel.activityData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+1933:                       <defs>
+1934:                         <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
+1935:                           <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+1936:                           <stop offset="95%" stopColor="#0ea5e9" stopOpac
+<truncated 1413 bytes>
+         </AreaChart>
+1951:                   </ResponsiveContainer>
+1952:                 </div>
+1953:                       <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Quiz average</th>
+1954:                       <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Academic Score</th>
+1955:                       <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Grade Award</th>
+1956:                       <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Risk Level</th>
+1957:                     </tr>
+1958:                   </thead>
+1959:                   <tbody>
+1960:                     {reportModel.studentPerformanceTable.slice(0, 4).map((s) => (
+1961:                       <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+1962:                         <td className="py-2 px-3 font-bold text-slate-700">{s.name}</td>
+1963:                         <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.attendancePct}%</td>
+1964:                         <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.quizAvg}%</td>
+1965:                         <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.performanceIndex}</td>
+1966:                         <td className="text-center py-2 px-3 text-blue-800 font-black font-mono">{s.grade}</td>
+1967:                         <td className="text-center py-2 px-3">
+1968:                           <span className={cn(
+1969:                             "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+1970:                             s.risk === "low" && "bg-emerald-50 text-emerald-700",
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

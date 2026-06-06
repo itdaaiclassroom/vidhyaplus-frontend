@@ -1,0 +1,65 @@
+Created At: 2026-05-29T07:09:40Z
+Completed At: 2026-05-29T07:09:40Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 1869
+Total Bytes: 97335
+Showing lines 1600 to 1869
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1600:                       <linearGradient id="colorQuizzes" x1="0" y1="0" x2="0" y2="1">
+1601:                         <stop offset="5%" stopColor="#eab308" stopOpacity={0.2}/>
+1602:                         <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+1603:                       </linearGradient>
+1604:                     </defs>
+1605:                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+1606:                     <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+1607:                     <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} domain={reportModel.activityData.every(d => d.students === 0 && d.quizzes === 0) ? [0, 4] : [0, 'auto']} />
+1608:                     <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: 11 }} />
+1609:                     <Legend wrapperStyle={{ fontSize: 11 }} />
+1610:                     <Area type="monotone" dataKey="students" name="Active Students" stroke="#0ea5e9" strokeWidth={2.5} fillOpacity={1} fill="url(#colorStudents)" />
+1611:                     <Area type="monotone" dataKey="quizzes" name="Quizzes Taken" stroke="#eab308" strokeWidth={2.5} fillOpacity={1} fill="url(#colorQuizzes)" />
+1612:                   </AreaChart>
+1613:                 </ResponsiveContainer>
+1614:               </div>
+1615:             </div>
+1616: 
+1617:             {/* Radar Subject Chart + Pie Comparison */}
+1618:             <div className="grid grid-col
+<truncated 15843 bytes>
+abel, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+1834:   <div className="space-y-1.5">
+1835:     <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</label>
+1836:     <select
+1837:       value={value}
+1838:       onChange={(e) => onChange(e.target.value)}
+1839:       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold text-slate-700"
+1840:     >
+1841:       {options.map((opt) => (
+1842:         <option key={opt} value={opt}>
+1843:           {opt}
+1844:         </option>
+1845:       ))}
+1846:     </select>
+1847:   </div>
+1848: );
+1849: 
+1850: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+1851:   <div className={cn(
+1852:     "p-3 rounded-2xl border flex flex-col justify-between h-[68px]",
+1853:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+1854:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+1855:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+1856:     tone === "muted" && "bg-slate-100/50 border-slate-200/60",
+1857:   )}>
+1858:     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">{label}</span>
+1859:     <span className={cn(
+1860:       "text-xs font-bold block truncate",
+1861:       tone === "success" && "text-emerald-800",
+1862:       tone === "warning" && "text-amber-800",
+1863:       tone === "primary" && "text-blue-900",
+1864:       tone === "muted" && "text-slate-700",
+1865:     )} title={value}>{value}</span>
+1866:     <span className="text-[9px] text-slate-400 block truncate">{sub}</span>
+1867:   </div>
+1868: );
+1869: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

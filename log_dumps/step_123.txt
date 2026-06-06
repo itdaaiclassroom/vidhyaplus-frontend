@@ -1,0 +1,54 @@
+Created At: 2026-05-29T07:05:09Z
+Completed At: 2026-05-29T07:05:09Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 1800 to 2000
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1800:                 <ResponsiveContainer width="100%" height="100%">
+1801:                   <AreaChart data={reportModel.improvementTracker.data}>
+1802:                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+1803:                     <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+1804:                     <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} />
+1805:                     <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: 12 }} />
+1806:                     <Legend wrapperStyle={{ fontSize: 11 }} />
+1807:                     {reportModel.improvementTracker.subjects.map((subj, idx) => {
+1808:                       const colors = ["#0ea5e9", "#00B98A", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+1809:                       return (
+1810:                         <Area key={subj} type="monotone" dataKey={subj} name={subj}
+1811:                           stroke={colors[idx % colors.length]} fill={colors[idx % colors.length]}
+1812:                           fillOpacity={0.08} strokeWidth={2} dot={{ r: 3 }}
+1813:                         />
+1814:                       );
+1815:                     })}
+1816:                   </AreaChart>
+1817:                 </ResponsiveContainer>
+1818:               ) : (
+1819:                 <div className="h-full flex items-center justify-center text-sm text-slate-400">No improvement data available</div>
+1820: 
+<truncated 11517 bytes>
+500")} />
+1978:                   <p className="text-xs font-bold text-slate-600">Students at Risk</p>
+1979:                 </div>
+1980:                 <p className="text-sm font-bold text-slate-800 mt-1">
+1981:                   {reportModel.enhancedAlerts.studentsAtRisk > 0 ? `${reportModel.enhancedAlerts.studentsAtRisk} students need immediate intervention` : "No students at high risk"}
+1982:                 </p>
+1983:               </div>
+1984:             </div>
+1985:           </div>
+1986:         </div>
+1987: 
+1988:         {/* ═══════════════════════════════════════════════════════════════════
+1989:             PHASE 4 — School Performance Scores
+1990:             ═══════════════════════════════════════════════════════════════════ */}
+1991:         {reportModel.schoolScores.length > 0 && (
+1992:           <div className="bg-card rounded-2xl p-6 shadow-sm border border-border/60">
+1993:             <div className="flex items-center gap-2 mb-4">
+1994:               <Award className="h-5 w-5 text-amber-500" />
+1995:               <h3 className="font-semibold text-slate-800">School Performance Scores</h3>
+1996:               <span className="text-[10px] text-slate-400 ml-auto">Formula: 40% Quiz + 30% Attendance + 30% Sessions</span>
+1997:             </div>
+1998:             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+1999:               {reportModel.schoolScores.map((ss) => (
+2000:                 <div key={ss.name} className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-100 relative overflow-hidden">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

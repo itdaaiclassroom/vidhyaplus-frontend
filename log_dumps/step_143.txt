@@ -1,0 +1,39 @@
+Created At: 2026-05-29T07:07:16Z
+Completed At: 2026-05-29T07:07:16Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2179
+Total Bytes: 115185
+Showing lines 1280 to 1310
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1280: 
+1281:     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+1282:     const link = document.createElement("a");
+1283:     link.href = URL.createObjectURL(blob);
+1284:     link.download = `vidhyaplus-${reportType.toLowerCase()}-report-${new Date().toISOString().split('T')[0]}.csv`;
+1285:     link.click();
+1286:   };
+1287: 
+1288:   return (
+1289:     <div className="space-y-6">
+1290:       
+1291:       {/* Header Inline */}
+1292:       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+1293:         <div>
+1294:           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Reports & Insights</h1>
+1295:           <p className="text-muted-foreground text-sm">Comprehensive performance reports and platform impact analytics.</p>
+1296:         </div>
+1297:         <div className="flex items-center gap-3">
+1298:           <Button
+1299:             variant="outline"
+1300:             onClick={handleDownloadExcel}
+1301:             className="inline-flex items-center gap-2 rounded-xl h-10 border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-medium text-sm px-4"
+1302:           >
+1303:             <FileSpreadsheet className="h-4 w-4 text-slate-500" /> Excel
+1304:           </Button>
+1305:           <Button
+1306:             onClick={handleDownloadPDF}
+1307:             className="inline-flex items-center gap-2 rounded-xl h-10 bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm px-4"
+1308:           >
+1309:             <Download className="h-4 w-4" /> Download PDF
+1310:           </Button>
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

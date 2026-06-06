@@ -1,0 +1,72 @@
+Created At: 2026-05-29T07:05:13Z
+Completed At: 2026-05-29T07:05:13Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 2000 to 2188
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2000:                 <div key={ss.name} className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-100 relative overflow-hidden">
+2001:                   <div className="absolute top-2 right-3">
+2002:                     <span className={cn(
+2003:                       "text-xs font-bold px-2 py-0.5 rounded-full",
+2004:                       ss.rank === 1 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+2005:                     )}>#{ss.rank}</span>
+2006:                   </div>
+2007:                   <p className="text-sm font-semibold text-slate-800 truncate pr-10">{ss.name}</p>
+2008:                   <div className="flex items-end gap-1 mt-2">
+2009:                     <span className="text-3xl font-black text-teal-600">{ss.score}</span>
+2010:                     <span className="text-sm text-slate-400 pb-1">/100</span>
+2011:                   </div>
+2012:                   <div className="w-full h-1.5 bg-slate-200 rounded-full mt-2 overflow-hidden">
+2013:                     <div className={cn("h-full rounded-full transition-all", ss.score >= 70 ? "bg-teal-500" : ss.score >= 50 ? "bg-amber-500" : "bg-rose-500")}
+2014:                       style={{ width: `${ss.score}%` }} />
+2015:                   </div>
+2016:                   <div className="flex justify-between text-[10px] text-slate-400 mt-1.5">
+2017:                     <span>Quiz: {ss.quizScore}%</span>
+2018:                     <span>Attendance: {ss.attScore}%</span>
+2019:                   </div>
+2020:                 </div>
+202
+<truncated 7069 bytes>
+leSpreadsheet className="h-4 w-4 text-slate-500" /> Download as Excel
+2149:               </Button>
+2150:             </div>
+2151:           </div>
+2152:         </div>
+2153:       </div>
+2154:     </div>
+2155:   );
+2156: }
+2157: 
+2158: const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+2159:   <div className="space-y-1.5">
+2160:     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+2161:     <select
+2162:       value={value}
+2163:       onChange={(e) => onChange(e.target.value)}
+2164:       className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+2165:     >
+2166:       {options.map((opt) => (
+2167:         <option key={opt} value={opt}>
+2168:           {opt}
+2169:         </option>
+2170:       ))}
+2171:     </select>
+2172:   </div>
+2173: );
+2174: 
+2175: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+2176:   <div className={cn(
+2177:     "p-4 rounded-xl border",
+2178:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+2179:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+2180:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+2181:     tone === "muted" && "bg-slate-50 border-slate-100",
+2182:   )}>
+2183:     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{label}</span>
+2184:     <span className="text-sm font-bold text-slate-800 block mt-1 truncate" title={value}>{value}</span>
+2185:     <span className="text-xs text-slate-500 block mt-0.5">{sub}</span>
+2186:   </div>
+2187: );
+2188: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

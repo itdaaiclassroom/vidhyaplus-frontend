@@ -1,0 +1,72 @@
+Created At: 2026-05-29T07:58:32Z
+Completed At: 2026-05-29T07:58:32Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1801 to 2035
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1801:                         )}>
+1802:                           <m.icon className="h-4 w-4" />
+1803:                         </div>
+1804:                         <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 border text-[9px] font-mono font-bold px-1.5 py-0.5">
+1805:                           +{m.change}
+1806:                         </Badge>
+1807:                       </div>
+1808:                       <div className="mt-4">
+1809:                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{m.label}</p>
+1810:                         <p className="text-xl font-black text-slate-800 mt-0.5 font-mono">{m.value}</p>
+1811:                       </div>
+1812:                     </div>
+1813:                   ))}
+1814:                 </div>
+1815:               </div>
+1816: 
+1817:               {/* Critical Alerts & Actions */}
+1818:               <div className="grid grid-cols-2 gap-6 pt-2">
+1819:                 {/* Issues & Alerts */}
+1820:                 <div className="bg-rose-50/30 border border-rose-100 rounded-3xl p-5 space-y-3">
+1821:                   <div className="flex items-center gap-2">
+1822:                     <AlertTriangle className="h-4.5 w-4.5 text-rose-500" />
+1823:                     <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Critical Alerts</h4>
+1824:                   </div>
+1825:                   <ul className="space-y-2">
+1826:                     {(reportModel.alerts.length > 0 ? reportModel.alerts 
+<truncated 12466 bytes>
+abel, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+2000:   <div className="space-y-1.5">
+2001:     <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</label>
+2002:     <select
+2003:       value={value}
+2004:       onChange={(e) => onChange(e.target.value)}
+2005:       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold text-slate-700"
+2006:     >
+2007:       {options.map((opt) => (
+2008:         <option key={opt} value={opt}>
+2009:           {opt}
+2010:         </option>
+2011:       ))}
+2012:     </select>
+2013:   </div>
+2014: );
+2015: 
+2016: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+2017:   <div className={cn(
+2018:     "p-3 rounded-2xl border flex flex-col justify-between h-[68px]",
+2019:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+2020:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+2021:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+2022:     tone === "muted" && "bg-slate-100/50 border-slate-200/60",
+2023:   )}>
+2024:     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">{label}</span>
+2025:     <span className={cn(
+2026:       "text-xs font-bold block truncate",
+2027:       tone === "success" && "text-emerald-800",
+2028:       tone === "warning" && "text-amber-800",
+2029:       tone === "primary" && "text-blue-900",
+2030:       tone === "muted" && "text-slate-700",
+2031:     )} title={value}>{value}</span>
+2032:     <span className="text-[9px] text-slate-400 block truncate">{sub}</span>
+2033:   </div>
+2034: );
+2035: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

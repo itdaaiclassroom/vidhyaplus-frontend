@@ -1,0 +1,15 @@
+Created At: 2026-05-29T07:58:15Z
+Completed At: 2026-05-29T07:58:15Z
+File Path: `file:///C:/Users/venky/.gemini/antigravity-ide/brain/4d1337a2-50c4-4c58-b0e4-2f55a9ae9cfa/task.md`
+Total Lines: 7
+Total Bytes: 499
+Showing lines 1 to 7
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: - [x] Set up imports (html2canvas, jspdf, toast) in `ReportsPanel.tsx`
+2: - [x] Implement District Collector-focused header and visual layout categories
+3: - [x] Create the print-optimized container structure inside `ReportsPanel` for PDF generation
+4: - [x] Refactor `handleDownloadPDF` to capture charts and compile A4 pages using `html2canvas` and `jsPDF`
+5: - [x] Polish and style the dashboard charts, tables, metrics, and risk status sections
+6: - [x] Verify build and correct any linting/compilation issues
+7: 
+The above content shows the entire, complete file contents of the requested file.
