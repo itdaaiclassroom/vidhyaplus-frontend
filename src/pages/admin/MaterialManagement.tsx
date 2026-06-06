@@ -39,6 +39,7 @@ export default function MaterialManagement() {
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
   const [curriculumFilterGrade, setCurriculumFilterGrade] = useState('');
   const [curriculumFilterSubject, setCurriculumFilterSubject] = useState('');
+  const [curriculumFilterChapter, setCurriculumFilterChapter] = useState('');
   const [curriculumSearchText, setCurriculumSearchText] = useState('');
   const [curriculumPage, setCurriculumPage] = useState(1);
   const [isCurriculumUploadOpen, setIsCurriculumUploadOpen] = useState(false);
@@ -213,6 +214,8 @@ export default function MaterialManagement() {
 
   useEffect(() => {
     setCurriculumPage(1);
+    // Reset chapter filter whenever grade or subject changes
+    setCurriculumFilterChapter('');
   }, [curriculumFilterSubject, curriculumFilterGrade, curriculumSearchText]);
 
   // When grade changes, update available subjects
@@ -849,7 +852,7 @@ export default function MaterialManagement() {
               <select 
                 className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                 value={curriculumFilterGrade}
-                onChange={e => { setCurriculumFilterGrade(e.target.value); loadCurriculumData(curriculumFilterSubject, e.target.value); }}
+                onChange={e => { setCurriculumFilterGrade(e.target.value); setCurriculumFilterChapter(''); loadCurriculumData(curriculumFilterSubject, e.target.value); }}
               >
                 <option value="">All Grades</option>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => <option key={g} value={String(g)}>Class {g}</option>)}
@@ -861,10 +864,35 @@ export default function MaterialManagement() {
               <select 
                 className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                 value={curriculumFilterSubject}
-                onChange={e => { setCurriculumFilterSubject(e.target.value); loadCurriculumData(e.target.value, curriculumFilterGrade); }}
+                onChange={e => { setCurriculumFilterSubject(e.target.value); setCurriculumFilterChapter(''); loadCurriculumData(e.target.value, curriculumFilterGrade); }}
               >
                 <option value="">All Subjects</option>
                 {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+
+            {/* Chapter filter — derived from curriculumData based on current grade+subject */}
+            <div className="space-y-1.5 w-56">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapter</label>
+              <select
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                value={curriculumFilterChapter}
+                onChange={e => { setCurriculumFilterChapter(e.target.value); setCurriculumPage(1); }}
+                disabled={curriculumData.length === 0}
+              >
+                <option value="">All Chapters</option>
+                {Array.from(
+                  new Set(
+                    curriculumData
+                      .filter(ch =>
+                        (!curriculumFilterGrade || String(ch.grade) === String(curriculumFilterGrade)) &&
+                        (!curriculumFilterSubject || String(ch.subject_id) === String(curriculumFilterSubject))
+                      )
+                      .map(ch => ch.chapter_name)
+                  )
+                ).map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
             </div>
 
@@ -934,6 +962,7 @@ export default function MaterialManagement() {
             const filteredFlatTopics = flatTopics.filter(t => {
               if (curriculumFilterGrade && String(t.grade) !== String(curriculumFilterGrade)) return false;
               if (curriculumFilterSubject && String(t.subjectId) !== String(curriculumFilterSubject)) return false;
+              if (curriculumFilterChapter && t.chapterName !== curriculumFilterChapter) return false;
               
               const matchesSearch = !curriculumSearchText ? true : (
                 t.topicName.toLowerCase().includes(curriculumSearchText.toLowerCase()) ||
