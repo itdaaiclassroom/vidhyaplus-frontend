@@ -140,6 +140,7 @@ export interface AllDataResponse {
   subjectMaterials?: Array<{
     id: string;
     subject_id: string;
+    grade_id?: number | string;
     title: string;
     url: string;
     content_type?: string;
