@@ -91,6 +91,44 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
     return schools.find(s => String(s.id) === selectedSchool)?.name || "Government High School";
   }, [schools, selectedSchool]);
 
+  // Group all students by section, sort them, and assign unique slots (0 to 59)
+  const studentSlotMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const studentsBySection: Record<string, any[]> = {};
+    
+    students.forEach((s: any) => {
+      const secId = String(principalCtx ? s.section_id : s.classId);
+      if (!studentsBySection[secId]) {
+        studentsBySection[secId] = [];
+      }
+      studentsBySection[secId].push(s);
+    });
+
+    Object.keys(studentsBySection).forEach((secId) => {
+      const list = studentsBySection[secId];
+      const sorted = [...list].sort((a, b) => {
+        const rollA = Number(principalCtx ? a.roll_no : (a.rollNo || a.id));
+        const rollB = Number(principalCtx ? b.roll_no : (b.rollNo || b.id));
+        const isRollANan = isNaN(rollA);
+        const isRollBNan = isNaN(rollB);
+        if (!isRollANan && !isRollBNan) {
+          if (rollA !== rollB) return rollA - rollB;
+        } else if (!isRollANan) {
+          return -1;
+        } else if (!isRollBNan) {
+          return 1;
+        }
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+      sorted.forEach((student, index) => {
+        map.set(String(student.id), index % 60);
+      });
+    });
+
+    return map;
+  }, [students, principalCtx]);
+
   const studentsToPrint = useMemo(() => {
     if (selectedStudentIds.size === 0) return filteredStudents;
     return filteredStudents.filter(s => selectedStudentIds.has(String(s.id)));
@@ -327,7 +365,12 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
                         )}>
                           {(["A", "B", "C", "D"] as OptionLetter[]).map((opt) => (
                             <div key={opt} className={cn("flex justify-center", printLayout === "1-per-page" && "page-card-wrapper")}>
-                              <StudentOptionCard data={studentData} option={opt} printLayout={printLayout} />
+                              <StudentOptionCard 
+                                data={studentData} 
+                                option={opt} 
+                                printLayout={printLayout} 
+                                slot={studentSlotMap.get(String(s.id))}
+                              />
                             </div>
                           ))}
                         </div>

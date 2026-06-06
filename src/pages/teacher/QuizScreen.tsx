@@ -545,7 +545,7 @@ const QuizScreen = () => {
         {mode === "aruco" && phase === "active" && currentQuestion && quizSessionId && (
           <ArucoScannerBoard
             quizSessionId={quizSessionId}
-            classStudents={allClassStudents.map((s: any) => ({ id: String(s.id), name: s.name, rollNo: Number(s.rollNo) }))}
+            classStudents={allClassStudents.map((s: any) => ({ id: String(s.id), name: s.name, rollNo: Number(s.rollNo || s.id) }))}
             absentRollNos={absentRollNos}
             currentQuestion={currentQuestion}
             questionIndex={currentQIndex}
