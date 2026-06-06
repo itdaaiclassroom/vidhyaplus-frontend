@@ -238,7 +238,10 @@ const LessonScreen = () => {
     // If it's already a full URL (http/https), use it directly
     if (relativePath.startsWith("http")) return relativePath;
 
-    const clean = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+    const clean = relativePath
+      .replace(/\\/g, "/")
+      .replace(/^\//, "")
+      .replace(/^uploads\//i, "");
     return `${getApiBase()}/api/materials/view?path=${encodeURIComponent(clean)}`;
   };
 
@@ -722,15 +725,7 @@ const LessonScreen = () => {
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">Curriculum Materials</p>
 
               <Card className="border-border shadow-sm hover:shadow-md transition-all cursor-pointer group bg-white" onClick={() => {
-                // Priority 1: Chapter-specific textbook chunk
-                if (sessionChapter?.textbookChunkPdfPath) {
-                  setMainScreenContentUrl(getMaterialViewerUrl(sessionChapter.textbookChunkPdfPath));
-                  setMainScreenTitle("Textbook Reference");
-                  setMainScreenDirectUrl(sessionChapter.textbookChunkPdfPath);
-                  return;
-                }
-
-                // Priority 2: Subject materials filtered by subject ID and current grade
+                // Get subject materials filtered by subject ID and current grade (actual uploaded textbook)
                 const subMaterial = sessionSubjectMaterials?.find((m: any) =>
                   sameId(m.subject_id || m.subjectId, activeSession.subjectId) &&
                   (!m.grade_id || sameId(m.grade_id, grade))
@@ -754,7 +749,7 @@ const LessonScreen = () => {
                   }
                 }
 
-                toast.info("No textbook found for this subject.");
+                toast.info("No textbook is uploaded. Please upload the textbook from the Admin Textbook-wise tab.");
               }}>
                 <CardContent className="p-3 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">

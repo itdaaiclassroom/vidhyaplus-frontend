@@ -165,7 +165,11 @@ function getMaterialDirectUrl(relativePath: string): string {
     return relativePath;
   }
   const base = getApiBase();
-  return `${base}/uploads/${relativePath.replace(/\\/g, "/")}`;
+  const cleanPath = relativePath
+    .replace(/\\/g, "/")
+    .replace(/^\//, "")
+    .replace(/^uploads\//i, "");
+  return `${base}/uploads/${cleanPath}`;
 }
 
 /** URL for viewing: direct file URL. PDF in iframe; PPTX rendered by PptxViewer component. */
@@ -214,6 +218,13 @@ const TeacherDashboard = () => {
   const currentClass = useMemo(() => classes.find((c) => c.id === selectedClass), [classes, selectedClass]);
   const grade = currentClass?.grade ?? 8;
   const currentSubject = useMemo(() => subjects.find((s) => s.id === selectedSubject), [subjects, selectedSubject]);
+
+  const currentSubjectMaterials = useMemo(() => {
+    const list = data.subjectMaterials || [];
+    return list.filter(
+      (m) => String(m.subject_id) === String(selectedSubject) && Number(m.grade_id) === Number(grade)
+    );
+  }, [data.subjectMaterials, selectedSubject, grade]);
 
   useEffect(() => {
     if (role !== "teacher" && role !== "principal") return;
@@ -1551,23 +1562,29 @@ const TeacherDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {sessionChapter?.textbookChunkPdfPath ? (
+                  {currentSubjectMaterials.map((m) => (
                     <Button
+                      key={m.id}
                       variant="outline"
                       size="sm"
-                      className="gap-1.5"
+                      className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
                       onClick={() => {
-                        const path = sessionChapter.textbookChunkPdfPath!;
-                        setMaterialPreviewRelativePath(path);
-                        setMaterialPreviewUrl(getMaterialViewerUrl(path));
-                        setMaterialPreviewTitle("Textual Reference");
+                        setMaterialPreviewRelativePath(m.url);
+                        setMaterialPreviewUrl(getMaterialViewerUrl(m.url));
+                        setMaterialPreviewTitle("Subject Textbook — " + m.title);
                         setMaterialPreviewOpen(true);
                       }}
                     >
-                      <BookOpen className="w-3.5 h-3.5" /> Textual Reference
+                      <BookOpen className="w-3.5 h-3.5" /> {m.title}
                     </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" className="gap-1.5 opacity-60" onClick={() => toast.error("No textual material available for this chapter")}>
+                  ))}
+                  {currentSubjectMaterials.length === 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 opacity-60"
+                      onClick={() => toast.info("No textbook is uploaded. Please upload the textbook from the Admin Textbook-wise tab.")}
+                    >
                       <BookOpen className="w-3.5 h-3.5" /> Textual Reference
                     </Button>
                   )}
@@ -2728,18 +2745,30 @@ const TeacherDashboard = () => {
                                         </div>
                                       );
                                     })()}
-                                    {ch.textbookChunkPdfPath && (
+                                    {currentSubjectMaterials.length > 0 ? (
                                       <Button
                                         variant="link"
                                         size="sm"
-                                        className="h-auto p-0 text-[10px] sm:text-xs font-medium gap-1"
+                                        className="h-auto p-0 text-[10px] sm:text-xs font-medium gap-1 text-primary hover:text-primary/80"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          const path = ch.textbookChunkPdfPath!;
+                                          const path = currentSubjectMaterials[0].url;
                                           setMaterialPreviewRelativePath(path);
                                           setMaterialPreviewUrl(getMaterialViewerUrl(path));
-                                          setMaterialPreviewTitle("Textual material — " + ch.name);
+                                          setMaterialPreviewTitle("Subject Textbook — " + currentSubjectMaterials[0].title);
                                           setMaterialPreviewOpen(true);
+                                        }}
+                                      >
+                                        <BookOpen className="w-3 h-3" /> Watch textual material
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0 text-[10px] sm:text-xs font-medium gap-1 text-muted-foreground opacity-60 hover:no-underline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toast.info("No textbook is uploaded. Please upload the textbook from the Admin Textbook-wise tab.");
                                         }}
                                       >
                                         <BookOpen className="w-3 h-3" /> Watch textual material
@@ -2762,7 +2791,7 @@ const TeacherDashboard = () => {
                                         <Presentation className="w-3 h-3" /> Watch PPT
                                       </Button>
                                     )}
-                                    {!ch.textbookChunkPdfPath && !topic.topicPptPath && (
+                                    {currentSubjectMaterials.length === 0 && !ch.textbookChunkPdfPath && !topic.topicPptPath && (
                                       <p className="text-[10px] sm:text-xs text-muted-foreground">No textual material or PPT added yet.</p>
                                     )}
                                   </div>
@@ -3123,7 +3152,7 @@ const TeacherDashboard = () => {
 
                         return (
                           <div key={ch.id} className="border border-border rounded-xl p-3 sm:p-4 bg-secondary/20 transition-all hover:shadow-md">
-                             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-3 mb-3">
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-3 mb-3">
                               <div>
                                 <h4 className="font-bold text-sm sm:text-base text-foreground">{ch.name}</h4>
                                 <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
@@ -3158,14 +3187,14 @@ const TeacherDashboard = () => {
                               </div>
                             </div>
 
-                             {isLocked && (
+                            {isLocked && (
                               <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 bg-muted/50 p-2.5 sm:p-3 rounded-md border border-border/50">
                                 <Lock className="w-3.5 h-3.5 inline mr-1 text-muted-foreground mb-0.5" />
                                 {gs?.lockReason || "Locked until previous requirements are met."}
                               </p>
                             )}
 
-                             {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
+                            {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
                               <div className="mb-3 sm:mb-4 bg-primary/5 p-3 sm:p-4 rounded-xl border border-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
                                 <div className="space-y-0.5">
                                   <p className="text-xs sm:text-sm font-semibold text-primary">
@@ -3189,7 +3218,7 @@ const TeacherDashboard = () => {
                               </div>
                             )}
 
-                             {assessment && (
+                            {assessment && (
                               <>
                                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-3 mb-3 sm:mb-4 text-xs sm:text-sm bg-background p-2.5 sm:p-3 rounded-lg border border-border shadow-inner">
                                   <div className="text-center sm:border-r border-border last:border-0">
@@ -3216,7 +3245,7 @@ const TeacherDashboard = () => {
                                   </div>
                                 </div>
 
-                                 {assessment.graded_summary && (
+                                {assessment.graded_summary && (
                                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-border flex justify-center">
                                     <Button
                                       variant="outline"

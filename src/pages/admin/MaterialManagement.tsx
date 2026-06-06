@@ -6,6 +6,19 @@ import QuestionBankPanel from './QuestionBankPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function MaterialManagement() {
+  const getAdminMaterialUrl = (url: string | null): string => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    const base = getApiBase();
+    const cleanPath = url
+      .replace(/\\/g, "/")
+      .replace(/^\//, "")
+      .replace(/^uploads\//i, "");
+    return `${base}/uploads/${cleanPath}`;
+  };
+
   const [subjects, setSubjects] = useState<any[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
@@ -315,7 +328,7 @@ export default function MaterialManagement() {
           contentType: file.type || 'application/pdf',
           grade_id: selectedGrade
         } as any);
-        setSuccessMsg("Reference file uploaded successfully! (Use \"Upload & AI Extract\" to auto-generate chapters & topics.)");
+        setSuccessMsg("Textbook uploaded successfully!");
       } else {
         await uploadTopicPpt(selectedTopic, {
           title,
@@ -657,27 +670,14 @@ export default function MaterialManagement() {
                   type="submit"
                   disabled={uploading || isExtracting}
                   className="w-full bg-slate-600 text-white rounded-xl py-3 font-medium hover:bg-slate-700 transition-colors flex justify-center items-center gap-2"
-                  title={uploadScope === 'subject' ? 'Save as a reference file only (no AI extraction)' : 'Upload PPT/PDF for this topic'}
+                  title={uploadScope === 'subject' ? 'Upload textbook file' : 'Upload PPT/PDF for this topic'}
                 >
                   {uploading ? (
                     <><Loader className="w-5 h-5 animate-spin" /> Uploading...</>
                   ) : (
-                    <><Upload className="w-5 h-5" /> {uploadScope === 'subject' ? 'Upload Reference Only' : 'Upload'}</>
+                    <><Upload className="w-5 h-5" /> Upload</>
                   )}
                 </button>
-
-                {uploadScope === 'subject' && (
-                  <button
-                    type="button"
-                    onClick={handleAiExtract}
-                    disabled={uploading || isExtracting || !file}
-                    className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl py-3 font-semibold hover:from-violet-700 hover:to-indigo-700 transition-all flex justify-center items-center gap-2 shadow-lg shadow-indigo-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Upload PDF to R2 and auto-extract all chapters & topics using AI"
-                  >
-                    <Sparkles className="w-5 h-5" />
-                    Upload & AI Extract Curriculum
-                  </button>
-                )}
               </div>
             </form>
           </div>
@@ -711,13 +711,13 @@ export default function MaterialManagement() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => { setPdfViewerUrl(m.file_path || m.url); setPdfViewerTitle(m.title); }}
+                          onClick={() => { setPdfViewerUrl(getAdminMaterialUrl(m.file_path || m.url)); setPdfViewerTitle(m.title); }}
                           className="text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                         >
                           <FileText className="w-3.5 h-3.5" /> View
                         </button>
                         <a
-                          href={m.file_path || m.url}
+                          href={getAdminMaterialUrl(m.file_path || m.url)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-lg transition-colors"
