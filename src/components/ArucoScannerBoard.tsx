@@ -127,6 +127,14 @@ const ArucoScannerBoard = ({
     return map;
   }, [classStudents]);
 
+  // Sort students stably by roll number, falling back to ID
+  const sortedStudents = useMemo(() => {
+    return [...classStudents].sort((a, b) => {
+      if (a.rollNo !== b.rollNo) return a.rollNo - b.rollNo;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }, [classStudents]);
+
   const activeClassStudents = useMemo(() => {
     return classStudents.filter(s => !absentRollNos.includes(s.rollNo));
   }, [classStudents, absentRollNos]);
@@ -201,7 +209,7 @@ const ArucoScannerBoard = ({
 
       for (const marker of markers) {
         const { slot, answer } = fromArucoId(marker.id);
-        const student = classStudents.find((s) => (s.rollNo % 60) === slot);
+        const student = sortedStudents.find((_, idx) => (idx % 60) === slot);
         if (!student) continue;
 
         let studentScans = recentScansRef.current.get(student.rollNo);

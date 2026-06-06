@@ -220,6 +220,8 @@ const TeacherRegistration: React.FC = () => {
                   value={form.email}
                   onChange={(e) => handleChange("email", e.target.value)}
                   className="h-10"
+                  autoComplete="off"
+                  name="teacher-email-new"
                 />
                 <Input
                   type="password"
@@ -227,6 +229,8 @@ const TeacherRegistration: React.FC = () => {
                   value={form.password}
                   onChange={(e) => handleChange("password", e.target.value)}
                   className="h-10"
+                  autoComplete="new-password"
+                  name="teacher-password-new"
                 />
               </div>
 
@@ -290,7 +294,24 @@ const TeacherRegistration: React.FC = () => {
         return (
           <div className="space-y-6 max-w-4xl mx-auto">
             <div>
-              <h4 className="font-semibold text-sm mb-4">Subjects Can Teach</h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-sm">Subjects Can Teach</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    if (form.subjectsHandled.length === subjects.length) {
+                      setForm((s) => ({ ...s, subjectsHandled: [] }));
+                    } else {
+                      setForm((s) => ({ ...s, subjectsHandled: subjects.map((sub) => sub.name) }));
+                    }
+                  }}
+                >
+                  {form.subjectsHandled.length === subjects.length ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {subjects.map((s) => (
                   <div key={s.id} className="flex items-center space-x-2">
@@ -311,7 +332,24 @@ const TeacherRegistration: React.FC = () => {
             </div>
 
             <div>
-              <h4 className="font-semibold text-sm mb-4">Classes Can Handle</h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-sm">Classes Can Handle</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    if (form.classesCanHandle.length === grades.length) {
+                      setForm((s) => ({ ...s, classesCanHandle: [] }));
+                    } else {
+                      setForm((s) => ({ ...s, classesCanHandle: grades.map((g) => g.label) }));
+                    }
+                  }}
+                >
+                  {form.classesCanHandle.length === grades.length ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {grades.map((g) => (
                   <div key={g.id} className="flex items-center space-x-2">

@@ -164,7 +164,7 @@ export const StudentMainCard = ({ data }: { data: StudentData }) => {
 // 2. Student Option Card (Vertical)
 export type OptionLetter = "A" | "B" | "C" | "D";
 
-export const StudentOptionCard = ({ data, option, printLayout = "4-in-1" }: { data: StudentData, option: OptionLetter, printLayout?: "4-in-1" | "1-per-page" }) => {
+export const StudentOptionCard = ({ data, option, printLayout = "4-in-1", slot }: { data: StudentData, option: OptionLetter, printLayout?: "4-in-1" | "1-per-page", slot?: number }) => {
   const configs = {
     A: { color: "teal", theme: "bg-teal-600", text: "text-teal-600", light: "bg-teal-50", border: "border-teal-200", hex: "#0d9488" },
     B: { color: "green", theme: "bg-emerald-600", text: "text-emerald-600", light: "bg-emerald-50", border: "border-emerald-200", hex: "#059669" },
@@ -173,7 +173,7 @@ export const StudentOptionCard = ({ data, option, printLayout = "4-in-1" }: { da
   };
 
   const config = configs[option];
-  const arucoId = toArucoId(Number(data.rollNo), option);
+  const arucoId = toArucoId(slot !== undefined ? slot : Number(data.rollNo), option);
 
   // ---- 4-in-1 layout (original compact card) ----
   if (printLayout === "4-in-1") {

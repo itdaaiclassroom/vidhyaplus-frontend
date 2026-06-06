@@ -64,6 +64,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const ModernAdminDashboard = () => {
+  // Reliable YYYY-MM-DD formatter (avoids toLocaleDateString locale inconsistencies)
+  const toISODateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const { data, loading, refetch } = useAppData();
   const { userName, logout, role } = useAuth();
   const navigate = useNavigate();
@@ -78,7 +86,7 @@ const ModernAdminDashboard = () => {
   const [announcementTarget, setAnnouncementTarget] = useState<string>("all");
   const [analytics, setAnalytics] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
-  const [overviewDate, setOverviewDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'));
+  const [overviewDate, setOverviewDate] = useState<string>(() => toISODateStr(new Date()));
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
 
@@ -531,13 +539,13 @@ const ModernAdminDashboard = () => {
                     onChange={(e) => setOverviewDate(e.target.value)}
                     className="text-xs p-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-slate-700 font-extrabold font-mono"
                   />
-                  {overviewDate !== new Date().toLocaleDateString('en-CA') && (
+                  {overviewDate !== toISODateStr(new Date()) && (
                     <button
-                      onClick={() => setOverviewDate(new Date().toLocaleDateString('en-CA'))}
+                      onClick={() => setOverviewDate(toISODateStr(new Date()))}
                       className="text-[10px] text-primary hover:text-primary/80 font-bold bg-primary/10 px-2 py-0.5 rounded-md transition-colors"
                       title="Reset to today"
                     >
-                      Today
+                     Reset to Today
                     </button>
                   )}
                 </div>
@@ -583,21 +591,18 @@ const ModernAdminDashboard = () => {
                 value={overview?.totalSchools || 0} 
                 icon={School} 
                 color="blue" 
-                trend="+4 new this month"
               />
               <SummaryCard 
                 title="Total Teachers" 
                 value={overview?.totalTeachers || 0} 
                 icon={Users} 
                 color="purple" 
-                trend="98% active rate"
               />
               <SummaryCard 
                 title="Total Students" 
                 value={overview?.totalStudents || 0} 
                 icon={GraduationCap} 
                 color="amber" 
-                trend="94.2% attendance"
               />
               <SummaryCard 
                 title="Session Status" 

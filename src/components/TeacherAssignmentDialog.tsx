@@ -131,31 +131,71 @@ export function TeacherAssignmentDialog({
             
             {/* Subjects Section */}
             <div className="space-y-4 border p-4 rounded-lg">
-              <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Subjects</h4>
-              
-              <div className="flex gap-2">
-                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                  <SelectTrigger className="w-[250px]">
-                    <SelectValue placeholder="Select a subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.map(s => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.subject_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleAddSubject} disabled={!selectedSubject}>Add Subject</Button>
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Subjects</h4>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    const allIds = subjects.map(s => Number(s.id));
+                    if (assignedSubjectIds.length === subjects.length) {
+                      setAssignedSubjectIds([]);
+                    } else {
+                      setAssignedSubjectIds(allIds);
+                    }
+                  }}
+                >
+                  {assignedSubjectIds.length === subjects.length ? "Deselect All" : "Select All"}
+                </Button>
               </div>
 
-              <div className="flex flex-wrap gap-2 mt-4">
-                {assignedSubjectIds.map(id => (
-                  <Badge key={id} variant="secondary" className="px-3 py-1 flex items-center gap-2">
-                    {getSubjectName(id)}
-                    <X className="w-3 h-3 cursor-pointer hover:text-red-500" onClick={() => handleRemoveSubject(id)} />
-                  </Badge>
-                ))}
-                {assignedSubjectIds.length === 0 && <span className="text-sm text-muted-foreground">No subjects assigned</span>}
+              <div className="grid grid-cols-2 gap-2">
+                {subjects.map(s => {
+                  const isSelected = assignedSubjectIds.includes(Number(s.id));
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          handleRemoveSubject(Number(s.id));
+                        } else {
+                          setAssignedSubjectIds(prev => [...prev, Number(s.id)]);
+                        }
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all text-left ${
+                        isSelected
+                          ? "bg-primary/10 border-primary/30 text-primary"
+                          : "bg-white border-border text-muted-foreground hover:bg-muted/50 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                        isSelected ? "bg-primary border-primary" : "border-slate-300"
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      {s.subject_name}
+                    </button>
+                  );
+                })}
               </div>
+
+              {assignedSubjectIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  {assignedSubjectIds.map(id => (
+                    <Badge key={id} variant="secondary" className="px-3 py-1 flex items-center gap-2">
+                      {getSubjectName(id)}
+                      <X className="w-3 h-3 cursor-pointer hover:text-red-500" onClick={() => handleRemoveSubject(id)} />
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Classes/Sections Section */}
