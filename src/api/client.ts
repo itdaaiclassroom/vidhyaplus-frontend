@@ -598,9 +598,10 @@ export interface PrincipalProfile {
   role: string;
 }
 
-export async function fetchPrincipalProfile(): Promise<PrincipalProfile> {
+export async function fetchPrincipalProfile(schoolIdOverride?: string | number): Promise<PrincipalProfile> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const res = await fetch(`${API_BASE}/api/principal/profile`, {
+  const q = schoolIdOverride ? `?school_id=${schoolIdOverride}` : "";
+  const res = await fetch(`${API_BASE}/api/principal/profile${q}`, {
     headers: getAuthHeaders()
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
@@ -633,10 +634,13 @@ export async function fetchPrincipalGrades(): Promise<{ grades: PrincipalGrade[]
   return res.json();
 }
 
-export async function fetchPrincipalSections(gradeId?: number): Promise<{ sections: PrincipalSection[] }> {
+export async function fetchPrincipalSections(gradeId?: number, schoolIdOverride?: string | number): Promise<{ sections: PrincipalSection[] }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
-  const q = gradeId != null ? `?grade_id=${gradeId}` : "";
-  const res = await fetch(`${API_BASE}/api/principal/sections${q}`, {
+  const q = new URLSearchParams();
+  if (gradeId != null) q.append('grade_id', String(gradeId));
+  if (schoolIdOverride != null) q.append('school_id', String(schoolIdOverride));
+  const queryString = q.toString() ? `?${q.toString()}` : "";
+  const res = await fetch(`${API_BASE}/api/principal/sections${queryString}`, {
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
