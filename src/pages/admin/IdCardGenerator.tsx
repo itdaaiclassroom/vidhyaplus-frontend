@@ -52,7 +52,9 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
   const students = principalCtx ? principalCtx.students : globalData.students;
   const grades = principalCtx ? principalCtx.grades : [];
 
-  const [selectedSchool, setSelectedSchool] = useState<string>(schoolId ? String(schoolId) : "");
+  const activeSchoolId = principalCtx?.schoolId || schoolId;
+
+  const [selectedSchool, setSelectedSchool] = useState<string>(activeSchoolId ? String(activeSchoolId) : "");
   const [selectedGrade, setSelectedGrade] = useState<string>("all");
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"main" | "options">("main");
@@ -60,8 +62,8 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
 
   React.useEffect(() => {
-    if (schoolId) setSelectedSchool(String(schoolId));
-  }, [schoolId]);
+    if (activeSchoolId) setSelectedSchool(String(activeSchoolId));
+  }, [activeSchoolId]);
 
   const filteredClasses = useMemo(() => {
     if (!selectedSchool) return [];
@@ -155,11 +157,11 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
               <CardDescription>Select a school and class to generate ID cards</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">
-              {!schoolId && (
+              {!activeSchoolId && (
                 <div className="w-full sm:w-64 space-y-1.5">
                   <span className="text-xs font-bold uppercase text-slate-500 ml-1">School</span>
                   <Select value={selectedSchool} onValueChange={(val) => { setSelectedSchool(val); setSelectedClass(""); }}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 bg-slate-50">
                       <SelectValue placeholder="Select School" />
                     </SelectTrigger>
                     <SelectContent>
@@ -216,17 +218,27 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
             </CardContent>
           </Card>
 
-          {selectedClass && filteredStudents.length > 0 && (
-            <Card className="print:hidden">
-              <CardHeader className="pb-3">
+          {selectedClass && selectedClass !== "all" && filteredStudents.length > 0 && (
+            <Card className="print:hidden border-0 shadow-sm rounded-2xl bg-white overflow-hidden">
+              <CardHeader className="pb-4 bg-slate-50/50 border-b border-slate-100">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <CardTitle className="text-sm">Select Students to Print ({selectedStudentIds.size > 0 ? selectedStudentIds.size : filteredStudents.length} selected)</CardTitle>
-                    <CardDescription className="text-xs">Select specific students or leave all unchecked to print everyone below.</CardDescription>
+                  <div className="space-y-1">
+                    <CardTitle className="text-base flex items-center gap-2 text-slate-800">
+                      <Users className="w-5 h-5 text-teal-600" />
+                      Select Students to Print
+                    </CardTitle>
+                    <CardDescription className="text-sm font-medium">
+                      {selectedStudentIds.size > 0 ? (
+                        <span className="text-teal-600 bg-teal-50 px-2 py-0.5 rounded-md">{selectedStudentIds.size} of {filteredStudents.length} selected</span>
+                      ) : (
+                        <span>Leave all unchecked to print everyone below.</span>
+                      )}
+                    </CardDescription>
                   </div>
                   <Button 
-                    variant="outline" 
+                    variant={selectedStudentIds.size === filteredStudents.length ? "secondary" : "outline"}
                     size="sm" 
+                    className="rounded-xl h-9 font-semibold transition-all"
                     onClick={() => {
                       if (selectedStudentIds.size === filteredStudents.length) setSelectedStudentIds(new Set());
                       else setSelectedStudentIds(new Set(filteredStudents.map(s => String(s.id))));
@@ -236,29 +248,57 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-3 max-h-40 overflow-y-auto p-2 border rounded-md">
-                  {filteredStudents.map(s => (
-                    <label key={s.id} className="flex items-center gap-2 text-sm bg-slate-50 px-3 py-1.5 rounded-full border cursor-pointer hover:bg-slate-100 transition-colors">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                        checked={selectedStudentIds.has(String(s.id))}
-                        onChange={(e) => {
-                          const newSet = new Set(selectedStudentIds);
-                          if (e.target.checked) newSet.add(String(s.id));
-                          else newSet.delete(String(s.id));
-                          setSelectedStudentIds(newSet);
-                        }}
-                      />
-                      <span className="font-medium text-slate-700">
-                        {principalCtx ? `${s.first_name} ${s.last_name}` : s.name} 
-                        <span className="text-slate-400 text-xs ml-1">
-                          ({principalCtx ? s.roll_no : (s.rollNo || s.id)})
-                        </span>
-                      </span>
-                    </label>
-                  ))}
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
+                  {filteredStudents.map(s => {
+                    const isSelected = selectedStudentIds.has(String(s.id));
+                    return (
+                      <label 
+                        key={s.id} 
+                        className={cn(
+                          "relative flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all duration-200 group overflow-hidden",
+                          isSelected 
+                            ? "border-teal-500 bg-teal-50/50 shadow-sm" 
+                            : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
+                        )}
+                      >
+                        <div className="flex items-center gap-3 w-full">
+                          <div className={cn(
+                            "w-5 h-5 rounded flex items-center justify-center shrink-0 border transition-colors",
+                            isSelected ? "bg-teal-500 border-teal-500" : "bg-white border-slate-300 group-hover:border-slate-400"
+                          )}>
+                            {isSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                          </div>
+                          <div className="flex flex-col truncate">
+                            <span className={cn(
+                              "text-sm font-bold truncate transition-colors",
+                              isSelected ? "text-teal-900" : "text-slate-700"
+                            )}>
+                              {principalCtx ? `${s.first_name} ${s.last_name}` : s.name} 
+                            </span>
+                            <span className={cn(
+                              "text-xs font-medium truncate transition-colors",
+                              isSelected ? "text-teal-600/70" : "text-slate-400"
+                            )}>
+                              Roll: {principalCtx ? s.roll_no : (s.rollNo || s.id)}
+                            </span>
+                          </div>
+                        </div>
+                        {/* Hidden native checkbox */}
+                        <input 
+                          type="checkbox" 
+                          className="absolute opacity-0 w-0 h-0"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedStudentIds);
+                            if (e.target.checked) newSet.add(String(s.id));
+                            else newSet.delete(String(s.id));
+                            setSelectedStudentIds(newSet);
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -302,12 +342,14 @@ const IdCardGenerator = ({ isEmbedded = false }: IdCardGeneratorProps = {}) => {
           </div>
 
           {/* Preview Area */}
-          {!selectedClass ? (
-            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50 print:hidden">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <Filter className="w-8 h-8 text-slate-300" />
+          {!selectedClass || selectedClass === "all" ? (
+            <div className="flex flex-col items-center justify-center py-24 border border-dashed border-slate-200 rounded-3xl bg-slate-50/50 print:hidden relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-teal-50/50 to-emerald-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="w-20 h-20 bg-white shadow-sm rounded-full flex items-center justify-center mb-6 relative z-10 border border-slate-100">
+                <LayoutGrid className="w-8 h-8 text-teal-400" />
               </div>
-              <p className="text-slate-400 font-medium italic">Please select a class to preview ID cards</p>
+              <h3 className="text-xl font-bold text-slate-800 mb-2 relative z-10">Select a Class Section</h3>
+              <p className="text-slate-500 font-medium relative z-10 max-w-sm text-center">Please select a specific class section from the filters above to preview and generate ID cards.</p>
             </div>
           ) : (
             <div className="space-y-12">
