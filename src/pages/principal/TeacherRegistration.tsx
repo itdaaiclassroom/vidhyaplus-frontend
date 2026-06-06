@@ -141,7 +141,7 @@ const TeacherRegistration: React.FC = () => {
         .filter((id): id is string => id !== undefined);
 
       const res = await registerTeacher({
-        school_id: effectiveSchoolId,
+        school_id: String(effectiveSchoolId),
         full_name: form.teacherName,
         email: form.email,
         password: form.password || "teach123",

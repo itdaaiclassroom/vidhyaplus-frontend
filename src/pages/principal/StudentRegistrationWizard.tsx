@@ -121,7 +121,7 @@ const StudentRegistrationWizard: React.FC = () => {
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
 
       const res = await registerStudent({
-        school_id: effectiveSchoolId,
+        school_id: String(effectiveSchoolId),
         section_id: form.classId,
         first_name: firstName,
         last_name: lastName,
