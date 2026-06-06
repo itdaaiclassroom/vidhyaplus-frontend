@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -34,6 +34,12 @@ import GatingAdminPanel from "./GatingAdminPanel";
 import UserManagementPanel from "./UserManagementPanel";
 import { ReportsPanel } from "./ReportsPanel";
 import TeacherReportsDialog from "@/components/TeacherReportsDialog";
+import { AdminSchoolContextWrapper } from "./AdminSchoolContextWrapper";
+import StudentRegistrationWizard from "../principal/StudentRegistrationWizard";
+import TeacherRegistration from "../principal/TeacherRegistration";
+import IdCardGenerator from "./IdCardGenerator";
+import { AdminManageTeachers } from "./AdminManageTeachers";
+import { ChevronDown } from "lucide-react";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -77,6 +83,7 @@ const ModernAdminDashboard = () => {
   const { userName, logout, role } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [expandedNavs, setExpandedNavs] = useState<string[]>([]);
   const [studentStartDate, setStudentStartDate] = useState<string>("");
   const [studentEndDate, setStudentEndDate] = useState<string>("");
   const [teacherStartDate, setTeacherStartDate] = useState<string>("");
@@ -435,8 +442,26 @@ const ModernAdminDashboard = () => {
   const rawNavItems = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "schools", label: "Schools", icon: School },
-    { id: "teachers", label: "Teachers", icon: Users },
-    { id: "students", label: "Students", icon: GraduationCap },
+    { 
+      id: "teachers", 
+      label: "Teachers", 
+      icon: Users,
+      subItems: [
+        { id: "teachers", label: "Teachers Info" },
+        { id: "teacher-registration", label: "Teacher Registration" },
+        { id: "manage-teachers", label: "Manage Teachers" }
+      ]
+    },
+    { 
+      id: "students", 
+      label: "Students", 
+      icon: GraduationCap,
+      subItems: [
+        { id: "students", label: "Students Info" },
+        { id: "student-registration", label: "Student Registrations" },
+        { id: "id-cards", label: "ID Cards & Options" }
+      ]
+    },
     { id: "materials", label: "Materials", icon: BookOpen },
     { id: "gating", label: "Gating Controls", icon: ShieldCheck },
     { id: "reports", label: "Reports", icon: ClipboardList },
@@ -488,7 +513,7 @@ const ModernAdminDashboard = () => {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* 1. Left Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 print:hidden">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
             <GraduationCap className="w-6 h-6" />
@@ -510,20 +535,60 @@ const ModernAdminDashboard = () => {
         </div>
         
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto py-4">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === item.id 
-                ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                : "text-slate-500 hover:bg-slate-50 hover:text-primary"
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
+          {navItems.map((item: any) => {
+            const isExpanded = expandedNavs.includes(item.id);
+            const isSubActive = item.subItems?.some((sub: any) => sub.id === activeTab);
+            const isActive = activeTab === item.id || isSubActive;
+            
+            return (
+              <div key={item.id} className="space-y-1">
+                <button
+                  onClick={() => {
+                    if (item.subItems) {
+                      setExpandedNavs(prev => prev.includes(item.id) ? prev.filter(i => i !== item.id) : [...prev, item.id]);
+                      if (!isExpanded && !isSubActive) setActiveTab(item.subItems[0].id);
+                    } else {
+                      setActiveTab(item.id);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
+                    isActive && !item.subItems
+                    ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                    : isActive && item.subItems
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                  </div>
+                  {item.subItems && (
+                    isExpanded ? <ChevronDown className="w-4 h-4 opacity-50" /> : <ChevronRight className="w-4 h-4 opacity-50" />
+                  )}
+                </button>
+                
+                {item.subItems && isExpanded && (
+                  <div className="pl-4 pr-2 py-1 space-y-1">
+                    {item.subItems.map((sub: any) => (
+                      <button
+                        key={sub.id}
+                        onClick={() => setActiveTab(sub.id)}
+                        className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                          activeTab === sub.id 
+                            ? "bg-primary text-white shadow-md shadow-primary/20" 
+                            : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+                        }`}
+                      >
+                        <div className={`w-1.5 h-1.5 rounded-full ${activeTab === sub.id ? "bg-white" : "bg-slate-300"}`} />
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-slate-100">
@@ -538,9 +603,9 @@ const ModernAdminDashboard = () => {
       </aside>
 
       {/* 2. Middle Section */}
-      <main className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-8 print:p-0 print:overflow-visible">
         {activeTab !== "announcements" && (
-          <header className="mb-8 flex items-center justify-between">
+          <header className="mb-8 flex items-center justify-between print:hidden">
             <div>
               <h1 className="text-2xl font-bold text-slate-800">Welcome, {userName}</h1>
               <p className="text-slate-500">Here's what's happening today.</p>
@@ -1337,6 +1402,38 @@ const ModernAdminDashboard = () => {
              </Card>
           </TabsContent>
 
+          {/* New Sub-pages for Students & Teachers */}
+          <TabsContent value="student-registration" className="space-y-6">
+            <AdminSchoolContextWrapper 
+              title="Student Registration" 
+              description="Select a school to register new students individually or in bulk."
+            >
+              <StudentRegistrationWizard />
+            </AdminSchoolContextWrapper>
+          </TabsContent>
+
+          <TabsContent value="id-cards" className="space-y-6">
+             <IdCardGenerator />
+          </TabsContent>
+
+          <TabsContent value="teacher-registration" className="space-y-6">
+            <AdminSchoolContextWrapper 
+              title="Teacher Registration" 
+              description="Select a school to register new teachers individually or in bulk."
+            >
+              <TeacherRegistration />
+            </AdminSchoolContextWrapper>
+          </TabsContent>
+
+          <TabsContent value="manage-teachers" className="space-y-6">
+            <AdminSchoolContextWrapper 
+              title="Manage Teachers" 
+              description="Select a school to assign subjects and sections to teachers."
+            >
+              <AdminManageTeachers />
+            </AdminSchoolContextWrapper>
+          </TabsContent>
+
           {/* Materials Content */}
           <TabsContent value="materials" className="space-y-6">
             <MaterialManagement />
@@ -1544,7 +1641,7 @@ const ModernAdminDashboard = () => {
                           }).format(new Date(log.created_at));
                           const isExpanded = expandedLog === log.id;
                           return (
-                            <>
+                            <Fragment key={log.id}>
                               <tr
                                 key={log.id}
                                 className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isExpanded ? "bg-slate-50" : ""}`}
@@ -1572,41 +1669,41 @@ const ModernAdminDashboard = () => {
                                     <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                                   </button>
                                 </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr key={`${log.id}-expanded`} className="bg-slate-50/80">
-                                  <td colSpan={6} className="px-6 py-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                                      <div className="space-y-1">
-                                        <p className="font-bold text-slate-400 uppercase tracking-wider">Status</p>
-                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${log.status === "success" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                                          {log.status}
-                                        </span>
-                                        {log.error_msg && <p className="text-red-500 mt-1">{log.error_msg}</p>}
-                                      </div>
-                                      <div className="space-y-1">
-                                        <p className="font-bold text-slate-400 uppercase tracking-wider">Action Summary</p>
-                                        {log.meta ? (
-                                          <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-xs text-slate-600">
-                                            <p className="font-medium mb-2">Modified Fields:</p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                              {Object.keys(log.meta).map(key => (
-                                                <Badge key={key} variant="secondary" className="bg-white text-slate-500 border-slate-200 capitalize">
-                                                  {key.replace(/_/g, ' ')}
-                                                </Badge>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <p className="text-slate-400">No additional details</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </td>
                                 </tr>
-                              )}
-                            </>
-                          );
+                                {isExpanded && (
+                                  <tr key={`${log.id}-expanded`} className="bg-slate-50/80">
+                                    <td colSpan={6} className="px-6 py-4">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                                        <div className="space-y-1">
+                                          <p className="font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${log.status === "success" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                            {log.status}
+                                          </span>
+                                          {log.error_msg && <p className="text-red-500 mt-1">{log.error_msg}</p>}
+                                        </div>
+                                        <div className="space-y-1">
+                                          <p className="font-bold text-slate-400 uppercase tracking-wider">Action Summary</p>
+                                          {log.meta ? (
+                                            <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-xs text-slate-600">
+                                              <p className="font-medium mb-2">Modified Fields:</p>
+                                              <div className="flex flex-wrap gap-1.5">
+                                                {Object.keys(log.meta).map(key => (
+                                                  <Badge key={key} variant="secondary" className="bg-white text-slate-500 border-slate-200 capitalize">
+                                                    {key.replace(/_/g, ' ')}
+                                                  </Badge>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <p className="text-slate-400">No additional details</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            );
                         })}
                       </tbody>
                     </table>

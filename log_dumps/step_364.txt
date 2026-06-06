@@ -1,0 +1,60 @@
+Created At: 2026-05-29T07:59:22Z
+Completed At: 2026-05-29T07:59:22Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2230
+Total Bytes: 120568
+Showing lines 2150 to 2230
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+2150:                     <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Remedial Need</th>
+2151:                     <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Status Rank</th>
+2152:                   </tr>
+2153:                 </thead>
+2154:                 <tbody>
+2155:                   {reportModel.classComparison.slice(0, 4).map((cl: any) => (
+2156:                     <tr key={cl.className} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+2157:                       <td className="py-2 px-3 font-bold text-slate-700">{cl.className}</td>
+2158:                       <td className="text-center py-2 px-3 text-slate-600 font-semibold">{cl.avgAttendance}%</td>
+2159:                       <td className="text-center py-2 px-3 text-slate-600 font-semibold">{cl.avgMarks}%</td>
+2160:                       <td className="text-center py-2 px-3 text-slate-500 font-medium">{cl.weakSubject}</td>
+2161:                       <td className="text-center py-2 px-3">
+2162:                         <span className={cn(
+2163:                           "inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+2164:                           cl.riskLevel === "green" && "bg-emerald-50 text-emerald-700 border border-emerald-100",
+2165:                           cl.riskLevel === "yellow" && "bg-amber-50 text-amber-700 border border-amber-100",
+2166:                           cl.riskLevel === "red" && "bg
+<truncated 2350 bytes>
+
+2198:                       <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.quizAvg}%</td>
+2199:                       <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.performanceIndex}</td>
+2200:                       <td className="text-center py-2 px-3 text-blue-800 font-black font-mono">{s.grade}</td>
+2201:                       <td className="text-center py-2 px-3">
+2202:                         <span className={cn(
+2203:                           "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+2204:                           s.risk === "low" && "bg-emerald-50 text-emerald-700",
+2205:                           s.risk === "medium" && "bg-amber-50 text-amber-700",
+2206:                           s.risk === "high" && "bg-rose-50 text-rose-700",
+2207:                         )}>
+2208:                           <span className={cn("h-1.5 w-1.5 rounded-full", s.risk === "low" && "bg-emerald-500", s.risk === "medium" && "bg-amber-500", s.risk === "high" && "bg-rose-500")} />
+2209:                           {s.risk}
+2210:                         </span>
+2211:                       </td>
+2212:                     </tr>
+2213:                   ))}
+2214:                 </tbody>
+2215:               </table>
+2216:             </div>
+2217:           </div>
+2218:         </div>
+2219: 
+2220:         {/* Footer */}
+2221:         <div className="flex justify-between items-center pt-4 border-t border-slate-200 text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
+2222:           <span>District Operational Rankings</span>
+2223:           <span>Administrative Audit Log</span>
+2224:           <span>Page 3 of 3</span>
+2225:         </div>
+2226:       </div>
+2227:     </div>
+2228:   );
+2229: };
+2230: 
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

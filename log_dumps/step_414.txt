@@ -1,0 +1,61 @@
+Created At: 2026-05-29T08:18:39Z
+Completed At: 2026-05-29T08:18:39Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2230
+Total Bytes: 120568
+Showing lines 800 to 1000
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+800:       : 0;
+801: 
+802:     const dateRange = reportType === "All Time"
+803:       ? ["All Time", "All Available Data"]
+804:       : [formatDate(dateStart), formatDate(dateEnd)];
+805: 
+806:     const metrics = [
+807:       { label: "Total Students", value: totalStudents.toLocaleString(), icon: Users, change: totalStudents === 0 ? "0%" : "+3.2%", tone: "primary" as const },
+808:       { label: "Active Students", value: activeStudents.toLocaleString(), icon: Activity, change: activeStudents === 0 ? "1%" : "+4.5%", tone: "primary" as const },
+809:       { label: "Engagement Rate", value: formatPercent(engagementRate), icon: TrendingUp, change: engagementRate === 0 ? "0%" : "+5.1%", tone: "success" as const },
+810:       { label: "Quizzes Attempted", value: quizzesAttempted.toLocaleString(), icon: ClipboardList, change: quizzesAttempted === 0 ? "0%" : "+12.4%", tone: "primary" as const },
+811:       { label: "Average Score", value: formatPercent(averageScore), icon: Award, change: averageScore === 0 ? "1%" : "+2.8%", tone: "accent" as const },
+812:       { label: "QR Attendance", value: formatPercent(attendanceRate), icon: QrCode, change: attendanceRate === 0 ? "1%" : "+1.5%", tone: "success" as const },
+813:     ];
+814: 
+815:     const alerts: AlertItem[] = [
+816:       ...(lowEngagementSchools.slice(0, 2).map((item) => ({
+817:         title: "Low engagement cluster",
+818:         description: `${item.name} is operating at ${Math.round(item.value)}% engagement.`,
+819:         severity: "med" as const,
+820:       }))),
+
+<truncated 8870 bytes>
+═════════════════════════════════════════
+972:     // PHASE 2 — Improvement Tracker (avg score by month, per subject)
+973:     // ══════════════════════════════════════════════════════
+974:     const improvementTracker = (() => {
+975:       const monthBuckets = new Map<string, Map<string, { total: number; count: number }>>();
+976:       
+977:       selectedQuizResults.forEach(r => {
+978:         const d = asDate(r.date);
+979:         if (!d) return;
+980:         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+981:         const monthLabel = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+982:         const chapterId = r.chapterId;
+983:         const subjectId = chapterIdToSubjectId.get(chapterId) ?? "";
+984:         const subjectName = subjectId ? (subjectIdToName.get(subjectId) ?? "Other") : "General";
+985:         const scorePercent = clampPercent((r.score / Math.max(1, r.total)) * 100);
+986:         
+987:         if (!monthBuckets.has(monthKey)) monthBuckets.set(monthKey, new Map());
+988:         const subjects = monthBuckets.get(monthKey)!;
+989:         if (!subjects.has(subjectName)) subjects.set(subjectName, { total: 0, count: 0 });
+990:         const current = subjects.get(subjectName)!;
+991:         current.total += scorePercent;
+992:         current.count += 1;
+993:       });
+994:       
+995:       const allSubjects = new Set<string>();
+996:       monthBuckets.forEach(subjects => subjects.forEach((_, name) => allSubjects.add(name)));
+997:       
+998:       const sortedMonths = Array.from(monthBuckets.keys()).sort();
+999:       
+1000:       return {
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

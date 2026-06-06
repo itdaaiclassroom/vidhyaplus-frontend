@@ -1,0 +1,76 @@
+Created At: 2026-05-29T07:55:34Z
+Completed At: 2026-05-29T07:55:34Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/reconstructed_original.txt`
+Total Lines: 736
+Total Bytes: 40719
+Showing lines 1 to 736
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: 1: import { useMemo, useState, useRef } from "react";
+2: 2: import {
+3: 3:   Calendar, Download, FileSpreadsheet, TrendingUp, Users, Activity,
+4: 4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+5: 5:   Sparkles, Target, Lightbulb, FileText, School, Search,
+6: 6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7: 7:   Brain, Eye, BarChart3,
+8: 8: } from "lucide-react";
+9: 9: import {
+10: 10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11: 11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12: 12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13: 13:   AreaChart, Area,
+14: 14: } from "recharts";
+15: 15: import { cn } from "@/lib/utils";
+16: 16: import { useAppData } from "@/contexts/DataContext";
+17: 17: import { useAuth } from "@/contexts/AuthContext";
+18: 18: import { Button } from "@/components/ui/button";
+19: 19: import { Badge } from "@/components/ui/badge";
+20: 20: import html2canvas from "html2canvas";
+21: 21: import { jsPDF } from "jspdf";
+22: 22: import { toast } from "sonner";
+23: 23: 
+24: 24: type SchoolMetric = { name: string; value: number; color: string };
+25: 25: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+26: 26: type ActionItem = { title: string; description: string };
+27: 27: 
+28: 28: const fallbackSchoolOptions = ["All Schools"];
+29: 29: const fallbackClassOptions = ["All Classes", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+30: 30: 
+<truncated 40750 bytes>
+
+701: 2154:       onChange={(e) => onChange(e.target.value)}
+702: 2155:       className="w-full h-10 px-3 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
+703: 2156:     >
+704: 2157:       {options.map((opt) => (
+705: 2158:         <option key={opt} value={opt}>
+706: 2159:           {opt}
+707: 2160:         </option>
+708: 2161:       ))}
+709: 2162:     </select>
+710: 2163:   </div>
+711: 2164: );
+712: 2165: 
+713: 2166: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+714: 2167:   <div className={cn(
+715: 2168:     "p-4 rounded-xl border",
+716: 2169:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+717: 2170:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+718: 2171:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+719: 2172:     tone === "muted" && "bg-slate-50 border-slate-100",
+720: 2173:   )}>
+721: 2174:     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{label}</span>
+722: 2175:     <span className="text-sm font-bold text-slate-800 block mt-1 truncate" title={value}>{value}</span>
+723: 2176:     <span className="text-xs text-slate-500 block mt-0.5">{sub}</span>
+724: 2177:   </div>
+725: 2178: );
+726: 2179: 
+727: 2180:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+728: 2181:     tone === "muted" && "bg-slate-50 border-slate-100",
+729: 2182:   )}>
+730: 2183:     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{label}</span>
+731: 2184:     <span className="text-sm font-bold text-slate-800 block mt-1 truncate" title={value}>{value}</span>
+732: 2185:     <span className="text-xs text-slate-500 block mt-0.5">{sub}</span>
+733: 2186:   </div>
+734: 2187: );
+735: 2188: 
+736: 
+The above content shows the entire, complete file contents of the requested file.

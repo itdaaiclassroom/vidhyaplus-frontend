@@ -43,7 +43,8 @@ import BulkUpload from "@/components/BulkUpload";
 
 const TeacherRegistration: React.FC = () => {
   const { schoolId } = useAuth();
-  const { grades: principalGrades, refetchTeachers } = usePrincipal();
+  const { grades: principalGrades, refetchTeachers, schoolId: principalSchoolId } = usePrincipal();
+  const effectiveSchoolId = principalSchoolId || schoolId;
   const [current, setCurrent] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState<Array<{ id: string, name: string }>>([]);
@@ -112,7 +113,7 @@ const TeacherRegistration: React.FC = () => {
   const prev = () => setCurrent((c) => Math.max(c - 1, 0));
 
   const handleSubmit = async () => {
-    if (!schoolId) {
+    if (!effectiveSchoolId) {
       toast.error("School ID not found. Please log in again.");
       return;
     }
@@ -140,7 +141,7 @@ const TeacherRegistration: React.FC = () => {
         .filter((id): id is string => id !== undefined);
 
       const res = await registerTeacher({
-        school_id: schoolId,
+        school_id: effectiveSchoolId,
         full_name: form.teacherName,
         email: form.email,
         password: form.password || "teach123",

@@ -1,0 +1,20 @@
+4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7:   Brain, Eye, BarChart3,
+10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13:   AreaChart, Area,
+21: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+236:     projectStatus = "🌟 THRIVING - Project is exceeding all success metrics";
+1156:       metrics,
+1169:       studentPerformanceTable,
+1178:       enhancedAlerts,
+1518:               </BarChart>
+1526:               <AlertTriangle className="h-5 w-5 text-amber-500" />
+1527:               <h3 className="font-semibold text-slate-800">Issues & Alerts</h3>
+1788:             PHASE 2 — Improvement Tracker + Radar Chart (Side by Side)
+1794:               <BarChart3 className="h-5 w-5 text-primary" />
+1801:                   <AreaChart data={reportModel.improvementTracker.data}>
+1816:                   </AreaChart>
+1981:                   {reportModel.enhancedAlerts.studentsAtRisk > 0 ? `${reportModel.enhancedAlerts.studentsAtRisk} students need immediate intervention` : "No students at high risk"}

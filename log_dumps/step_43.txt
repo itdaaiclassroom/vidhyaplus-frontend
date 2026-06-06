@@ -1,0 +1,23 @@
+The USER performed the following action:
+Show the contents of file c:\Users\venky\Desktop\Vidya_Plus_\vidhyaplus-frontend\src\pages\admin\ReportsPanel.tsx from lines 141 to 155
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 141 to 155
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+141: const buildMonthBuckets = (start: Date, end: Date) => {
+142:   const buckets: Array<{ key: string; label: string; date: Date }> = [];
+143:   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+144:   const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+145:   while (cursor <= endMonth) {
+146:     const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+147:     const label = cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+148:     buckets.push({ key, label, date: new Date(cursor) });
+149:     cursor.setMonth(cursor.getMonth() + 1);
+150:   }
+151:   return buckets;
+152: };
+153: 
+154: const generateAIAnalysis = (
+155:   engagementRate: number,
+

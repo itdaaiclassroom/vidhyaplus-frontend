@@ -1,0 +1,81 @@
+Created At: 2026-05-29T07:59:18Z
+Completed At: 2026-05-29T07:59:18Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/reconstructed_original.txt`
+Total Lines: 736
+Total Bytes: 40719
+Showing lines 1 to 300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: 1: import { useMemo, useState, useRef } from "react";
+2: 2: import {
+3: 3:   Calendar, Download, FileSpreadsheet, TrendingUp, Users, Activity,
+4: 4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+5: 5:   Sparkles, Target, Lightbulb, FileText, School, Search,
+6: 6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7: 7:   Brain, Eye, BarChart3,
+8: 8: } from "lucide-react";
+9: 9: import {
+10: 10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11: 11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12: 12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13: 13:   AreaChart, Area,
+14: 14: } from "recharts";
+15: 15: import { cn } from "@/lib/utils";
+16: 16: import { useAppData } from "@/contexts/DataContext";
+17: 17: import { useAuth } from "@/contexts/AuthContext";
+18: 18: import { Button } from "@/components/ui/button";
+19: 19: import { Badge } from "@/components/ui/badge";
+20: 20: import html2canvas from "html2canvas";
+21: 21: import { jsPDF } from "jspdf";
+22: 22: import { toast } from "sonner";
+23: 23: 
+24: 24: type SchoolMetric = { name: string; value: number; color: string };
+25: 25: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+26: 26: type ActionItem = { title: string; description: string };
+27: 27: 
+28: 28: const fallbackSchoolOptions = ["All Schools"];
+29: 29: const fallbackClassOptions = ["All Classes", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+30: 30: 
+<truncated 12997 bytes>
+19:     // ══════════════════════════════════════════════════════
+260: 1020:     const radarData = subjectPerf.slice(0, 6).map(sp => ({
+261: 1021:       subject: sp.subject.length > 12 ? sp.subject.slice(0, 10) + "…" : sp.subject,
+262: 1022:       fullName: sp.subject,
+263: 1023:       score: sp.avgScore,
+264: 1024:       fullMark: 100,
+265: 1025:     }));
+266: 1026: 
+267: 1027:     // ═════════════════════════════════════════════════════
+268: 1140:         rank: 0,
+269: 1141:         quizScore: Math.round(quizScore),
+270: 1142:         name: schoolObj.name,
+271: 1143:         score: clampPercent(score),
+272: 1144:         rank: 0,
+273: 1145:         quizScore: Math.round(quizScore),
+274: 1146:         attScore: Math.round(attScore),
+275: 1147:       };
+276: 1148:     }).sort((a, b) => b.score - a.score);
+277: 1149:     
+278: 1150:     schoolScores.forEach((s, i) => { s.rank = i + 1; });
+279: 1151: 
+280: 1152:     return {
+281: 1153:       activityData,
+282: 1154:       quizPerf,
+283: 1155:       schoolCompare: comparisonData,
+284: 1156:       comparisonTitle,
+285: 1157:       comparisonData,
+286: 1158:       subjectPerf,
+287: 1159:       schoolPerf,
+288: 1160:       metrics,
+289: 1161:       alerts,
+290: 1162:       actions,
+291: 1163:       highlights,
+292: 1164:       executiveSummary,
+293: 1165:       recommendations,
+294: 1166:       dateRange,
+295: 1167:       strongestTopics,
+296: 1168:       weakestTopics,
+297: 1169:       aiAnalysis: ai.analysis,
+298: 1170:       projectStatus: ai.projectStatus,
+299: 1171:       healthScore: ai.healthScore,
+300: 1172:       // Phase 1
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

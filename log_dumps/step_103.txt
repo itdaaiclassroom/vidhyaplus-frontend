@@ -1,0 +1,67 @@
+Created At: 2026-05-29T07:04:41Z
+Completed At: 2026-05-29T07:04:41Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 280 to 450
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+280:   const [customEndDate, setCustomEndDate] = useState(formatInputDate(presetRange[1]));
+281:   const [school, setSchool] = useState("All Schools");
+282:   const [klass, setKlass] = useState("All Classes");
+283:   const [subject, setSubject] = useState("All Subjects");
+284: 
+285:   // Extract subject options dynamically from the source data
+286:   const subjectOptions = useMemo(() => {
+287:     const rawSubjects = Array.isArray(source.subjects) ? source.subjects : [];
+288:     const names = rawSubjects.map((s, index) => {
+289:       const row = asRecord(s);
+290:       return asString(row.name, asString(row.subjectName, asString(row.subject_name, asString(row.title, `Subject ${index + 1}`))));
+291:     });
+292:     return ["All Subjects", ...Array.from(new Set(names))].filter(Boolean);
+293:   }, [source.subjects]);
+294: 
+295:   const schoolOptions = useMemo(() => {
+296:     const rawSchools = Array.isArray(source.schools) ? source.schools : [];
+297:     const names = rawSchools.map((s, index) => {
+298:       const row = asRecord(s);
+299:       return asString(row.name, asString(row.schoolName, asString(row.school_name, asString(row.title, `School ${index + 1}`))));
+300:     });
+301:     return ["All Schools", ...Array.from(new Set(names))].filter(Boolean);
+302:   }, [source.schools]);
+303: 
+304:   const classOptions = useMemo(() => {
+305:     const rawSchools = Array.isArray(source.schools) ? source.schools : [];
+306:     const rawClasses = Array.isArray(source.classes) ? source.classes : [];
+307:     
+308:     return [
+309:       "All Cl
+<truncated 5803 bytes>
+        classId: asString(row.classId, asString(row.class_id, asString(row.section_id, ""))),
+424:         subjectId: asString(row.subjectId, asString(row.subject_id, "")),
+425:         subjectName: asString(row.subjectName, asString(row.subject_name, asString(row.subject, ""))),
+426:         chapterId: asString(row.chapterId, asString(row.chapter_id, "")),
+427:         topicId: asString(row.topicId, asString(row.topic_id, "")),
+428:         topicName: asString(row.topicName, asString(row.topic_name, asString(row.title, `Topic ${index + 1}`))),
+429:         createdAt: row.createdAt || row.created_at || row.startTime || row.start_time || row.session_date,
+430:         avgScore: asNumber(row.avgScore, asNumber(row.avg_score, 0)),
+431:         teacherId: asString(row.teacherId, asString(row.teacher_id, "")),
+432:         teacherName: asString(row.teacherName, asString(row.teacher_name, "")),
+433:         attendanceMarked: row.attendanceMarked === true || row.attendance_marked === true,
+434:       };
+435:     });
+436: 
+437:     const normalizedAttendance = rawStudentAttendance.map((item) => {
+438:       const row = asRecord(item);
+439:       const studentId = asString(row.studentId, asString(row.student_id, ""));
+440:       const present = asNumber(row.present, 0);
+441:       const total = asNumber(row.total, 1);
+442:       const percentage = asNumber(row.percentage, total > 0 ? (present / total) * 100 : 0);
+443:       return { studentId, present, total, percentage };
+444:     });
+445: 
+446:     const [dateStart, dateEnd] = selectedDateRange;
+447:     // Use monthly buckets for wide date ranges (> 35 days), daily for narrower windows
+448:     const daySpan = Math.round((dateEnd.getTime() - dateStart.getTime()) / (1000 * 60 * 60 * 24));
+449:     const useMonthlyBuckets = daySpan > 35;
+450:     const timelineBuckets = useMonthlyBuckets
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

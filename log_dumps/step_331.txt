@@ -1,0 +1,55 @@
+Created At: 2026-05-29T07:58:30Z
+Completed At: 2026-05-29T07:58:30Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1500 to 1800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1500:             <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-4">District Activity Timeline (Students vs Assessments)</h4>
+1501:             <div className="h-[300px]">
+1502:               <ResponsiveContainer width="100%" height="100%">
+1503:                 <AreaChart data={reportModel.activityData} margin={{ left: -10, right: 10, top: 10, bottom: 5 }}>
+1504:                   <defs>
+1505:                     <linearGradient id="colorStudentsScreen" x1="0" y1="0" x2="0" y2="1">
+1506:                       <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+1507:                       <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+1508:                     </linearGradient>
+1509:                     <linearGradient id="colorQuizzesScreen" x1="0" y1="0" x2="0" y2="1">
+1510:                       <stop offset="5%" stopColor="#eab308" stopOpacity={0.2}/>
+1511:                       <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+1512:                     </linearGradient>
+1513:                   </defs>
+1514:                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+1515:                   <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+1516:                   <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} domain={reportModel.activityData.every(d => d.students === 0 && d.quizzes === 0) ? [0, 4] : [0, 'auto']} />
+1517:                   <Tooltip contentStyle={{ background: "#ffffff", bor
+<truncated 18500 bytes>
+         />
+1774:                       </svg>
+1775:                       <span className="absolute text-2xl font-black text-slate-800 font-mono">
+1776:                         {reportModel.healthScore ?? 0}%
+1777:                       </span>
+1778:                     </div>
+1779:                   </div>
+1780:                   <div className="mt-4">
+1781:                     <span className="text-[10px] font-extrabold px-3 py-1 bg-white border border-blue-100 text-blue-800 uppercase tracking-widest rounded-full shadow-sm">
+1782:                       {reportModel.projectStatus ? reportModel.projectStatus.split(" - ")[0] : "STATUS"}
+1783:                     </span>
+1784:                     <p className="text-[10px] text-slate-400 mt-2 font-medium">Compliance & Outcome Metric</p>
+1785:                   </div>
+1786:                 </div>
+1787:               </div>
+1788: 
+1789:               {/* Summary Metrics Grid */}
+1790:               <div className="space-y-3">
+1791:                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Key Performance Statistics</h3>
+1792:                 <div className="grid grid-cols-3 gap-4">
+1793:                   {reportModel.metrics.map((m) => (
+1794:                     <div key={m.label} className="bg-slate-50 rounded-2xl p-4 border border-slate-200/50 flex flex-col justify-between">
+1795:                       <div className="flex justify-between items-start">
+1796:                         <div className={cn(
+1797:                           "h-8 w-8 rounded-xl flex items-center justify-center",
+1798:                           m.tone === "primary" && "bg-blue-100 text-blue-600",
+1799:                           m.tone === "success" && "bg-emerald-100 text-emerald-600",
+1800:                           m.tone === "accent" && "bg-amber-100 text-amber-600",
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

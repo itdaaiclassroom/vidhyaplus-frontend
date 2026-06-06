@@ -1,0 +1,57 @@
+Created At: 2026-05-29T07:58:13Z
+Completed At: 2026-05-29T07:58:14Z
+File Path: `file:///C:/Users/venky/.gemini/antigravity-ide/brain/4d1337a2-50c4-4c58-b0e4-2f55a9ae9cfa/implementation_plan.md`
+Total Lines: 48
+Total Bytes: 3548
+Showing lines 1 to 48
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Overhaul Reports Panel for District Collector Review
+2: 
+3: This plan details the visual and functional enhancements to [ReportsPanel.tsx](file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx) to make it look exceptionally professional, structured, and polished. The goal is to provide a dashboard that will impress a District Collector and other stakeholders, featuring deep data integration and high-fidelity PDF/Excel exporting.
+4: 
+5: ## User Review Required
+6: 
+7: > [!IMPORTANT]
+8: > **High-Fidelity PDF Exporting**: Currently, downloading reports as a PDF uses basic browser print windows, which strips away charts, layout styling, and colors. We will replace this with a premium, client-side PDF renderer using `html2canvas` and `jsPDF`. This will take pixel-perfect snapshots of the charts and layout, compiling them into a beautiful, multi-page formal document.
+9: 
+10: ## Proposed Changes
+11: 
+12: ### Reports Page overhaul
+13: 
+14: #### [MODIFY] [ReportsPanel.tsx](file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx)
+15: We will introduce the following improvements to [ReportsPanel.tsx](file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx):
+16: 
+17: 1. **Imports & Setup**:
+18:    - Import `html2canvas` and `jsPDF` for visual PDF rendering.
+19:    - Import `toast` from `sonner` to display high-quality export progress notifications.
+20: 2. **Dashboard Layout**:
+21:    - Re-organize the layout into a cle
+<truncated 210 bytes>
+ing, Critical Actions, and Leaderboards.
+23:      * **Academic Insights**: Subject Radar, Quiz Performance, Topics Analysis, and Student Performance tables.
+24:      * **School & Teacher Activity**: School-wise rankings, Class comparison, Teacher activities, and Participation metrics.
+25:      * **Trend Lines**: Student activity trends and the multi-subject Improvement tracker.
+26: 3. **District Collector Styling**:
+27:    - Add a premium header matching government briefing templates: **"District Education Performance Report"** with metadata badges (District, Date Range, Status).
+28:    - Design a **"District Leaderboard"** ranking schools by a composite performance score.
+29:    - Implement vibrant, modern color palettes (e.g. emerald greens, royal blues, amber alerts) to denote status (Thriving, On Track, At Risk).
+30: 4. **High-Fidelity PDF Exporter**:
+31:    - Build a hidden, print-optimized document container inside the component (`id="collector-print-template"`) that compiles the dashboard content into a formal, page-by-page layout (A4 formatted pages).
+32:    - In `handleDownloadPDF`, use `html2canvas` to render each page including Recharts SVG charts, and use `jsPDF` to compile them into a high-resolution, multi-page PDF.
+33:    - Include a toast notification during PDF creation to give visual feedback to the user.
+34: 
+35: ---
+36: 
+37: ## Verification Plan
+38: 
+39: ### Manual Verification
+40: - Deploy the front-end server (`npm run dev`).
+41: - Log in as Admin and navigate to the **Reports** tab.
+42: - Filter by different options (School, Class, Subject) and verify that the data updates correctly.
+43: - Test the **Download PDF** button and verify that the output PDF:
+44:   - Preserves all charts (Recharts) with correct scaling.
+45:   - Matches the premium layout and typography.
+46:   - Avoids clipped text or truncated pages.
+47: - Test the **Download Excel** button to ensure the CSV structure matches the updated data.
+48: 
+The above content shows the entire, complete file contents of the requested file.

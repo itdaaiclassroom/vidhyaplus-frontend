@@ -1,0 +1,38 @@
+The USER performed the following action:
+Show the contents of file c:\Users\venky\Desktop\Vidya_Plus_\vidhyaplus-frontend\src\pages\admin\ReportsPanel.tsx from lines 1 to 30
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 1 to 30
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import { useMemo, useState, useRef } from "react";
+2: import {
+3:   Calendar, Download, FileSpreadsheet, TrendingUp, Users, Activity,
+4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+5:   Sparkles, Target, Lightbulb, FileText, School, Search,
+6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7:   Brain, Eye, BarChart3,
+8: } from "lucide-react";
+9: import {
+10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13:   AreaChart, Area,
+14: } from "recharts";
+15: import { cn } from "@/lib/utils";
+16: import { useAppData } from "@/contexts/DataContext";
+17: import { useAuth } from "@/contexts/AuthContext";
+18: import { Button } from "@/components/ui/button";
+19: 
+20: type SchoolMetric = { name: string; value: number; color: string };
+21: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+22: type ActionItem = { title: string; description: string };
+23: 
+24: const fallbackSchoolOptions = ["All Schools"];
+25: const fallbackClassOptions = ["All Classes", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+26: 
+27: const asRecord = (value: unknown) => {
+28:   if (!value || typeof value !== "object") {
+29:     return {} as Record<string, unknown>;
+30:   }
+

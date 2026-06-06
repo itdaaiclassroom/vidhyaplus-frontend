@@ -1,0 +1,70 @@
+Created At: 2026-05-29T07:58:25Z
+Completed At: 2026-05-29T07:58:25Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1101 to 1300
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1101:     })();
+1102: 
+1103:     // ══════════════════════════════════════════════════════
+1104:     // PHASE 3 — Enhanced Risk & Alert Tiles
+1105:     // ══════════════════════════════════════════════════════
+1106:     const enhancedAlerts = (() => {
+1107:       const lowPerfClasses = classComparison.filter(c => c.avgMarks < 50);
+1108:       const attendanceDropClasses = classComparison.filter(c => c.avgAttendance < 70);
+1109:       const highRiskStudents = studentPerformanceTable.filter(s => s.risk === "high");
+1110: 
+1111:       return {
+1112:         lowPerformingClasses: lowPerfClasses.map(c => c.className),
+1113:         attendanceDropClasses: attendanceDropClasses.map(c => c.className),
+1114:         studentsAtRisk: highRiskStudents.length,
+1115:       };
+1116:     })();
+1117: 
+1118:     // ══════════════════════════════════════════════════════
+1119:     // PHASE 4 — School Performance Score (0-100)
+1120:     // ══════════════════════════════════════════════════════
+1121:     const schoolScores = normalizedSchools.map((schoolObj, idx) => {
+1122:       const schoolStudents = normalizedStudents.filter(s =>
+<truncated 5664 bytes>
+62:     });
+1263: 
+1264:     csvContent += "\r\nSCHOOL-WISE PERFORMANCE\r\n";
+1265:     csvContent += "School,Engagement %,Students,Teachers\r\n";
+1266:     schoolPerf.forEach((s) => {
+1267:       csvContent += `"${s.school}",${s.avgEngagement},${s.studentCount},${s.teacherCount}\r\n`;
+1268:     });
+1269: 
+1270:     csvContent += "\r\nSUBJECT-WISE PERFORMANCE\r\n";
+1271:     csvContent += "Subject,Avg Score %,Quizzes\r\n";
+1272:     subjectPerf.forEach((s) => {
+1273:       csvContent += `"${s.subject}",${s.avgScore},${s.quizzesCount}\r\n`;
+1274:     });
+1275: 
+1276:     csvContent += "\r\nRECOMMENDATIONS\r\n";
+1277:     reportModel.recommendations.forEach((r) => {
+1278:       csvContent += `"${r}"\r\n`;
+1279:     });
+1280: 
+1281:     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+1282:     const link = document.createElement("a");
+1283:     link.href = URL.createObjectURL(blob);
+1284:     link.download = `vidhyaplus-${reportType.toLowerCase()}-report-${new Date().toISOString().split('T')[0]}.csv`;
+1285:     link.click();
+1286:   };
+1287: 
+1288:   return (
+1289:     <div className="space-y-6 max-w-6xl mx-auto pb-12">
+1290:       {/* Header Panel */}
+1291:       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
+1292:         <div>
+1293:           <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+1294:             <ClipboardList className="h-8 w-8 text-teal-600" /> District Reports & Insights
+1295:           </h1>
+1296:           <p className="text-slate-500 text-sm mt-1">
+1297:             Polished, multi-page briefing summaries and learning analytics for administration review.
+1298:           </p>
+1299:         </div>
+1300:         <div className="flex items-center gap-3">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

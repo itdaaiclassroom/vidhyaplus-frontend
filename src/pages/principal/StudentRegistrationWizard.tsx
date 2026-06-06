@@ -45,7 +45,8 @@ import BulkUpload from "@/components/BulkUpload";
 
 const StudentRegistrationWizard: React.FC = () => {
   const { schoolId } = useAuth();
-  const { grades, sections: allSections, refetchStudents } = usePrincipal();
+  const { grades, sections: allSections, refetchStudents, schoolId: principalSchoolId } = usePrincipal();
+  const effectiveSchoolId = principalSchoolId || schoolId;
   const [current, setCurrent] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<PrincipalSection[]>([]);
@@ -92,7 +93,7 @@ const StudentRegistrationWizard: React.FC = () => {
   const prev = () => setCurrent((c) => Math.max(c - 1, 0));
 
   const handleSubmit = async () => {
-    if (!schoolId) {
+    if (!effectiveSchoolId) {
       toast.error("School ID not found. Please log in again.");
       return;
     }
@@ -120,7 +121,7 @@ const StudentRegistrationWizard: React.FC = () => {
       const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Student';
 
       const res = await registerStudent({
-        school_id: schoolId,
+        school_id: effectiveSchoolId,
         section_id: form.classId,
         first_name: firstName,
         last_name: lastName,

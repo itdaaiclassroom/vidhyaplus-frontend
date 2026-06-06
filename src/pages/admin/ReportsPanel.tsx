@@ -4,7 +4,7 @@ import {
   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
   Sparkles, Target, Lightbulb, FileText, School, Search,
   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
-  Brain, Eye, BarChart3, Loader2, Zap, Database, ChevronDown,
+  Brain, Eye, BarChart3, Loader2, Zap, Database, ChevronDown, Check,
 } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
@@ -690,17 +690,10 @@ export function ReportsPanel() {
       if (selectedQuizResults.length > 0) {
         selectedQuizResults.forEach((item) => {
           const chapterId = item.chapterId;
-          const subjectId = chapterIdToSubjectId.get(chapterId) ?? "";
           const topicName = chapterIdToTopicName.get(chapterId) ?? `Chapter ${chapterId || "Unknown"}`;
-          const subjectName = subjectId ? (subjectIdToName.get(subjectId) ?? `Subject ${subjectId}`) : topicName;
           const score = item.score;
           const total = Math.max(1, item.total);
           addAttempt(topicName, clampPercent((score / total) * 100));
-          if (subjectName !== topicName) {
-            if (subject === "All Subjects") {
-              addAttempt(subjectName, clampPercent((score / total) * 100));
-            }
-          }
         });
       } else {
         selectedQuizzes.forEach((item, index) => {
@@ -729,8 +722,9 @@ export function ReportsPanel() {
       });
 
       if (subjectMap.size === 0) {
-        normalizedQuizzes.forEach((item, index) => {
+        selectedQuizzes.forEach((item, index) => {
           const subjectName = item.subjectName;
+          if (!subjectName) return;
           const current = subjectMap.get(subjectName) || { total: 0, count: 0 };
           subjectMap.set(subjectName, {
             total: current.total + (item.avgScore || 60),
@@ -826,13 +820,22 @@ export function ReportsPanel() {
     const activityDelta = firstHalfAvg > 0 ? Math.round(((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100) : 0;
     const deltaBadge = (val: number) => val === 0 ? "—" : (val > 0 ? `+${val}%` : `${val}%`);
 
+    // High risk rate calculation for alerts
+    const highRiskCount = selectedStudents.filter((student) => {
+      const att = normalizedAttendance.find(a => a.studentId === student.id);
+      const attendancePct = att ? att.percentage : 0;
+      const quizResults = selectedQuizResults.filter(r => r.studentId === student.id);
+      const quizAvg = quizResults.length > 0
+        ? average(quizResults.map(r => clampPercent((r.score / Math.max(1, r.total)) * 100)))
+        : 0;
+      return (attendancePct > 0 && attendancePct < 60) || (quizResults.length > 0 && quizAvg < 50);
+    }).length;
+
     const metrics = [
-      { label: "Total Students", value: totalStudents.toLocaleString(), icon: Users, change: "—", tone: "primary" as const },
-      { label: "Active Students", value: activeStudents.toLocaleString(), icon: Activity, change: totalStudents > 0 ? `${Math.round((activeStudents / Math.max(1, totalStudents)) * 100)}% of total` : "—", tone: "primary" as const },
-      { label: "Engagement Rate", value: formatPercent(engagementRate), icon: TrendingUp, change: deltaBadge(activityDelta), tone: "success" as const },
-      { label: "Quizzes Attempted", value: quizzesAttempted.toLocaleString(), icon: ClipboardList, change: quizzesAttempted > 0 ? "Live" : "—", tone: "primary" as const },
-      { label: "Average Score", value: averageScore > 0 ? formatPercent(averageScore) : "—", icon: Award, change: "—", tone: "accent" as const },
+      { label: "Total Students", value: totalStudents.toLocaleString(), icon: Users, change: `${activeStudents} Active`, tone: "primary" as const },
       { label: "QR Attendance", value: attendanceRate > 0 ? formatPercent(attendanceRate) : "—", icon: QrCode, change: attendanceRate > 0 ? "Tracked" : "No data", tone: "success" as const },
+      { label: "Quizzes Attempted", value: quizzesAttempted.toLocaleString(), icon: ClipboardList, change: quizzesAttempted > 0 ? "Live" : "—", tone: "primary" as const },
+      { label: "Average Score", value: averageScore > 0 ? formatPercent(averageScore) : "—", icon: Award, change: "Overall Mastery", tone: "accent" as const },
     ];
 
     const alerts: AlertItem[] = [
@@ -900,10 +903,42 @@ export function ReportsPanel() {
       reportType,
     );
 
+    // Cohort performance distribution count
+    const cohortDistribution = (() => {
+      let ap = 0, a = 0, bp = 0, b = 0, c = 0, d = 0;
+      selectedStudents.forEach((student) => {
+        const att = normalizedAttendance.find(ax => ax.studentId === student.id);
+        const attendancePct = att ? att.percentage : 0;
+        const quizResults = selectedQuizResults.filter(r => r.studentId === student.id);
+        const quizAvg = quizResults.length > 0
+          ? Math.round(average(quizResults.map(r => clampPercent((r.score / Math.max(1, r.total)) * 100))))
+          : 0;
+        const index = Math.round(quizAvg * 0.6 + attendancePct * 0.4);
+        if (index >= 90) ap++;
+        else if (index >= 80) a++;
+        else if (index >= 70) bp++;
+        else if (index >= 60) b++;
+        else if (index >= 50) c++;
+        else d++;
+      });
+      return [
+        { name: "Honors (A+)", value: ap, color: "#10b981" },
+        { name: "Excellent (A)", value: a, color: "#3b82f6" },
+        { name: "Proficient (B+)", value: bp, color: "#6366f1" },
+        { name: "Passing (B)", value: b, color: "#f59e0b" },
+        { name: "Watch (C)", value: c, color: "#ef4444" },
+        { name: "Remedial (D)", value: d, color: "#b91c1c" },
+      ].filter(item => item.value > 0);
+    })();
+
     // ══════════════════════════════════════════════════════
-    // PHASE 1 — Student Performance Table (Top 5 by risk)
+    // PHASE 1 — Student Performance Table (Top 5 Performers)
     // ══════════════════════════════════════════════════════
     const studentPerformanceTable = (() => {
+      if (school === "All Schools" || klass === "All Classes") {
+        return [];
+      }
+
       const rows = selectedStudents.map((student) => {
         const att = normalizedAttendance.find(a => a.studentId === student.id);
         const attendancePct = att ? att.percentage : 0;
@@ -934,9 +969,15 @@ export function ReportsPanel() {
         };
       });
 
-      // Sort: high risk first, then medium, then low
-      const riskOrder = { high: 0, medium: 1, low: 2 };
-      rows.sort((a, b) => riskOrder[a.risk] - riskOrder[b.risk] || a.performanceIndex - b.performanceIndex);
+      // Sort highest performers first.
+      // If a subject is selected, sort primarily by subject's quizAvg.
+      // Otherwise, sort by performanceIndex.
+      if (subject !== "All Subjects") {
+        rows.sort((a, b) => b.quizAvg - a.quizAvg || b.attendancePct - a.attendancePct);
+      } else {
+        rows.sort((a, b) => b.performanceIndex - a.performanceIndex || b.quizAvg - a.quizAvg);
+      }
+
       return rows.slice(0, 5);
     })();
 
@@ -1172,12 +1213,11 @@ export function ReportsPanel() {
     const enhancedAlerts = (() => {
       const lowPerfClasses = classComparison.filter(c => c.avgMarks < 50);
       const attendanceDropClasses = classComparison.filter(c => c.avgAttendance < 70);
-      const highRiskStudents = studentPerformanceTable.filter(s => s.risk === "high");
 
       return {
         lowPerformingClasses: lowPerfClasses.map(c => c.className),
         attendanceDropClasses: attendanceDropClasses.map(c => c.className),
-        studentsAtRisk: highRiskStudents.length,
+        studentsAtRisk: highRiskCount,
       };
     })();
 
@@ -1250,82 +1290,17 @@ export function ReportsPanel() {
       schoolScores,
       // Student Rankings
       studentPerformanceRankings,
+      cohortDistribution,
+      totalStudents,
+      engagementRate,
+      averageScore,
+      attendanceRate,
     };
   }, [school, klass, subject, reportType, customStartDate, customEndDate, selectedDateRange, source]);
 
-  const [aiSummary, setAiSummary] = useState<{
-    executiveSummary: string[];
-    aiAnalysis: string[];
-    projectStatus: string;
-    healthScore: number;
-    fromCache?: boolean;
-  } | null>(null);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [aiFromCache, setAiFromCache] = useState(false);
+  const { totalStudents, engagementRate, averageScore, attendanceRate } = reportModel;
 
-  // Analytics state
-  const [analyticsData, setAnalyticsData] = useState<{
-    totalRequests: number; cacheHits: number; cacheMisses: number;
-    dedupAvoided: number; errors: number; cacheHitRate: number;
-    avgGenerationMs: number; tokensSaved: number; tokensUsed: number;
-    aiCallsAvoided: number;
-  } | null>(null);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-
-  // Fetch analytics on mount
-  useEffect(() => {
-    getReportAnalytics()
-      .then((data) => setAnalyticsData(data))
-      .catch(() => {});
-  }, []);
-
-  // AI generation — user-initiated only (called from handleSearch)
-  const triggerAIGeneration = useCallback(async (
-    activeReportType: string,
-    activeSchool: string,
-    activeKlass: string,
-    activeSubject: string,
-  ) => {
-    if (isGeneratingAI) return; // Prevent duplicate
-    setIsGeneratingAI(true);
-    setAiFromCache(false);
-    const toastId = toast.loading("Generating AI Summary...");
-    try {
-      const payload = {
-        reportType: activeReportType,
-        metrics: reportModel.metrics.map(m => ({ label: m.label, value: m.value })),
-        weakestTopics: reportModel.weakestTopics,
-        strongestTopics: reportModel.strongestTopics,
-        school: activeSchool,
-        klass: activeKlass,
-        subject: activeSubject,
-        dateRange: reportModel.dateRange,
-      };
-      const result = await generateReportSummary(payload);
-      setAiSummary({
-        executiveSummary: result.executiveSummary,
-        aiAnalysis: result.aiAnalysis,
-        projectStatus: result.projectStatus,
-        healthScore: result.healthScore,
-        fromCache: result.fromCache,
-      });
-      setAiFromCache(!!result.fromCache);
-      if (result.fromCache) {
-        toast.success("Report loaded from cache ⚡", { id: toastId });
-      } else if (result.success) {
-        toast.success("AI Summary generated successfully 🧠", { id: toastId });
-      } else {
-        toast.info("Using fallback summary (AI offline)", { id: toastId });
-      }
-      // Refresh analytics after generation
-      getReportAnalytics().then((data) => setAnalyticsData(data)).catch(() => {});
-    } catch (err) {
-      console.error("Failed to generate AI report summary:", err);
-      toast.error("Failed to generate AI summary", { id: toastId });
-    } finally {
-      setIsGeneratingAI(false);
-    }
-  }, [isGeneratingAI, reportModel.metrics, reportModel.weakestTopics, reportModel.strongestTopics, reportModel.dateRange]);
+  // Removed AI summary states and trigger logic
 
   const handleSearch = () => {
     // Apply filters
@@ -1335,11 +1310,6 @@ export function ReportsPanel() {
     setSubject(tempSubject);
     setCustomStartDate(tempCustomStartDate);
     setCustomEndDate(tempCustomEndDate);
-    // Trigger AI generation with the new filters
-    // Use setTimeout(0) so state updates apply first
-    setTimeout(() => {
-      triggerAIGeneration(tempReportType, tempSchool, tempKlass, tempSubject);
-    }, 0);
   };
 
   const getDynamicPDFName = () => {
@@ -1412,12 +1382,12 @@ export function ReportsPanel() {
     csvContent += `Adoption Status,${reportModel.projectStatus ?? "N/A"}\r\n`;
     csvContent += `Adoption Rate,${reportModel.healthScore ?? 0}%\r\n\r\n`;
 
-    csvContent += "EXECUTIVE SUMMARY\r\n";
+    csvContent += "EXECUTIVE BRIEFING\r\n";
     reportModel.executiveSummary.forEach((line) => {
       csvContent += `"${line}"\r\n`;
     });
 
-    csvContent += "\r\nAI ANALYSIS\r\n";
+    csvContent += "\r\nDIAGNOSTIC TAKEAWAYS\r\n";
     (reportModel.aiAnalysis ?? []).forEach((line) => {
       csvContent += `"${line}"\r\n`;
     });
@@ -1452,17 +1422,10 @@ export function ReportsPanel() {
     link.click();
   };
 
-  const displaySummary = aiSummary || {
-    executiveSummary: reportModel.executiveSummary,
-    aiAnalysis: reportModel.aiAnalysis,
-    projectStatus: reportModel.projectStatus,
-    healthScore: reportModel.healthScore,
-  };
-
   // Compute whether there is any real data for the current filter
   const hasNoActivityData = !isLoading && !isError &&
-    reportModel.metrics[3].value === "0" && // Quizzes Attempted = 0
-    reportModel.teacherActivity.sessionsConducted === 0;
+    reportModel?.metrics?.[3]?.value === "0" &&
+    reportModel?.teacherActivity?.sessionsConducted === 0;
 
   return (
     <>
@@ -1479,13 +1442,6 @@ export function ReportsPanel() {
           {/* Removed Live Data / Demo badge */}
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={handleDownloadExcel}
-            className="inline-flex items-center gap-2 rounded-xl h-11 border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-sm px-4"
-          >
-            <FileSpreadsheet className="h-4.5 w-4.5 text-slate-500" /> Export CSV
-          </Button>
           <Button
             onClick={handleDownloadPDF}
             className="inline-flex items-center gap-2 rounded-xl h-11 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm px-5 shadow-lg shadow-teal-600/10"
@@ -1548,14 +1504,9 @@ export function ReportsPanel() {
           </div>
           <Button
             onClick={handleSearch}
-            disabled={isGeneratingAI}
-            className="w-full sm:w-auto rounded-xl h-11 px-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all shadow-md shadow-teal-600/10 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto rounded-xl h-11 px-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-all shadow-md shadow-teal-600/10 flex items-center justify-center gap-2"
           >
-            {isGeneratingAI ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
-            ) : (
-              <><Search className="h-4 w-4" /> Get Report</>
-            )}
+            <Search className="h-4 w-4" /> Get Report
           </Button>
         </div>
       </div>
@@ -1595,76 +1546,117 @@ export function ReportsPanel() {
       {!hasNoActivityData && (
       <div className="space-y-6">
 
-        {/* Row 1: Executive Summary & Health */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* AI Executive Summary Card */}
+        {/* Row 1: Graphical KPIs & Analytics Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Card 1: Subject Competency & Volume Index — Col span 2 */}
           <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[220px]">
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className={cn("h-5 w-5 text-teal-600", isGeneratingAI ? "animate-spin" : "animate-pulse")} />
-                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Executive Summary</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Badges removed by request */}
-                </div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Subject Performance & Activity</h3>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase">Subject Mastery</span>
               </div>
-              {isGeneratingAI ? (
-                <div className="space-y-3 animate-pulse py-2">
-                  <div className="h-4 bg-slate-100 rounded-md w-11/12" />
-                  <div className="h-4 bg-slate-100 rounded-md w-full" />
-                  <div className="h-4 bg-slate-100 rounded-md w-4/5" />
-                  <div className="h-4 bg-slate-100 rounded-md w-5/6" />
-                </div>
-              ) : (
-                <>
-                  <p className="text-slate-600 leading-relaxed text-sm">
-                    {displaySummary.executiveSummary.join(" ")}
-                  </p>
-                  {displaySummary.aiAnalysis && displaySummary.aiAnalysis.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Analytical Insights:</p>
-                      <ul className="text-xs text-slate-500 list-disc list-inside mt-2 space-y-1.5 pl-1 leading-relaxed">
-                        {displaySummary.aiAnalysis.map((a: string, i: number) => (
-                          <li key={i}>{a}</li>
-                        ))}
-                      </ul>
+              <div className="space-y-3.5 py-1">
+                {reportModel.subjectPerf.length > 0 ? (
+                  reportModel.subjectPerf.slice(0, 5).map((sp) => (
+                    <div key={sp.subject} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-700">{sp.subject}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">{sp.quizzesCount} Quizzes</span>
+                          <span className="font-black text-slate-800 font-mono">{sp.avgScore}%</span>
+                        </div>
+                      </div>
+                      <div className="h-2 w-full bg-slate-50 border border-slate-100 rounded-full overflow-hidden flex">
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full" style={{ width: `${sp.avgScore}%` }} />
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
+                  ))
+                ) : (
+                  <div className="h-24 flex items-center justify-center text-slate-400 text-xs italic">No subject data available</div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Platform Adoption Rate Card */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center min-h-[220px]">
+          {/* Card 2: Cohort Bracket Donut Chart — Col span 1 */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[220px]">
             <div>
-              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-4">Platform Adoption Rate</h3>
-              <div className="relative flex items-center justify-center">
-                <svg className={cn("w-32 h-32 transform -rotate-90", isGeneratingAI && "animate-pulse")}>
-                  <circle cx="64" cy="64" r="54" stroke="#f1f5f9" strokeWidth="10" fill="transparent" />
-                  <circle cx="64" cy="64" r="54" stroke="#0ea5e9" strokeWidth="10" fill="transparent"
-                    strokeDasharray={339.3}
-                    strokeDashoffset={339.3 - (339.3 * (displaySummary.healthScore ?? 0)) / 100}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="absolute text-3xl font-black text-slate-800 font-mono">
-                  {isGeneratingAI ? "..." : `${displaySummary.healthScore ?? 0}%`}
-                </span>
+              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">Performance Cohorts</h3>
+              <div className="relative h-[150px] w-full flex items-center justify-center">
+                {reportModel.cohortDistribution.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={reportModel.cohortDistribution}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={62}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {reportModel.cohortDistribution.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #f1f5f9", borderRadius: 12, fontSize: 11 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-lg font-black text-slate-800 font-mono">{totalStudents}</span>
+                      <span className="text-[8px] text-slate-400 font-extrabold uppercase tracking-widest leading-none mt-0.5">Students</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400 text-xs italic">No cohort data available</div>
+                )}
               </div>
             </div>
-            <div className="mt-6">
-              <span className="text-xs font-extrabold px-4 py-1.5 bg-blue-50 border border-blue-100 text-blue-800 uppercase tracking-widest rounded-full shadow-sm">
-                {isGeneratingAI ? "ANALYZING" : (displaySummary.projectStatus ? displaySummary.projectStatus.split(" - ")[0] : "STATUS")}
-              </span>
-              <p className="text-xs text-slate-400 mt-3 font-medium">Usage & Engagement Metric</p>
+          </div>
+
+          {/* Card 3: Operational Quality scorecard — Col span 1 */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between min-h-[220px]">
+            <div>
+              <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-4">Implementation Quality</h3>
+              <div className="space-y-3.5">
+                {/* Metric 1 */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Student Participation</span>
+                    <span className="text-slate-800 font-mono">{Math.round(engagementRate)}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                    <div className="h-full bg-teal-500 rounded-full" style={{ width: `${engagementRate}%` }} />
+                  </div>
+                </div>
+                {/* Metric 2 */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Curriculum Mastery</span>
+                    <span className="text-slate-800 font-mono">{Math.round(averageScore)}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${averageScore}%` }} />
+                  </div>
+                </div>
+                {/* Metric 3 */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Teacher Compliance</span>
+                    <span className="text-slate-800 font-mono">{Math.round(attendanceRate)}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${attendanceRate}%` }} />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Row 2: Core Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {reportModel.metrics.map((m) => (
             <div key={m.label} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between">
               <div className="flex justify-between items-start">
@@ -1695,53 +1687,7 @@ export function ReportsPanel() {
           ))}
         </div>
 
-        {/* Row 3: Alerts & Directives */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Critical Alerts */}
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
-              <AlertTriangle className="h-5 w-5 text-rose-500" />
-              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Critical Alerts</h4>
-            </div>
-            <ul className="space-y-3">
-              {(reportModel.alerts.length > 0 ? reportModel.alerts : [{ title: "System Operational", description: "No alerts detected in this period.", severity: "low" as const }]).map((alert, idx) => (
-                <li key={idx} className="flex gap-3 items-start p-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl">
-                  <span className={cn(
-                    "h-2 w-2 rounded-full mt-1.5 shrink-0",
-                    alert.severity === "high" && "bg-rose-500",
-                    alert.severity === "med" && "bg-amber-500",
-                    alert.severity === "low" && "bg-slate-400",
-                  )} />
-                  <div>
-                    <p className="text-sm font-bold text-slate-800 leading-tight">{alert.title}</p>
-                    <p className="text-xs text-slate-500 leading-tight mt-1">{alert.description}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Directives */}
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-50">
-              <CheckCircle2 className="h-5 w-5 text-teal-600" />
-              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Collector Directive Checklist</h4>
-            </div>
-            <ul className="space-y-3">
-              {reportModel.actions.map((action, idx) => (
-                <li key={idx} className="flex gap-3 items-start p-3.5 bg-slate-50/50 border border-slate-100 rounded-2xl">
-                  <div className="h-5 w-5 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle2 className="h-3 w-3" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800 leading-tight">{action.title}</p>
-                    <p className="text-xs text-slate-500 leading-tight mt-1">{action.description}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        {/* Row 3: Alerts & Directives Checklist removed */}
 
         {/* Row 4: Charts (Activity Timeline & Subject competency Radar) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1966,42 +1912,52 @@ export function ReportsPanel() {
           {/* Student Honor roll */}
           <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
             <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider pb-2 border-b border-slate-50">Academic Honor Roll & High Performers</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 text-slate-400 font-bold text-xs uppercase tracking-wider">
-                    <th className="text-left pb-3">Student Name</th>
-                    <th className="text-center pb-3">Attendance</th>
-                    <th className="text-center pb-3">Quiz Avg</th>
-                    <th className="text-center pb-3">Academic Score</th>
-                    <th className="text-center pb-3">Grade</th>
-                    <th className="text-right pb-3">Risk Level</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportModel.studentPerformanceTable.slice(0, 10).map((s) => (
-                    <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 font-bold text-slate-700">{s.name}</td>
-                      <td className="text-center py-3 text-slate-600 font-semibold">{s.attendancePct}%</td>
-                      <td className="text-center py-3 text-slate-600 font-semibold">{s.quizAvg}%</td>
-                      <td className="text-center py-3 text-slate-600 font-semibold">{s.performanceIndex}</td>
-                      <td className="text-center py-3 text-blue-800 font-black font-mono">{s.grade}</td>
-                      <td className="text-right py-3">
-                        <span className={cn(
-                          "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
-                          s.risk === "low" && "bg-emerald-50 text-emerald-700",
-                          s.risk === "medium" && "bg-amber-50 text-amber-700",
-                          s.risk === "high" && "bg-rose-50 text-rose-700",
-                        )}>
-                          <span className={cn("h-1.5 w-1.5 rounded-full", s.risk === "low" && "bg-emerald-500", s.risk === "medium" && "bg-amber-500", s.risk === "high" && "bg-rose-500")} />
-                          {s.risk}
-                        </span>
-                      </td>
+            {reportModel.studentPerformanceTable.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-bold text-xs uppercase tracking-wider">
+                      <th className="text-left pb-3">Student Name</th>
+                      <th className="text-center pb-3">Attendance</th>
+                      <th className="text-center pb-3">Quiz Avg</th>
+                      <th className="text-center pb-3">Academic Score</th>
+                      <th className="text-center pb-3">Grade</th>
+                      <th className="text-right pb-3">Risk Level</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {reportModel.studentPerformanceTable.slice(0, 10).map((s) => (
+                      <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <td className="py-3 font-bold text-slate-700">{s.name}</td>
+                        <td className="text-center py-3 text-slate-600 font-semibold">{s.attendancePct}%</td>
+                        <td className="text-center py-3 text-slate-600 font-semibold">{s.quizAvg}%</td>
+                        <td className="text-center py-3 text-slate-600 font-semibold">{s.performanceIndex}</td>
+                        <td className="text-center py-3 text-blue-800 font-black font-mono">{s.grade}</td>
+                        <td className="text-right py-3">
+                          <span className={cn(
+                            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
+                            s.risk === "low" && "bg-emerald-50 text-emerald-700",
+                            s.risk === "medium" && "bg-amber-50 text-amber-700",
+                            s.risk === "high" && "bg-rose-50 text-rose-700",
+                          )}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", s.risk === "low" && "bg-emerald-500", s.risk === "medium" && "bg-amber-500", s.risk === "high" && "bg-rose-500")} />
+                            {s.risk}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <GraduationCap className="h-12 w-12 text-slate-300 mb-3" />
+                <p className="text-sm font-semibold text-slate-600">Select School & Class</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
+                  Honor Roll rankings are available once a specific school and class are selected.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2037,60 +1993,7 @@ export function ReportsPanel() {
             )}
           </div>
         </div>
-        {/* Row 8: AI Analytics Panel (Collapsible) */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setShowAnalytics(!showAnalytics)}
-            className="w-full flex items-center justify-between p-6 hover:bg-slate-50/50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-teal-600" />
-              <h4 className="font-bold text-slate-800 text-sm uppercase tracking-wider">AI Report Analytics</h4>
-              {analyticsData && (
-                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 border text-[10px] font-bold ml-2">
-                  {analyticsData.cacheHitRate}% Cache Hit Rate
-                </Badge>
-              )}
-            </div>
-            <ChevronDown className={cn("h-5 w-5 text-slate-400 transition-transform", showAnalytics && "rotate-180")} />
-          </button>
-          {showAnalytics && analyticsData && (
-            <div className="px-6 pb-6 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100">
-                  <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total Requests</p>
-                  <p className="text-xl font-black text-blue-800 mt-1 font-mono">{analyticsData.totalRequests}</p>
-                </div>
-                <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100">
-                  <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">AI Calls Avoided</p>
-                  <p className="text-xl font-black text-emerald-800 mt-1 font-mono">{analyticsData.aiCallsAvoided}</p>
-                </div>
-                <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100">
-                  <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Tokens Saved</p>
-                  <p className="text-xl font-black text-amber-800 mt-1 font-mono">{analyticsData.tokensSaved.toLocaleString()}</p>
-                </div>
-                <div className="bg-rose-50/50 rounded-2xl p-4 border border-rose-100">
-                  <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Errors / Fallbacks</p>
-                  <p className="text-xl font-black text-rose-800 mt-1 font-mono">{analyticsData.errors}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Cache Hits</p>
-                  <p className="text-sm font-bold text-slate-700 mt-1">{analyticsData.cacheHits}</p>
-                </div>
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Cache Misses</p>
-                  <p className="text-sm font-bold text-slate-700 mt-1">{analyticsData.cacheMisses}</p>
-                </div>
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">Avg Gen Time</p>
-                  <p className="text-sm font-bold text-slate-700 mt-1">{analyticsData.avgGenerationMs}ms</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Row 8: AI Analytics Panel removed */}
       </div>
       )}
       </div>
@@ -2104,7 +2007,6 @@ export function ReportsPanel() {
           school={school}
           klass={klass}
           subject={subject}
-          displaySummary={displaySummary}
         />
       </div>
     </>
@@ -2162,15 +2064,10 @@ interface PrintTemplateProps {
   school: string;
   klass: string;
   subject: string;
-  displaySummary: {
-    executiveSummary: string[];
-    aiAnalysis: string[];
-    projectStatus: string;
-    healthScore: number;
-  };
 }
 
-const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subject, displaySummary }: PrintTemplateProps) => {
+const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subject }: PrintTemplateProps) => {
+  const { totalStudents, engagementRate, averageScore, attendanceRate } = reportModel;
   return (
     <div ref={reportRef} className="flex flex-col gap-10">
       
@@ -2178,7 +2075,7 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
           PAGE 1 — EXECUTIVE BRIEFING & CORE METRICS
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="pdf-report-page w-[900px] h-[1273px] bg-white p-10 flex flex-col justify-between border border-slate-200 relative overflow-hidden select-none">
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Government Official Style Header */}
           <div className="pb-5 border-b border-slate-200">
             <p className="text-[10px] font-black text-slate-400 tracking-[0.25em] uppercase">
@@ -2200,55 +2097,106 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
             </div>
           </div>
 
-          {/* Health Score & AI Executive Briefing */}
-          <div className="grid grid-cols-12 gap-6 items-stretch">
-            {/* Left Column: Briefing Summary */}
-            <div className="col-span-8 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-3xl p-6 border border-slate-200/60 flex flex-col justify-between">
+          {/* Visual KPI Analytics Row */}
+          <div className="grid grid-cols-12 gap-5 items-stretch">
+            {/* Left Card: Subject competency & volume (5 cols) */}
+            <div className="col-span-5 bg-slate-50 rounded-3xl p-5 border border-slate-200/50 flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-5 w-5 text-teal-600" />
-                  <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">Executive Summary</h3>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-bold text-slate-800 text-[9px] uppercase tracking-wider">Subject Performance & Activity</h4>
                 </div>
-                <p className="text-slate-600 leading-relaxed text-xs">
-                  {displaySummary.executiveSummary.join(" ")}
-                </p>
-                {displaySummary.aiAnalysis && displaySummary.aiAnalysis.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs font-bold text-slate-700">Analytical Insights:</p>
-                    <ul className="text-[11px] text-slate-500 list-disc list-inside mt-1 space-y-1 pl-1 leading-relaxed">
-                      {displaySummary.aiAnalysis.slice(0, 3).map((a: string, i: number) => (
-                        <li key={i}>{a}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                <div className="space-y-2.5 py-1">
+                  {reportModel.subjectPerf.length > 0 ? (
+                    reportModel.subjectPerf.slice(0, 5).map((sp: any) => (
+                      <div key={sp.subject} className="space-y-0.5">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="font-bold text-slate-700">{sp.subject}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] text-slate-400 font-bold uppercase">{sp.quizzesCount} Quizzes</span>
+                            <span className="font-black text-slate-800 font-mono">{sp.avgScore}%</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 w-full bg-white border border-slate-200 rounded-full overflow-hidden flex">
+                          <div className="h-full bg-gradient-to-r from-blue-500 to-teal-400 rounded-full" style={{ width: `${sp.avgScore}%` }} />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="h-20 flex items-center justify-center text-slate-400 text-[9px] italic">No subject data available</div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Right Column: Platform Adoption Ring */}
-            <div className="col-span-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-3xl p-6 border border-blue-100/60 flex flex-col justify-between items-center text-center">
+            {/* Middle Card: Performance Distribution Pie (4 cols) */}
+            <div className="col-span-4 bg-slate-50 rounded-3xl p-5 border border-slate-200/50 flex flex-col justify-between">
               <div>
-                <h3 className="font-bold text-blue-900 text-xs uppercase tracking-wider mb-2">Platform Adoption</h3>
-                <div className="relative flex items-center justify-center mt-3">
-                  {/* Ring SVG */}
-                  <svg className="w-24 h-24 transform -rotate-90">
-                    <circle cx="48" cy="48" r="40" stroke="#e2e8f0" strokeWidth="8" fill="transparent" />
-                    <circle cx="48" cy="48" r="40" stroke="#0ea5e9" strokeWidth="8" fill="transparent"
-                      strokeDasharray={251.2}
-                      strokeDashoffset={251.2 - (251.2 * (displaySummary.healthScore ?? 0)) / 100}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <span className="absolute text-2xl font-black text-slate-800 font-mono">
-                    {displaySummary.healthScore ?? 0}%
-                  </span>
+                <h4 className="font-bold text-slate-800 text-[9px] uppercase tracking-wider mb-2">Performance Cohorts</h4>
+                <div className="relative h-[120px] w-full flex items-center justify-center">
+                  {reportModel.cohortDistribution.length > 0 ? (
+                    <>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={reportModel.cohortDistribution}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={45}
+                            paddingAngle={3}
+                            dataKey="value"
+                          >
+                            {reportModel.cohortDistribution.map((entry: any, index: number) => (
+                              <Cell key={`cell-print-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-sm font-black text-slate-800 font-mono">{totalStudents}</span>
+                        <span className="text-[7px] text-slate-400 font-extrabold uppercase tracking-widest leading-none mt-0.5">Students</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400 text-[9px] italic">No cohort data available</div>
+                  )}
                 </div>
               </div>
-              <div className="mt-4">
-                <span className="text-[10px] font-extrabold px-3 py-1 bg-white border border-blue-100 text-blue-800 uppercase tracking-widest rounded-full shadow-sm">
-                  {displaySummary.projectStatus ? displaySummary.projectStatus.split(" - ")[0] : "STATUS"}
-                </span>
-                <p className="text-[10px] text-slate-400 mt-2 font-medium">Usage & Engagement Metric</p>
+            </div>
+
+            {/* Right Card: Platform Adoption & Operational health (3 cols) */}
+            <div className="col-span-3 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-3xl p-5 border border-blue-100/60 flex flex-col justify-between">
+              <div>
+                <h4 className="font-bold text-blue-900 text-[9px] uppercase tracking-wider mb-3">Implementation Health</h4>
+                <div className="space-y-2.5">
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between items-center text-[8px] font-bold text-slate-500 uppercase">
+                      <span>Participation</span>
+                      <span className="text-slate-800">{Math.round(engagementRate)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-slate-100">
+                      <div className="h-full bg-teal-500 rounded-full" style={{ width: `${engagementRate}%` }} />
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between items-center text-[8px] font-bold text-slate-500 uppercase">
+                      <span>Mastery</span>
+                      <span className="text-slate-800">{Math.round(averageScore)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-slate-100">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${averageScore}%` }} />
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between items-center text-[8px] font-bold text-slate-500 uppercase">
+                      <span>Compliance</span>
+                      <span className="text-slate-800">{Math.round(attendanceRate)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-slate-100">
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${attendanceRate}%` }} />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2256,7 +2204,7 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
           {/* Summary Metrics Grid */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Key Performance Statistics</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               {reportModel.metrics.map((m: any) => (
                 <div key={m.label} className="bg-slate-50 rounded-2xl p-4 border border-slate-200/50 flex flex-col justify-between">
                   <div className="flex justify-between items-start">
@@ -2268,8 +2216,15 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
                     )}>
                       <m.icon className="h-4 w-4" />
                     </div>
-                    <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100 border text-[9px] font-mono font-bold px-1.5 py-0.5">
-                      +{m.change}
+                    <Badge className={cn(
+                      "border text-[9px] font-mono font-bold px-1.5 py-0.5",
+                      m.change === "—" || m.change === "No quizzes" || m.change === "No data"
+                        ? "bg-slate-50 text-slate-400 border-slate-100"
+                        : m.change.startsWith("-")
+                        ? "bg-rose-50 text-rose-600 border-rose-100"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                    )}>
+                      {m.change.startsWith("+") || m.change.startsWith("-") || isNaN(parseInt(m.change)) ? m.change : `+${m.change}`}
                     </Badge>
                   </div>
                   <div className="mt-4">
@@ -2281,53 +2236,7 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
             </div>
           </div>
 
-          {/* Critical Alerts & Actions */}
-          <div className="grid grid-cols-2 gap-6 pt-2">
-            {/* Issues & Alerts */}
-            <div className="bg-rose-50/30 border border-rose-100 rounded-3xl p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4.5 w-4.5 text-rose-500" />
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Critical Alerts</h4>
-              </div>
-              <ul className="space-y-2">
-                {(reportModel.alerts.length > 0 ? reportModel.alerts.slice(0, 3) : [{ title: "System Operational", description: "No alerts detected in this period.", severity: "low" as const }]).map((alert: any, idx: number) => (
-                  <li key={idx} className="flex gap-2.5 items-start">
-                    <span className={cn(
-                      "h-1.5 w-1.5 rounded-full mt-1.5 shrink-0",
-                      alert.severity === "high" && "bg-rose-500",
-                      alert.severity === "med" && "bg-amber-500",
-                      alert.severity === "low" && "bg-slate-400",
-                    )} />
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-800 leading-tight">{alert.title}</p>
-                      <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{alert.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Actions & Next Steps */}
-            <div className="bg-teal-50/30 border border-teal-100 rounded-3xl p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4.5 w-4.5 text-teal-600" />
-                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Collector Directive Checklist</h4>
-              </div>
-              <ul className="space-y-2">
-                {reportModel.actions.slice(0, 3).map((action: any, idx: number) => (
-                  <li key={idx} className="flex gap-2.5 items-start">
-                    <div className="h-4 w-4 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="h-2.5 w-2.5" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-800 leading-tight">{action.title}</p>
-                      <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{action.description}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          {/* Critical Alerts & Actions section removed from page 1 */}
         </div>
 
         {/* Footer */}
@@ -2481,7 +2390,7 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
           PAGE 3 — OPERATIONAL RANKINGS & LEADERBOARDS
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="pdf-report-page w-[900px] h-[1273px] bg-white p-10 flex flex-col justify-between border border-slate-200 relative overflow-hidden select-none">
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Header */}
           <div className="pb-4 border-b border-slate-200">
             <p className="text-[10px] font-black text-slate-400 tracking-[0.25em] uppercase">
@@ -2493,7 +2402,7 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
           </div>
 
           {/* School leaderboards (Top 3) & Teacher compliance */}
-          <div className="grid grid-cols-12 gap-6">
+          <div className="grid grid-cols-12 gap-5">
             {/* Leaderboards */}
             <div className="col-span-7 bg-slate-50 rounded-3xl p-5 border border-slate-200/50 space-y-3">
               <div className="flex items-center justify-between">
@@ -2507,12 +2416,12 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
               <div className="space-y-2.5">
                 {klass !== "All Classes" ? (
                   reportModel.studentPerformanceRankings.slice(0, 3).map((sr: any) => (
-                    <div key={sr.id} className="p-3 rounded-xl bg-white border border-slate-100 relative shadow-sm">
+                    <div key={sr.id} className="p-2.5 rounded-xl bg-white border border-slate-100 relative shadow-sm flex flex-col justify-center min-h-[54px]">
                       <div className="absolute top-2.5 right-3">
                         <span className="text-[10px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">Rank #{sr.rank}</span>
                       </div>
-                      <p className="text-xs font-bold text-slate-800 pr-16 truncate">{sr.name}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <p className="text-xs font-bold text-slate-800 pr-16 truncate leading-normal py-0.5">{sr.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div className="h-full bg-teal-500" style={{ width: `${sr.score}%` }} />
                         </div>
@@ -2522,12 +2431,12 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
                   ))
                 ) : school !== "All Schools" ? (
                   reportModel.classComparison.slice(0, 3).map((cr: any) => (
-                    <div key={cr.className} className="p-3 rounded-xl bg-white border border-slate-100 relative shadow-sm">
+                    <div key={cr.className} className="p-2.5 rounded-xl bg-white border border-slate-100 relative shadow-sm flex flex-col justify-center min-h-[54px]">
                       <div className="absolute top-2.5 right-3">
                         <span className="text-[10px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">Rank #{cr.rank}</span>
                       </div>
-                      <p className="text-xs font-bold text-slate-800 pr-16 truncate">{cr.className}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <p className="text-xs font-bold text-slate-800 pr-16 truncate leading-normal py-0.5">{cr.className}</p>
+                      <div className="flex items-center gap-2 mt-1">
                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div className="h-full bg-teal-500" style={{ width: `${cr.score}%` }} />
                         </div>
@@ -2537,12 +2446,12 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
                   ))
                 ) : (
                   reportModel.schoolScores.slice(0, 3).map((ss: any) => (
-                    <div key={ss.name} className="p-3 rounded-xl bg-white border border-slate-100 relative shadow-sm">
+                    <div key={ss.name} className="p-2.5 rounded-xl bg-white border border-slate-100 relative shadow-sm flex flex-col justify-center min-h-[54px]">
                       <div className="absolute top-2.5 right-3">
                         <span className="text-[10px] font-extrabold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">Rank #{ss.rank}</span>
                       </div>
-                      <p className="text-xs font-bold text-slate-800 pr-16 truncate">{ss.name}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
+                      <p className="text-xs font-bold text-slate-800 pr-16 truncate leading-normal py-0.5">{ss.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
                         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div className="h-full bg-teal-500" style={{ width: `${ss.score}%` }} />
                         </div>
@@ -2659,42 +2568,52 @@ const PrintTemplate = ({ reportRef, reportModel, reportType, school, klass, subj
           {/* Student Performance Table (Top 5) */}
           <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200/50 space-y-3">
             <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Academic Honor Roll & High Performers</h4>
-            <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-sm">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-50/80 border-b border-slate-200">
-                    <th className="text-left py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Student Name</th>
-                    <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Attendance Rate</th>
-                    <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Quiz average</th>
-                    <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Academic Score</th>
-                    <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Grade Award</th>
-                    <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Risk Level</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportModel.studentPerformanceTable.slice(0, 4).map((s: any) => (
-                    <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-2 px-3 font-bold text-slate-700">{s.name}</td>
-                      <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.attendancePct}%</td>
-                      <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.quizAvg}%</td>
-                      <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.performanceIndex}</td>
-                      <td className="text-center py-2 px-3 text-blue-800 font-black font-mono">{s.grade}</td>
-                      <td className="text-center py-2 px-3">
-                        <span className={cn(
-                          "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
-                          s.risk === "low" && "bg-emerald-50 text-emerald-700",
-                          s.risk === "medium" && "bg-amber-50 text-amber-700",
-                          s.risk === "high" && "bg-rose-50 text-rose-700",
-                        )}>
-                          <span className={cn("h-1.5 w-1.5 rounded-full", s.risk === "low" && "bg-emerald-500", s.risk === "medium" && "bg-amber-500", s.risk === "high" && "bg-rose-500")} />
-                          {s.risk}
-                        </span>
-                      </td>
+            {reportModel.studentPerformanceTable.length > 0 ? (
+              <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white shadow-sm">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200">
+                      <th className="text-left py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Student Name</th>
+                      <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Attendance Rate</th>
+                      <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Quiz average</th>
+                      <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Academic Score</th>
+                      <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Grade Award</th>
+                      <th className="text-center py-2 px-3 font-bold text-slate-500 uppercase tracking-wider">Risk Level</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {reportModel.studentPerformanceTable.slice(0, 4).map((s: any) => (
+                      <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                        <td className="py-2 px-3 font-bold text-slate-700">{s.name}</td>
+                        <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.attendancePct}%</td>
+                        <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.quizAvg}%</td>
+                        <td className="text-center py-2 px-3 text-slate-600 font-semibold">{s.performanceIndex}</td>
+                        <td className="text-center py-2 px-3 text-blue-800 font-black font-mono">{s.grade}</td>
+                        <td className="text-center py-2 px-3">
+                          <span className={cn(
+                            "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                            s.risk === "low" && "bg-emerald-50 text-emerald-700",
+                            s.risk === "medium" && "bg-amber-50 text-amber-700",
+                            s.risk === "high" && "bg-rose-50 text-rose-700",
+                          )}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", s.risk === "low" && "bg-emerald-500", s.risk === "medium" && "bg-amber-500", s.risk === "high" && "bg-rose-500")} />
+                            {s.risk}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center bg-white border border-slate-200/60 rounded-xl">
+                <GraduationCap className="h-10 w-10 text-slate-300 mb-2" />
+                <p className="text-xs font-bold text-slate-600">Select School & Class</p>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Leaderboard details are shown only when a specific school and class are filtered.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,0 +1,69 @@
+Created At: 2026-05-29T07:09:38Z
+Completed At: 2026-05-29T07:09:39Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 1869
+Total Bytes: 97335
+Showing lines 1200 to 1600
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1200: 
+1201:     const toastId = toast.loading("Generating high-fidelity District report...");
+1202:     try {
+1203:       const pdf = new jsPDF("p", "mm", "a4");
+1204:       const pdfWidth = pdf.internal.pageSize.getWidth();
+1205:       const pdfHeight = pdf.internal.pageSize.getHeight();
+1206: 
+1207:       for (let i = 0; i < pages.length; i++) {
+1208:         const pageElement = pages[i] as HTMLElement;
+1209: 
+1210:         // Capture canvas
+1211:         const canvas = await html2canvas(pageElement, {
+1212:           scale: 2, // high quality
+1213:           useCORS: true,
+1214:           logging: false,
+1215:           backgroundColor: "#ffffff",
+1216:         });
+1217: 
+1218:         const imgData = canvas.toDataURL("image/jpeg", 0.95);
+1219: 
+1220:         if (i > 0) {
+1221:           pdf.addPage();
+1222:         }
+1223: 
+1224:         // Draw image A4 scale
+1225:         pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+1226:       }
+1227: 
+1228:       const filename = `vidhyaplus-collector-report-${new Date().toISOString().split("T")[0]}.pdf`;
+1229:       pdf.save(filename);
+1230:       toast.success("District Report PDF downloaded successfully!", { id: toastId });
+1231:     } catch (err) {
+1232:       console.error("PDF generation failed:", err);
+1233:       toast.error("Failed to generate PDF report", { id: toastId });
+1234:     }
+1235:   };
+1236: 
+1237:   const handleDownloadExcel = () => {
+1238:     const { schoolPerf, subjectPerf } = reportModel;
+1239:     let csvContent = `VidhyaPlus - ${reportType} Report\r\nGenerat
+<truncated 21568 bytes>
+                <InsightTile label="Top Topic" value={reportModel.strongestTopics[0]?.topic ?? "N/A"} sub={`Avg score ${reportModel.strongestTopics[0]?.avg ?? 0}%`} tone="success" />
+1582:                   <InsightTile label="Remedial Topic" value={reportModel.weakestTopics[0]?.topic ?? "N/A"} sub={`Avg score ${reportModel.weakestTopics[0]?.avg ?? 0}%`} tone="warning" />
+1583:                   <InsightTile label="Top School" value={reportModel.schoolCompare[0]?.name ?? "N/A"} sub={`${Math.round(reportModel.schoolCompare[0]?.value ?? 0)}% eng.`} tone="primary" />
+1584:                   <InsightTile label="Lowest School" value={reportModel.schoolCompare.slice(-1)[0]?.name ?? "N/A"} sub={`${Math.round(reportModel.schoolCompare.slice(-1)[0]?.value ?? 0)}% eng.`} tone="muted" />
+1585:                 </div>
+1586:               </div>
+1587:             </div>
+1588: 
+1589:             {/* Student Activity Trend Line Chart */}
+1590:             <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200/50">
+1591:               <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-3">District Activity Timeline (Students vs Assessments)</h4>
+1592:               <div className="h-[280px]">
+1593:                 <ResponsiveContainer width="100%" height="100%">
+1594:                   <AreaChart data={reportModel.activityData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+1595:                     <defs>
+1596:                       <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
+1597:                         <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+1598:                         <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+1599:                       </linearGradient>
+1600:                       <linearGradient id="colorQuizzes" x1="0" y1="0" x2="0" y2="1">
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

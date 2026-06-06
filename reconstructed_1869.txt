@@ -1,0 +1,270 @@
+1: import { useMemo, useState, useRef } from "react";
+2: import {
+3:   Calendar, Download, FileSpreadsheet, TrendingUp, Users, Activity,
+4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+5:   Sparkles, Target, Lightbulb, FileText, School, Search,
+6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7:   Brain, Eye, BarChart3,
+8: } from "lucide-react";
+9: import {
+10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13:   AreaChart, Area,
+14: } from "recharts";
+15: import { cn } from "@/lib/utils";
+16: import { useAppData } from "@/contexts/DataContext";
+17: import { useAuth } from "@/contexts/AuthContext";
+18: import { Button } from "@/components/ui/button";
+19: import { Badge } from "@/components/ui/badge";
+20: import html2canvas from "html2canvas";
+21: import { jsPDF } from "jspdf";
+22: import { toast } from "sonner";
+23: 
+24: type SchoolMetric = { name: string; value: number; color: string };
+25: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+26: type ActionItem = { title: string; description: string };
+27: 
+28: const fallbackSchoolOptions = ["All Schools"];
+29: const fallbackClassOptions = ["All Classes", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+30: 
+31: const asRecord = (value: unknown) => {
+32:   if (!value || typeof value !== "object") {
+33:     return {} as Record<string, unkn
+463:       const row = asRecord(item);
+464:       const subjectId = asString(row.id, asString(row._id, ""));
+465:       const subjectName = asString(row.name, asString(row.title, `Subject ${index + 1}`));
+466:       if (subjectId) {
+467:         subjectIdToName.set(subjectId, subjectName);
+468:       }
+469:     });
+470: 
+471:     const chapterIdToSubjectId = new Map<string, string>();
+472:     const chapterIdToTopicName = new Map<string, string>();
+473:     rawChapters.forEach((item, index) => {
+474:       const row = asRecord(item);
+475:       const chapterId = asString(row.id, asString(row._id, ""));
+476:       const subjectId = asString(row.subjectId, "");
+477:       const topicName = asString(row.name, asString(row.title, `Topic ${index + 1}`));
+478:       if (chapterId) {
+479:         chapterIdToSubjectId.set(chapterId, subjectId);
+480:         chapterIdToTopicName.set(chapterId, topicName);
+481:       }
+482:     });
+483: 
+484:     const resultRecordsInRange = normalizedQuizResults.filter((row) => {
+485:       const dateValue = asDate(row.date);
+486:       return dateValue ? dateValue >= dateStart && dateValue <= dateEnd : false;
+487:     });
+488: 
+489:     const sessionsInRange = normalizedQuizzes.filter((row) => {
+490:       const createdAt = asDate(row.createdAt);
+491:       return createdAt ? createdAt >= dateStart && createdAt <= dateEnd : false;
+492:     });
+493: 
+494:     const selectedStudents = normalizedStudents.filter((student) => {
+495:       const schoolObj = normalizedSchools.find(sc => sc.id === student.schoolId);
+496:       const schoolName = schoolObj ? schoolObj.name : "";
+497:       const classItem = normalizedClasses.find(cl => cl.id === student.classId);
+498:       // Match using the class name field directly (e.g. "Class 10-A")
+499:       const className = classItem ? classItem.name : "";
+500:       
+1000:       return {
+1001:         data: sortedMonths.map(key => {
+1002:           const subjects = monthBuckets.get(key)!;
+1003:           const d = new Date(key + "-01");
+1004:           const point: Record<string, string | number> = {
+1005:             month: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+1006:           };
+1007:           allSubjects.forEach(subj => {
+1008:             const stats = subjects.get(subj);
+1009:             point[subj] = stats ? Math.round(stats.total / stats.count) : 0;
+1010:           });
+1011:           return point;
+1012:         }),
+1013:         subjects: Array.from(allSubjects),
+1014:       };
+1015:     })();
+1016: 
+1017:     // ══════════════════════════════════════════════════════
+1018:     // PHASE 2 — Radar Chart Data (per-subject score for selected class)
+1019:     // ══════════════════════════════════════════════════════
+1020:     const radarData = subjectPerf.slice(0, 6).map(sp => ({
+1021:       subject: sp.subject.length > 12 ? sp.subject.slice(0, 10) + "…" : sp.subject,
+1022:       fullName: sp.subject,
+1023:       score: sp.avgScore,
+1024:       fullMark: 100,
+1025:     }));
+1026: 
+1027:     // ═════════════════════════════════════════════════════
+1142:         name: schoolObj.name,
+1143:         score: clampPercent(score),
+1144:         rank: 0,
+1145:         quizScore: Math.round(quizScore),
+1146:         attScore: Math.round(attScore),
+1147:       };
+1148:     }).sort((a, b) => b.score - a.score);
+1149:     
+1150:     schoolScores.forEach((s, i) => { s.rank = i + 1; });
+1151: 
+1152:     return {
+1153:       activityData,
+1154:       quizPerf,
+1155:       schoolCompare: comparisonData,
+1156:       comparisonTitle,
+1157:       comparisonData,
+1158:       subjectPerf,
+1159:       schoolPerf,
+1160:       metrics,
+1161:       alerts,
+1162:       actions,
+1163:       highlights,
+1164:       executiveSummary,
+1165:       recommendations,
+1166:       dateRange,
+1167:       strongestTopics,
+1168:       weakestTopics,
+1169:       aiAnalysis: ai.analysis,
+1170:       projectStatus: ai.projectStatus,
+1171:       healthScore: ai.healthScore,
+1172:       // Phase 1
+1173:       studentPerformanceTable,
+1174:       attentionNeeded,
+1175:       aiInsights,
+1176:       // Phase 2
+1177:       improvementTracker,
+1178:       radarData,
+1179:       // Phase 3
+1180:       classComparison,
+1181:       teacherActivity,
+1182:       enhancedAlerts,
+1183:       // Phase 4
+1184:       schoolScores,
+1185:     };
+1186:   }, [school, klass, subject, reportType, customStartDate, customEndDate, selectedDateRange, source]);
+1187: 
+1188:   const handleSearch = () => {
+1189:     setReportType(tempReportType);
+1190:     setSchool(tempSchool);
+1191:     setKlass(tempKlass);
+1192:     setSubject(tempSubject);
+1193:     setCustomStartDate(tempCustomStartDate);
+1194:     setCustomEndDate(tempCustomEndDate);
+1195:   };
+1196: 
+1197:   const handleDownloadPDF = async () => {
+1198:     const pages = reportRef.current?.querySelectorAll(".pdf-report-page");
+1199:     if (!pages || pages.length === 0) return;
+1200: 
+1201:     const toastId = toast.loading("Generating high-fidelity District report...");
+1202:     try {
+1203:       const pdf = new jsPDF("p", "mm", "a4");
+1204:       const pdfWidth = pdf.internal.pageSize.getWidth();
+1205:       const pdfHeight = pdf.internal.pageSize.getHeight();
+1206: 
+1207:       for (let i = 0; i < pages.length; i++) {
+1208:         const pageElement = pages[i] as HTMLElement;
+1209: 
+1210:         // Capture canvas
+1211:         const canvas = await html2canvas(pageElement, {
+1212:           scale: 2, // high quality
+1213:           useCORS: true,
+1214:           logging: false,
+1215:           backgroundColor: "#ffffff",
+1216:         });
+1217: 
+1218:         const imgData = canvas.toDataURL("image/jpeg", 0.95);
+1219: 
+1220:         if (i > 0) {
+1221:           pdf.addPage();
+1222:         }
+1223: 
+1224:         // Draw image A4 scale
+1225:         pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+1226:       }
+1227: 
+1228:       const filename = `vidhyaplus-collector-report-${new Date().toISOString().split("T")[0]}.pdf`;
+1229:       pdf.save(filename);
+1230:       toast.success("District Report PDF downloaded successfully!", { id: toastId });
+1231:     } catch (err) {
+1232:       console.error("PDF generation failed:", err);
+1233:       toast.error("Failed to generate PDF report", { id: toastId });
+1234:     }
+1235:   };
+1236: 
+1237:   const handleDownloadExcel = () => {
+1238:     const { schoolPerf, subjectPerf } = reportModel;
+1239:     let csvContent = `VidhyaPlus - ${reportType} Report\r\nGenerat
+1582:                   <InsightTile label="Remedial Topic" value={reportModel.weakestTopics[0]?.topic ?? "N/A"} sub={`Avg score ${reportModel.weakestTopics[0]?.avg ?? 0}%`} tone="warning" />
+1583:                   <InsightTile label="Top School" value={reportModel.schoolCompare[0]?.name ?? "N/A"} sub={`${Math.round(reportModel.schoolCompare[0]?.value ?? 0)}% eng.`} tone="primary" />
+1584:                   <InsightTile label="Lowest School" value={reportModel.schoolCompare.slice(-1)[0]?.name ?? "N/A"} sub={`${Math.round(reportModel.schoolCompare.slice(-1)[0]?.value ?? 0)}% eng.`} tone="muted" />
+1585:                 </div>
+1586:               </div>
+1587:             </div>
+1588: 
+1589:             {/* Student Activity Trend Line Chart */}
+1590:             <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200/50">
+1591:               <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-3">District Activity Timeline (Students vs Assessments)</h4>
+1592:               <div className="h-[280px]">
+1593:                 <ResponsiveContainer width="100%" height="100%">
+1594:                   <AreaChart data={reportModel.activityData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+1595:                     <defs>
+1596:                       <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
+1597:                         <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+1598:                         <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+1599:                       </linearGradient>
+1600:                       <linearGradient id="colorQuizzes" x1="0" y1="0" x2="0" y2="1">
+1601:                         <stop offset="5%" stopColor="#eab308" stopOpacity={0.2}/>
+1602:                         <stop offset="95%" stopColor="#eab308" stopOpacity={0}/>
+1603:                       </linearGradient>
+1604:                     </defs>
+1605:                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+1606:                     <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
+1607:                     <YAxis stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} domain={reportModel.activityData.every(d => d.students === 0 && d.quizzes === 0) ? [0, 4] : [0, 'auto']} />
+1608:                     <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: 11 }} />
+1609:                     <Legend wrapperStyle={{ fontSize: 11 }} />
+1610:                     <Area type="monotone" dataKey="students" name="Active Students" stroke="#0ea5e9" strokeWidth={2.5} fillOpacity={1} fill="url(#colorStudents)" />
+1611:                     <Area type="monotone" dataKey="quizzes" name="Quizzes Taken" stroke="#eab308" strokeWidth={2.5} fillOpacity={1} fill="url(#colorQuizzes)" />
+1612:                   </AreaChart>
+1613:                 </ResponsiveContainer>
+1614:               </div>
+1615:             </div>
+1616: 
+1617:             {/* Radar Subject Chart + Pie Comparison */}
+1618:             <div className="grid grid-col
+1834:   <div className="space-y-1.5">
+1835:     <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</label>
+1836:     <select
+1837:       value={value}
+1838:       onChange={(e) => onChange(e.target.value)}
+1839:       className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-semibold text-slate-700"
+1840:     >
+1841:       {options.map((opt) => (
+1842:         <option key={opt} value={opt}>
+1843:           {opt}
+1844:         </option>
+1845:       ))}
+1846:     </select>
+1847:   </div>
+1848: );
+1849: 
+1850: const InsightTile = ({ label, value, sub, tone }: { label: string; value: string; sub: string; tone: "success" | "warning" | "primary" | "muted" }) => (
+1851:   <div className={cn(
+1852:     "p-3 rounded-2xl border flex flex-col justify-between h-[68px]",
+1853:     tone === "success" && "bg-emerald-50/50 border-emerald-100",
+1854:     tone === "warning" && "bg-amber-50/50 border-amber-100",
+1855:     tone === "primary" && "bg-blue-50/50 border-blue-100",
+1856:     tone === "muted" && "bg-slate-100/50 border-slate-200/60",
+1857:   )}>
+1858:     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">{label}</span>
+1859:     <span className={cn(
+1860:       "text-xs font-bold block truncate",
+1861:       tone === "success" && "text-emerald-800",
+1862:       tone === "warning" && "text-amber-800",
+1863:       tone === "primary" && "text-blue-900",
+1864:       tone === "muted" && "text-slate-700",
+1865:     )} title={value}>{value}</span>
+1866:     <span className="text-[9px] text-slate-400 block truncate">{sub}</span>
+1867:   </div>
+1868: );
+1869: 

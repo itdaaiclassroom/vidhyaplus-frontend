@@ -1,0 +1,72 @@
+Created At: 2026-05-29T07:58:23Z
+Completed At: 2026-05-29T07:58:23Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2035
+Total Bytes: 106759
+Showing lines 1000 to 1100
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1000:       return {
+1001:         data: sortedMonths.map(key => {
+1002:           const subjects = monthBuckets.get(key)!;
+1003:           const d = new Date(key + "-01");
+1004:           const point: Record<string, string | number> = {
+1005:             month: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+1006:           };
+1007:           allSubjects.forEach(subj => {
+1008:             const stats = subjects.get(subj);
+1009:             point[subj] = stats ? Math.round(stats.total / stats.count) : 0;
+1010:           });
+1011:           return point;
+1012:         }),
+1013:         subjects: Array.from(allSubjects),
+1014:       };
+1015:     })();
+1016: 
+1017:     // ══════════════════════════════════════════════════════
+1018:     // PHASE 2 — Radar Chart Data (per-subject score for selected class)
+1019:     // ══════════════════════════════════════════════════════
+1020:     const radarData = subjectPerf.slice(0, 6).map(sp => ({
+1021:       subject: sp.subject.length > 12 ? sp.subject.slice(0, 10) + "…" : sp.subject,
+1022:       fullName: sp.subject,
+1023:       score: sp.avgScore,
+1024:       fullMark: 100,
+1025:     }));
+1026: 
+1027:     // ═════════════════════════════════════════════════════
+<truncated 2384 bytes>
+riskLevel: "green" | "yellow" | "red" =
+1067:           (avgAttendance >= 85 && avgMarks >= 70) ? "green"
+1068:           : (avgAttendance < 60 || avgMarks < 50) ? "red"
+1069:           : "yellow";
+1070: 
+1071:         return {
+1072:           className: cl.name,
+1073:           avgAttendance,
+1074:           avgMarks,
+1075:           weakSubject,
+1076:           riskLevel,
+1077:           studentCount: classStudents.length,
+1078:         };
+1079:       }).filter(c => c.studentCount > 0);
+1080:     })();
+1081: 
+1082:     // ══════════════════════════════════════════════════════
+1083:     // PHASE 3 — Teacher Activity Analytics
+1084:     // ══════════════════════════════════════════════════════
+1085:     const teacherActivity = (() => {
+1086:       const relevantSessions = selectedQuizzes; // Already filtered by school/class/date/subject
+1087:       const uniqueTeachers = new Set(relevantSessions.map(s => s.teacherId).filter(Boolean));
+1088:       const totalTeachers = rawTeachers.length;
+1089:       const sessionsCount = relevantSessions.length;
+1090:       const uniqueSubjects = new Set(relevantSessions.map(s => s.subjectName).filter(Boolean));
+1091:       const attendanceMarkedCount = relevantSessions.filter(s => s.attendanceMarked).length;
+1092:       const attendanceMarkedPct = sessionsCount > 0 ? Math.round((attendanceMarkedCount / sessionsCount) * 100) : 0;
+1093: 
+1094:       return {
+1095:         activeTeachers: uniqueTeachers.size,
+1096:         totalTeachers,
+1097:         sessionsConducted: sessionsCount,
+1098:         subjectsCovered: uniqueSubjects.size,
+1099:         attendanceMarkedPct,
+1100:       };
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

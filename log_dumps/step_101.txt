@@ -1,0 +1,75 @@
+Created At: 2026-05-29T07:04:37Z
+Completed At: 2026-05-29T07:04:38Z
+File Path: `file:///c:/Users/venky/Desktop/Vidya_Plus_/vidhyaplus-frontend/src/pages/admin/ReportsPanel.tsx`
+Total Lines: 2188
+Total Bytes: 116430
+Showing lines 1 to 240
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import { useMemo, useState, useRef } from "react";
+2: import {
+3:   Calendar, Download, FileSpreadsheet, TrendingUp, Users, Activity,
+4:   ClipboardList, Award, QrCode, AlertTriangle, CheckCircle2, ArrowUpRight,
+5:   Sparkles, Target, Lightbulb, FileText, School, Search,
+6:   GraduationCap, BookOpen, UserX, TrendingDown, ShieldAlert, ChevronRight,
+7:   Brain, Eye, BarChart3,
+8: } from "lucide-react";
+9: import {
+10:   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+11:   CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell,
+12:   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+13:   AreaChart, Area,
+14: } from "recharts";
+15: import { cn } from "@/lib/utils";
+16: import { useAppData } from "@/contexts/DataContext";
+17: import { useAuth } from "@/contexts/AuthContext";
+18: import { Button } from "@/components/ui/button";
+19: 
+20: type SchoolMetric = { name: string; value: number; color: string };
+21: type AlertItem = { title: string; description: string; severity: "high" | "med" | "low" };
+22: type ActionItem = { title: string; description: string };
+23: 
+24: const fallbackSchoolOptions = ["All Schools"];
+25: const fallbackClassOptions = ["All Classes", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+26: 
+27: const asRecord = (value: unknown) => {
+28:   if (!value || typeof value !== "object") {
+29:     return {} as Record<string, unknown>;
+30:   }
+31:   return value as Record<string, unknown>;
+32: };
+33: 
+34: const asNumber = (value: unknown, fallback = 0) => {
+35:   if (typeof value === "number
+<truncated 8460 bytes>
+plans if trend worsens.`);
+211:     } else {
+212:       analysis.push(`📉📉 Concerning downward trend: Activity declining by ${Math.round(Math.abs(trend))}%. Investigate root causes and re-energize user engagement immediately.`);
+213:     }
+214:   }
+215: 
+216:   // Quiz Performance Deep Dive
+217:   if (quizzesAttempted > 0) {
+218:     const quizEngagementRate = (quizzesAttempted / (Math.max(1, totalStudents) * 10)) * 100;
+219:     if (quizEngagementRate > 80) {
+220:       analysis.push(`🎯 Exceptional quiz completion rate: ${Math.round(quizEngagementRate)}% of expected quizzes have been attempted. Students are highly focused on assessment.`);
+221:     } else if (quizEngagementRate > 50) {
+222:       analysis.push(`✅ Good quiz participation: ${Math.round(quizEngagementRate)}% of expected attempts. Some students need encouragement to take more quizzes.`);
+223:     } else {
+224:       analysis.push(`⚠️ Low quiz participation: Only ${Math.round(quizEngagementRate)}% engagement. Consider making quizzes more relevant or incentivizing participation.`);
+225:     }
+226:   }
+227: 
+228:   // Calculate health score (0-100)
+229:   const engagementScore = Math.min(100, (engagementRate / 80) * 100);
+230:   const academicScore = Math.min(100, (averageScore / 85) * 100);
+231:   const attendanceScore = Math.min(100, (attendanceRate / 85) * 100);
+232:   const healthScore = Math.round((engagementScore + academicScore + attendanceScore) / 3);
+233: 
+234:   let projectStatus = "";
+235:   if (healthScore >= 85) {
+236:     projectStatus = "🌟 THRIVING - Project is exceeding all success metrics";
+237:   } else if (healthScore >= 70) {
+238:     projectStatus = "✅ ON TRACK - Project is progressing well toward goals";
+239:   } else if (healthScore >= 50) {
+240:     projectStatus = "⚠️ AT RISK - Project needs attention to meet objectives";
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.
