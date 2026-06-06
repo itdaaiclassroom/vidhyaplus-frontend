@@ -393,40 +393,42 @@ const LessonScreen = () => {
       <div className="space-y-6">
         {/* Header Bar */}
         <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-border/50 shadow-sm sticky top-0 z-10">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={() => {
                 localStorage.setItem(`pausedState_${activeSession.id}`, "true");
                 navigate(`/teacher?tab=chapters&class=${activeSession.classId}&subject=${activeSession.subjectId}`);
-              }} className="gap-2 text-muted-foreground hover:text-foreground">
+              }} className="gap-2 text-muted-foreground hover:text-foreground h-9 px-2 rounded-xl">
                 <ArrowLeft className="w-4 h-4" /> Exit
               </Button>
               <div className="h-8 w-px bg-border/60" />
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-bold text-primary/70 leading-tight mb-1">{activeSession.subjectName} • {activeSession.className}</p>
-                <h2 className="font-display text-xl font-bold text-foreground leading-tight">{sessionChapter?.name || "Chapter Name"}</h2>
+                <h2 className="font-display text-base sm:text-xl font-bold text-foreground leading-tight">{sessionChapter?.name || "Chapter Name"}</h2>
                 <p className="text-xs text-muted-foreground">{activeSession.topicName}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 text-destructive text-[11px] font-bold border border-destructive/20">
-                <Radio className={`w-3.5 h-3.5 ${sessionPaused ? "" : "animate-pulse"}`} />
-                {sessionPaused ? "PAUSED" : "LIVE"} • {formatTime(sessionTime)}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 w-full sm:w-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 text-destructive text-[11px] font-bold border border-destructive/20 shrink-0">
+                  <Radio className={`w-3.5 h-3.5 ${sessionPaused ? "" : "animate-pulse"}`} />
+                  {sessionPaused ? "PAUSED" : "LIVE"} • {formatTime(sessionTime)}
+                </div>
+
+                <Badge variant="outline" className={`gap-1.5 h-8 px-2.5 sm:px-3 text-xs shrink-0 ${attendanceMarked ? "bg-success/5 text-success border-success/20" : "bg-amber/5 text-amber border-amber/20"}`}>
+                  {attendanceMarked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                  Attendance: {attendanceMarked ? "Done" : "Pending"}
+                </Badge>
+
+                <Badge variant="outline" className={`gap-1.5 h-8 px-2.5 sm:px-3 text-xs shrink-0 ${sessionQuizDone ? "bg-success/5 text-success border-success/20" : "bg-amber/5 text-amber border-amber/20"}`}>
+                  {sessionQuizDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                  Quiz: {sessionQuizDone ? "Done" : "Pending"}
+                </Badge>
               </div>
 
-              <Badge variant="outline" className={`gap-1.5 h-8 px-3 ${attendanceMarked ? "bg-success/5 text-success border-success/20" : "bg-amber/5 text-amber border-amber/20"}`}>
-                {attendanceMarked ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                Attendance: {attendanceMarked ? "Done" : "Pending"}
-              </Badge>
-
-              <Badge variant="outline" className={`gap-1.5 h-8 px-3 ${sessionQuizDone ? "bg-success/5 text-success border-success/20" : "bg-amber/5 text-amber border-amber/20"}`}>
-                {sessionQuizDone ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                Quiz: {sessionQuizDone ? "Done" : "Pending"}
-              </Badge>
-
-              <div className="flex gap-2 ml-2">
-                <Button variant="outline" size="sm" className={`gap-2 h-9 ${sessionPaused ? "bg-amber-light border-amber/30 text-amber" : ""}`} onClick={() => {
+              <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" size="sm" className={`gap-2 h-9 flex-1 sm:flex-initial rounded-xl ${sessionPaused ? "bg-amber-light border-amber/30 text-amber" : ""}`} onClick={() => {
                   const nextPaused = !sessionPaused;
                   setSessionPaused(nextPaused);
                   localStorage.setItem(`pausedState_${activeSession.id}`, nextPaused.toString());
@@ -434,7 +436,7 @@ const LessonScreen = () => {
                   {sessionPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                   {sessionPaused ? "Resume" : "Pause"}
                 </Button>
-                <Button variant="destructive" size="sm" className="gap-2 h-9 shadow-sm" onClick={handleEndSession}>
+                <Button variant="destructive" size="sm" className="gap-2 h-9 flex-1 sm:flex-initial rounded-xl shadow-sm" onClick={handleEndSession}>
                   <XCircle className="w-4 h-4" /> End Session
                 </Button>
               </div>
@@ -445,7 +447,7 @@ const LessonScreen = () => {
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Area */}
           <div className="lg:col-span-3 space-y-6">
-            <div ref={sessionContainerRef} className={`relative overflow-hidden transition-all duration-500 ${isFullscreen ? "fixed inset-0 z-[100] bg-black rounded-none" : "rounded-3xl aspect-video border border-slate-200/50 bg-slate-50/50 shadow-2xl"}`}>
+            <div ref={sessionContainerRef} className={`relative overflow-hidden transition-all duration-500 ${isFullscreen ? "fixed inset-0 z-[100] bg-black rounded-none" : "rounded-3xl aspect-[4/3] sm:aspect-video border border-slate-200/50 bg-slate-50/50 shadow-2xl"}`}>
               {mainScreenContentUrl ? (
                 <>
                   {isPptxPath(mainScreenDirectUrl) ? (
@@ -539,7 +541,7 @@ const LessonScreen = () => {
                       <BookOpen className="w-10 h-10 text-teal-600" />
                     </div>
                     <div className="space-y-1 mb-6">
-                      <h3 className="text-xl font-bold text-slate-800">{sessionChapter?.name || "Chapter Name"}</h3>
+                      <h3 className="text-base sm:text-xl font-bold text-slate-800">{sessionChapter?.name || "Chapter Name"}</h3>
                       <p className="text-sm text-slate-500 font-medium">{activeSession.topicName}</p>
                     </div>
 
@@ -618,7 +620,7 @@ const LessonScreen = () => {
                       )}
                       {chatMessages.map((m, i) => (
                         <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                          <div className={`max-w-[~85%] rounded-2xl px-3 py-2.5 text-xs shadow-sm ${m.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none"}`}>
+                          <div className={`max-w-[85%] rounded-2xl px-3 py-2.5 text-xs shadow-sm ${m.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none"}`}>
                             {m.text}
                           </div>
                         </div>
@@ -846,12 +848,12 @@ const LessonScreen = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Quiz Mode</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "qr" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
                   onClick={() => setQuizSetupMode("qr")}
                 >
-                  <ScanLine className="w-6 h-6 mb-2" />
+                  <ScanLine className="w-6 h-6 mb-2 flex-shrink-0" />
                   <span className="font-bold text-sm">QR Mode</span>
                   <span className="text-[10px] text-center mt-1 opacity-80">Scan via phone/webcam</span>
                 </button>
@@ -859,7 +861,7 @@ const LessonScreen = () => {
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "aruco" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
                   onClick={() => setQuizSetupMode("aruco")}
                 >
-                  <QrCode className="w-6 h-6 mb-2" />
+                  <QrCode className="w-6 h-6 mb-2 flex-shrink-0" />
                   <span className="font-bold text-sm text-center">ArUco Mode</span>
                   <span className="text-[10px] text-center mt-1 opacity-80">Scan whole class instantly</span>
                 </button>
@@ -867,7 +869,7 @@ const LessonScreen = () => {
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${quizSetupMode === "teacher" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary/50 text-slate-600"}`}
                   onClick={() => setQuizSetupMode("teacher")}
                 >
-                  <MousePointerClick className="w-6 h-6 mb-2" />
+                  <MousePointerClick className="w-6 h-6 mb-2 flex-shrink-0" />
                   <span className="font-bold text-sm">Teacher Mode</span>
                   <span className="text-[10px] text-center mt-1 opacity-80">Manual screen select</span>
                 </button>

@@ -29,11 +29,11 @@ const DashboardLayout = ({ children, title, userDisplayName }: { children: React
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-border sticky top-0 z-40">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shrink-0">
               <GraduationCap className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-display font-semibold text-foreground text-sm">{title}</span>
+            <span className="font-display font-semibold text-foreground text-xs sm:text-sm truncate max-w-[140px] sm:max-w-none">{title}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:inline">{displayName} ({role})</span>

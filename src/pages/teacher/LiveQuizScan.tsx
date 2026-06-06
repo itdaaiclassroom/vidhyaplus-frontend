@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -253,15 +254,35 @@ const LiveQuizScan = () => {
   return (
     <DashboardLayout title="Live Quiz Scanner">
       <div className="max-w-xl mx-auto space-y-4">
-        <Card className="border-border">
+        <Card className="border-border bg-gradient-to-br from-indigo-50/50 to-slate-50 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Session {sessionId || "N/A"}</CardTitle>
+            <CardTitle className="text-sm font-semibold text-indigo-950 flex items-center justify-between">
+              <span>Session: {sessionId || "N/A"}</span>
+              <Badge variant={status?.started ? "default" : "outline"} className={status?.started ? "bg-green-500 hover:bg-green-600 text-white" : ""}>
+                {status?.started ? "Capture Started" : "Waiting for Teacher"}
+              </Badge>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>Connected devices: <b>{status?.connectedDevices ?? 0}</b></p>
-            <p>Attendance: <b>{status?.attendanceReady ? "Ready" : "Pending"}</b>{status?.attendanceDate ? ` (${status.attendanceDate})` : ""}</p>
-            <p>Capture started: <b>{status?.started ? "Yes" : "No (wait for teacher)"}</b></p>
-            <p>Progress: <b>{status?.answersCaptured ?? 0}</b> / <b>{expected}</b></p>
+          <CardContent className="grid grid-cols-2 gap-3.5 pt-2 text-xs">
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Connected Devices</span>
+              <span className="text-lg font-extrabold text-indigo-600 mt-1 block">{status?.connectedDevices ?? 0}</span>
+            </div>
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Progress</span>
+              <span className="text-lg font-extrabold text-indigo-600 mt-1 block">
+                {status?.answersCaptured ?? 0} <span className="text-xs font-normal text-slate-400">/ {expected}</span>
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm col-span-2 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Attendance Status</span>
+                <p className="font-semibold text-slate-700 text-xs mt-0.5">{status?.attendanceReady ? "Ready" : "Pending"}</p>
+              </div>
+              {status?.attendanceDate && (
+                <Badge variant="outline" className="text-[10px]">{status.attendanceDate}</Badge>
+              )}
+            </div>
           </CardContent>
         </Card>
 

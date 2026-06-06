@@ -108,6 +108,12 @@ const QuizScreen = () => {
       .map((s: any) => Number(s.rollNo));
   }, [allClassStudents, presentStudents]);
 
+  useEffect(() => {
+    if (classStudents) {
+      setTotalStudents(classStudents.length);
+    }
+  }, [classStudents]);
+
   // Init Quiz
   useEffect(() => {
     const initQuiz = async () => {
@@ -346,7 +352,7 @@ const QuizScreen = () => {
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-3">
                     <Trophy className="w-8 h-8 text-white" />
                   </div>
-                  <CardTitle className="font-display text-2xl">Final Leaderboard</CardTitle>
+                   <CardTitle className="font-display text-xl sm:text-2xl">Final Leaderboard</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 mb-8">
@@ -499,31 +505,32 @@ const QuizScreen = () => {
         {phase === "connecting" && mode === "qr" && (
           <Card className="shadow-lg border-primary/20 text-center overflow-hidden">
             <div className="bg-primary/5 py-8 border-b border-primary/10">
-              <h2 className="font-display text-2xl font-bold text-primary mb-2">Connect Your Mobile Scanner</h2>
+               <h2 className="font-display text-lg sm:text-2xl font-bold text-primary mb-2">Connect Your Mobile Scanner</h2>
               <p className="text-muted-foreground text-sm max-w-md mx-auto">
                 Scan this QR code with your mobile phone's camera to use it as the classroom scanner.
               </p>
             </div>
-            <CardContent className="p-12 flex flex-col items-center">
+             <CardContent className="p-6 sm:p-12 flex flex-col items-center">
               {quizSessionId ? (
-                <div className="p-4 bg-white rounded-2xl shadow-sm border border-border mb-8">
+                <div className="p-4 bg-white rounded-2xl shadow-sm border border-border mb-8 max-w-full flex items-center justify-center">
                   <QRCodeSVG 
                     value={`${window.location.origin}/teacher/live-quiz-scan?session=${quizSessionId}`} 
                     size={256} 
                     level="M" 
+                    className="max-w-full h-auto"
                   />
                 </div>
               ) : (
-                <div className="w-64 h-64 bg-slate-100 animate-pulse rounded-2xl mb-8" />
+                <div className="w-64 h-64 bg-slate-100 animate-pulse rounded-2xl mb-8 max-w-full" />
               )}
               
-              <div className="flex flex-wrap justify-center gap-4">
-                <Button size="lg" onClick={handleStartCapture} className="gap-2 px-8" disabled={connectedDevices === 0}>
+              <div className="flex flex-wrap justify-center gap-4 w-full">
+                <Button size="lg" onClick={handleStartCapture} className="gap-2 px-8 flex-1 sm:flex-initial justify-center" disabled={connectedDevices === 0}>
                   <Play className="w-5 h-5" />
                   {connectedDevices > 0 ? "Start Quiz Now" : "Waiting for connection..."}
                 </Button>
                 {connectedDevices === 0 && (
-                  <Button variant="outline" size="lg" onClick={handleStartCapture}>
+                  <Button variant="outline" size="lg" onClick={handleStartCapture} className="flex-1 sm:flex-initial justify-center">
                     Force Start
                   </Button>
                 )}
@@ -532,6 +539,7 @@ const QuizScreen = () => {
                     variant="secondary" 
                     size="lg" 
                     onClick={() => window.open(`/teacher/live-quiz-scan?session=${quizSessionId}`, '_blank')}
+                    className="w-full sm:w-auto justify-center"
                   >
                     Open Laptop Scanner
                   </Button>
@@ -573,7 +581,7 @@ const QuizScreen = () => {
                       </div>
                     )}
                   </div>
-                  <h3 className="font-display text-2xl font-bold text-foreground leading-tight">{currentQuestion.questionText}</h3>
+                   <h3 className="font-display text-lg sm:text-2xl font-bold text-foreground leading-tight">{currentQuestion.questionText}</h3>
                 </CardHeader>
                 
                 <CardContent className="pt-8">
