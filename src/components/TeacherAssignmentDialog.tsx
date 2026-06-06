@@ -45,7 +45,7 @@ export function TeacherAssignmentDialog({
       setLoading(true);
       Promise.all([
         fetchPrincipalGrades(),
-        fetchPrincipalSections(), // Fetch ALL sections for name resolution
+        fetchPrincipalSections(undefined, schoolId), // Fetch ALL sections for name resolution
         fetchTeacherAssignments(String(teacher.id)).catch(() => ({ assigned_subject_ids: [], assigned_class_ids: [], assigned_section_ids: [] }))
       ]).then(([gradesData, sectionsData, assignments]) => {
         setGrades(gradesData.grades || []);

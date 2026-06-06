@@ -56,8 +56,8 @@ export const PrincipalProvider: React.FC<{ children: ReactNode, schoolIdOverride
         fetchPrincipalStudents(schoolId),
         fetchPrincipalTeachers(schoolId),
         fetchPrincipalGrades(),
-        fetchPrincipalSections(),
-        fetchPrincipalProfile()
+        fetchPrincipalSections(undefined, schoolId),
+        fetchPrincipalProfile(schoolId)
       ]);
       
       setStudents(sData);
@@ -95,7 +95,7 @@ export const PrincipalProvider: React.FC<{ children: ReactNode, schoolIdOverride
 
   const refetchSections = async () => {
     try {
-      const secData = await fetchPrincipalSections();
+      const secData = await fetchPrincipalSections(undefined, schoolId!);
       setSections(secData.sections);
     } catch (err) {
       console.error(err);
