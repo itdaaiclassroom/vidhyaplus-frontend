@@ -57,8 +57,10 @@ import {
   PlayCircle, Film, FileDown, ChevronDown, Users, Radio,
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
   Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
-  Youtube, ExternalLink, Lock, AlertTriangle, Download, GraduationCap
+  Youtube, ExternalLink, Lock, AlertTriangle, Download, GraduationCap,
+  Menu
 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -177,6 +179,7 @@ function isPptxPath(relativePath: string | null): boolean {
 
 const TeacherDashboard = () => {
   const [lessonPlanOpen, setLessonPlanOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data, refetch } = useAppData();
@@ -2291,65 +2294,169 @@ const TeacherDashboard = () => {
   return (
     <DashboardLayout title="Teacher Dashboard">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex gap-8">
-          {/* Fixed Sidebar */}
-          <aside className="w-[200px] flex-shrink-0">
-            <TabsList className="flex-col h-auto gap-2 w-full bg-transparent p-0">
-              <TabsTrigger value="overview" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Overview</TabsTrigger>
-              <TabsTrigger value="chapters" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Chapters & Topics</TabsTrigger>
-              <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Students</TabsTrigger>
-              {/* <TabsTrigger value="classstatus" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Class Status</TabsTrigger> */}
-              <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Attendance</TabsTrigger>
-              <TabsTrigger value="my-assessments" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">My Assessments</TabsTrigger>
-              <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Leave</TabsTrigger>
-              <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-secondary data-[state=active]:text-primary hover:bg-secondary/50 rounded-lg px-4 py-2 transition-colors">Co-Curricular</TabsTrigger>
+        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+          {/* Mobile & Tablet Header with Hamburger Menu */}
+          <div className="sticky top-[56px] z-30 md:hidden w-full flex items-center justify-between bg-card/90 backdrop-blur border border-border p-3.5 rounded-2xl mb-2 shadow-sm">
+            <div className="flex items-center gap-2">
+              {activeTab === "overview" && <BarChart3 className="w-4 h-4 text-primary" />}
+              {activeTab === "chapters" && <BookOpen className="w-4 h-4 text-primary" />}
+              {activeTab === "students" && <Users className="w-4 h-4 text-primary" />}
+              {activeTab === "self-attendance" && <CalendarCheck className="w-4 h-4 text-primary" />}
+              {activeTab === "my-assessments" && <CheckCircle2 className="w-4 h-4 text-primary" />}
+              {activeTab === "leave" && <CalendarOff className="w-4 h-4 text-primary" />}
+              {activeTab === "cocurricular" && <Lightbulb className="w-4 h-4 text-accent" />}
+              <span className="font-display font-semibold text-foreground text-sm">
+                {activeTab === "overview" && "Overview"}
+                {activeTab === "chapters" && "Chapters & Topics"}
+                {activeTab === "students" && "Students"}
+                {activeTab === "self-attendance" && "My Attendance"}
+                {activeTab === "my-assessments" && "My Assessments"}
+                {activeTab === "leave" && "Leave"}
+                {activeTab === "cocurricular" && "Co-Curricular"}
+              </span>
+            </div>
+            <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9 rounded-xl border-border/85 hover:bg-secondary">
+                  <Menu className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold">Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-6 rounded-r-3xl">
+                <SheetHeader className="pb-4 border-b border-border mb-4">
+                  <SheetTitle className="text-left flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+                      <GraduationCap className="w-4 h-4 text-primary-foreground" />
+                    </div>
+                    <span className="font-display font-bold text-foreground">VidhyaPlus Portal</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-1.5">
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "overview" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("overview"); setIsMobileNavOpen(false); }}
+                  >
+                    <BarChart3 className="w-4 h-4" /> Overview
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "chapters" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("chapters"); setIsMobileNavOpen(false); }}
+                  >
+                    <BookOpen className="w-4 h-4" /> Chapters & Topics
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "students" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("students"); setIsMobileNavOpen(false); }}
+                  >
+                    <Users className="w-4 h-4" /> Students
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "self-attendance" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("self-attendance"); setIsMobileNavOpen(false); }}
+                  >
+                    <CalendarCheck className="w-4 h-4" /> My Attendance
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "my-assessments" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("my-assessments"); setIsMobileNavOpen(false); }}
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> My Assessments
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "leave" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("leave"); setIsMobileNavOpen(false); }}
+                  >
+                    <CalendarOff className="w-4 h-4" /> Leave
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`justify-start gap-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all ${activeTab === "cocurricular" ? "text-primary bg-primary/10 shadow-sm" : "text-muted-foreground hover:bg-secondary/50"}`}
+                    onClick={() => { setActiveTab("cocurricular"); setIsMobileNavOpen(false); }}
+                  >
+                    <Lightbulb className="w-4 h-4" /> Co-Curricular
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          {/* Fixed Sidebar for Desktop */}
+          <aside className="hidden md:block w-[240px] flex-shrink-0 sticky top-20 h-[calc(100vh-6.5rem)] overflow-y-auto pb-10">
+            <TabsList className="flex-col h-auto gap-1 w-full bg-transparent p-0">
+              <TabsTrigger value="overview" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <BarChart3 className="w-4 h-4" /> Overview
+              </TabsTrigger>
+              <TabsTrigger value="chapters" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <BookOpen className="w-4 h-4" /> Chapters & Topics
+              </TabsTrigger>
+              <TabsTrigger value="students" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <Users className="w-4 h-4" /> Students
+              </TabsTrigger>
+              <TabsTrigger value="self-attendance" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <CalendarCheck className="w-4 h-4" /> My Attendance
+              </TabsTrigger>
+              <TabsTrigger value="my-assessments" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <CheckCircle2 className="w-4 h-4" /> My Assessments
+              </TabsTrigger>
+              <TabsTrigger value="leave" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <CalendarOff className="w-4 h-4" /> Leave
+              </TabsTrigger>
+              <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <Lightbulb className="w-4 h-4" /> Co-Curricular
+              </TabsTrigger>
             </TabsList>
           </aside>
           {/* Content Area */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
             <TabsContent value="overview" className="space-y-4">
-              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-primary" /> Overview — {currentSubject?.name} • {currentClass?.name}
+              <h3 className="font-display text-sm sm:text-base md:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> Overview — <span className="truncate">{currentSubject?.name} • {currentClass?.name}</span>
               </h3>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 <Card className="shadow-card border-border">
-                  <CardContent className="p-4 text-center">
-                    <p className="font-display text-2xl font-bold text-foreground">{syllabusProgress}%</p>
-                    <p className="text-xs text-muted-foreground">Syllabus Progress</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{completedChapterCount}/{filteredChapters.length} chapters</p>
+                  <CardContent className="p-2.5 sm:p-4 text-center">
+                    <p className="font-display text-base sm:text-xl md:text-2xl font-bold text-foreground">{syllabusProgress}%</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground mt-0.5">Syllabus Progress</p>
+                    <p className="text-[8px] sm:text-[10px] text-muted-foreground mt-0.5">{completedChapterCount}/{filteredChapters.length} chapters</p>
                   </CardContent>
                 </Card>
                 <Card className="shadow-card border-border">
-                  <CardContent className="p-4 text-center">
-                    <p className="font-display text-2xl font-bold text-foreground">{completedQuizCount}/{totalQuizCount}</p>
-                    <p className="text-xs text-muted-foreground">Quizzes</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Completed / Total</p>
+                  <CardContent className="p-2.5 sm:p-4 text-center">
+                    <p className="font-display text-base sm:text-xl md:text-2xl font-bold text-foreground">{completedQuizCount}/{totalQuizCount}</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground mt-0.5">Quizzes</p>
+                    <p className="text-[8px] sm:text-[10px] text-muted-foreground mt-0.5">Completed / Total</p>
                   </CardContent>
                 </Card>
                 <Card className="shadow-card border-border">
-                  <CardContent className="p-4 text-center">
-                    <p className="font-display text-2xl font-bold text-foreground">{conductedSessions}/{scheduledSessions}</p>
-                    <p className="text-xs text-muted-foreground">Sessions</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Conducted/Scheduled</p>
+                  <CardContent className="p-2.5 sm:p-4 text-center">
+                    <p className="font-display text-base sm:text-xl md:text-2xl font-bold text-foreground">{conductedSessions}/{scheduledSessions}</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground mt-0.5">Sessions</p>
+                    <p className="text-[8px] sm:text-[10px] text-muted-foreground mt-0.5">Conducted/Scheduled</p>
                   </CardContent>
                 </Card>
                 <Card className="shadow-card border-border">
-                  <CardContent className="p-4 text-center">
-                    <p className="font-display text-2xl font-bold text-foreground">{rankedStudentsByMarks.length}</p>
-                    <p className="text-xs text-muted-foreground">Students Ranked</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Based on marks</p>
+                  <CardContent className="p-2.5 sm:p-4 text-center">
+                    <p className="font-display text-base sm:text-xl md:text-2xl font-bold text-foreground">{rankedStudentsByMarks.length}</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground mt-0.5">Students Ranked</p>
+                    <p className="text-[8px] sm:text-[10px] text-muted-foreground mt-0.5">Based on marks</p>
                   </CardContent>
                 </Card>
               </div>
 
               <Card className="shadow-card border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-accent" /> Students by Marks
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="font-display text-sm sm:text-base md:text-lg flex items-center gap-2">
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-accent shrink-0" /> Students by Marks
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-3 p-3 sm:p-6 pt-0 sm:pt-0">
                   {rankedStudentsByMarks.length > 0 ? (
                     rankedStudentsByMarks.map((item, index) => {
                       const isTop3 = index < 3;
@@ -2362,39 +2469,39 @@ const TeacherDashboard = () => {
                       return (
                         <div
                           key={item.student.id}
-                          className={`p-4 rounded-2xl flex items-center gap-4 transition-all ${isTop3
-                            ? "bg-gradient-to-r from-amber-light/40 to-white/50 border border-amber/10 shadow-sm scale-[1.02] z-10"
+                          className={`p-3 sm:p-4 rounded-2xl flex items-center gap-3 sm:gap-4 transition-all ${isTop3
+                            ? "bg-gradient-to-r from-amber-light/40 to-white/50 border border-amber/10 shadow-sm scale-[1.01] z-10"
                             : "bg-secondary/50 border border-transparent"
                             }`}
                         >
                           <div className={`
-                        ${index === 0 ? "w-16 h-16" : isTop3 ? "w-14 h-14" : "w-11 h-11"} 
+                        ${index === 0 ? "w-12 h-12 sm:w-16 sm:h-16" : isTop3 ? "w-10 h-10 sm:w-14 sm:h-14" : "w-8 h-8 sm:w-11 sm:h-11"} 
                         rounded-full flex items-center justify-center shrink-0 border-2 relative transition-all
                         ${isTop3 ? medalColors[index] : "bg-secondary border-border text-muted-foreground"}
                       `}>
                             {isTop3 ? (
                               <div className="relative">
-                                <Medal className={`${index === 0 ? "w-9 h-9" : "w-7 h-7"}`} />
-                                <span className="absolute -top-1 -right-1 bg-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold border border-current shadow-sm">
+                                <Medal className={`${index === 0 ? "w-6 h-6 sm:w-9 sm:h-9" : "w-5 h-5 sm:w-7 sm:h-7"}`} />
+                                <span className="absolute -top-1 -right-1 bg-white rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[9px] sm:text-[10px] font-bold border border-current shadow-sm">
                                   {index + 1}
                                 </span>
                               </div>
                             ) : (
-                              <span className="font-display font-bold text-sm">{index + 1}</span>
+                              <span className="font-display font-bold text-xs sm:text-sm">{index + 1}</span>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`font-display font-bold text-foreground truncate ${index === 0 ? "text-base" : "text-sm"}`}>
+                            <p className={`font-display font-bold text-foreground truncate ${index === 0 ? "text-sm sm:text-base" : "text-xs sm:text-sm"}`}>
                               {item.student.name}
                             </p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5">
                               <span className="opacity-70">Roll No:</span>
                               <span className="font-mono">{item.student.rollNo}</span>
                             </p>
                           </div>
                           <div className="text-right">
                             <Badge className={`
-                          px-2 py-1 text-xs font-bold rounded-lg
+                          px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold rounded-lg
                           ${index === 0 ? "bg-amber text-white ring-4 ring-amber/10" : isTop3 ? "bg-amber/10 text-amber border-amber/20" : "bg-success/10 text-success border-success/20"}
                         `}>
                               {item.percentage}%
@@ -2411,8 +2518,8 @@ const TeacherDashboard = () => {
             </TabsContent>
 
             <TabsContent value="chapters" className="space-y-4">
-              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                {currentSubject?.icon} {currentSubject?.name} — {currentClass?.name}
+              <h3 className="font-display text-sm sm:text-base md:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
+                <span className="shrink-0">{currentSubject?.icon}</span> <span className="truncate">{currentSubject?.name} — {currentClass?.name}</span>
               </h3>
               <div className="space-y-3">
                 {[...filteredChapters].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((ch) => {
@@ -2431,26 +2538,26 @@ const TeacherDashboard = () => {
                     <Card key={ch.id} className="shadow-card border-border overflow-hidden">
                       {/* Chapter Header */}
                       <div
-                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
+                        className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-secondary/50 transition-colors"
                         onClick={() => setSelectedChapter(isExpanded ? null : ch.id)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-10 rounded-full" style={{ backgroundColor: sc.color }} />
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-2.5 h-8 sm:h-10 rounded-full shrink-0" style={{ backgroundColor: sc.color }} />
                           <div>
-                            <h4 className="font-display font-semibold text-foreground text-sm">{ch.name}</h4>
-                            <div className="flex items-center gap-3 mt-1">
-                              <Badge className={`${sc.bg} ${sc.text} text-xs`}>{sc.label}</Badge>
-                              <span className="text-xs text-muted-foreground">
+                            <h4 className="font-display font-semibold text-foreground text-xs sm:text-sm">{ch.name}</h4>
+                            <div className="flex items-center gap-2 sm:gap-3 mt-1">
+                              <Badge className={`${sc.bg} ${sc.text} text-[10px] sm:text-xs px-1.5 py-0.5`}>{sc.label}</Badge>
+                              <span className="text-[10px] sm:text-xs text-muted-foreground">
                                 {chTopics.length} {chTopics.length === 1 ? "topic" : "topics"}
                               </span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                           <div className="flex flex-col items-end gap-1">
-                            <div className="w-20 flex items-center gap-2">
-                              <Progress value={progress} className="h-2 flex-1" />
-                              <span className="text-xs text-muted-foreground">{progress}%</span>
+                            <div className="w-16 sm:w-20 flex items-center gap-2">
+                              <Progress value={progress} className="h-1.5 flex-1" />
+                              <span className="text-[10px] sm:text-xs text-muted-foreground">{progress}%</span>
                             </div>
                             {gatingStatus && (
                               <ChapterGatingBadge
@@ -2459,7 +2566,7 @@ const TeacherDashboard = () => {
                               />
                             )}
                           </div>
-                          <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                          <ChevronDown className={`w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                         </div>
                       </div>
 
@@ -2543,7 +2650,7 @@ const TeacherDashboard = () => {
 
                       {/* Topics Dropdown */}
                       {isExpanded && (
-                        <div className="border-t border-border bg-secondary/30 p-4 space-y-2">
+                        <div className="border-t border-border bg-secondary/30 p-3 sm:p-4 space-y-2">
                           {/* If locked, show a blur or overlay message */}
                           {gatingStatus?.gatingEnabled && gatingStatus.chapters.find(g => sameId(g.chapterId, ch.id))?.isLocked && (
                             <div className="py-8 text-center">
@@ -2556,20 +2663,20 @@ const TeacherDashboard = () => {
                             chTopics.length > 0 ? chTopics.map((topic) => (
                               <div key={topic.id} className="bg-card rounded-xl border border-border overflow-hidden">
                                 <div
-                                  className="p-3 flex items-center justify-between cursor-pointer hover:bg-secondary/50 transition-colors"
+                                  className="p-2.5 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-secondary/50 transition-colors"
                                   onClick={() => toggleTopic(topic.id)}
                                 >
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
                                     {normalizeTopicStatus(topicStatusState[String(topic.id)] || topic.status) === "completed" ? (
-                                      <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-success flex-shrink-0" />
                                     ) : normalizeTopicStatus(topicStatusState[String(topic.id)] || topic.status) === "in_progress" ? (
-                                      <Clock className="w-4 h-4 text-amber flex-shrink-0" />
+                                      <Clock className="w-3.5 h-3.5 text-amber flex-shrink-0" />
                                     ) : (
-                                      <div className="w-4 h-4 rounded-full border-2 border-border flex-shrink-0" />
+                                      <div className="w-3.5 h-3.5 rounded-full border-2 border-border flex-shrink-0" />
                                     )}
-                                    <span className="text-sm font-medium text-foreground">{topic.name}</span>
+                                    <span className="text-xs sm:text-sm font-medium text-foreground break-words flex-1 pr-1">{topic.name}</span>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                                     {(() => {
                                       const existing = liveSessionsFromApi?.find(
                                         (ls) => sameId(ls.topicId, topic.id) && sameId(ls.classId, selectedClass) && ls.status !== "ended"
@@ -2580,24 +2687,24 @@ const TeacherDashboard = () => {
                                         <Button
                                           size="sm"
                                           variant={existing ? "secondary" : "default"}
-                                          className={`h-7 text-xs gap-1 ${existing ? "bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm transition-all" : ""}`}
+                                          className={`h-6.5 sm:h-7 text-[10px] sm:text-xs gap-1 px-2 ${existing ? "bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm transition-all" : ""}`}
                                           disabled={isCurrentLoading}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleStartSession(topic);
                                           }}
                                         >
-                                          {existing ? <Play className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3" />}
+                                          {existing ? <Play className="w-2.5 h-2.5 fill-current" /> : <Play className="w-2.5 h-2.5" />}
                                           {isCurrentLoading ? "Starting…" : existing ? (isPaused ? "Resume Session" : "Join Session") : "Start Session"}
                                         </Button>
                                       );
                                     })()}
-                                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expandedTopics[topic.id] ? "rotate-180" : ""}`} />
+                                    <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expandedTopics[topic.id] ? "rotate-180" : ""}`} />
                                   </div>
                                 </div>
 
                                 {expandedTopics[topic.id] && (
-                                  <div className="px-3 pb-3 space-y-2 flex flex-wrap gap-2 items-center">
+                                  <div className="px-2.5 pb-2.5 space-y-1.5 flex flex-wrap gap-1.5 items-center">
                                     {gatingStatus?.gatingEnabled && (() => {
                                       const tScore = gatingStatus?.topicScores?.[topic.id];
                                       if (!tScore) {
@@ -2608,13 +2715,13 @@ const TeacherDashboard = () => {
                                         );
                                       }
                                       return (
-                                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border shadow-sm ${tScore.thresholdMet ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                                          <div className={`w-2 h-2 rounded-full ${tScore.thresholdMet ? 'bg-green-500 animate-pulse' : 'bg-red-500 animate-pulse'}`} />
-                                          <span className="text-xs font-semibold">
+                                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md border shadow-sm ${tScore.thresholdMet ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                                          <div className={`w-1.5 h-1.5 rounded-full ${tScore.thresholdMet ? 'bg-green-500 animate-pulse' : 'bg-red-500 animate-pulse'}`} />
+                                          <span className="text-[10px] sm:text-xs font-semibold">
                                             Class Average: {tScore.avgScore.toFixed(0)}%
                                           </span>
                                           {!tScore.thresholdMet && (
-                                            <span className="text-[10px] ml-1 uppercase tracking-wider font-bold bg-red-100 px-1.5 py-0.5 rounded text-red-800">
+                                            <span className="text-[8px] sm:text-[9px] ml-1 uppercase tracking-wider font-bold bg-red-100 px-1 py-0.5 rounded text-red-800">
                                               Needs Retake
                                             </span>
                                           )}
@@ -2625,7 +2732,7 @@ const TeacherDashboard = () => {
                                       <Button
                                         variant="link"
                                         size="sm"
-                                        className="h-auto p-0 text-xs font-medium gap-1.5"
+                                        className="h-auto p-0 text-[10px] sm:text-xs font-medium gap-1"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           const path = ch.textbookChunkPdfPath!;
@@ -2635,14 +2742,14 @@ const TeacherDashboard = () => {
                                           setMaterialPreviewOpen(true);
                                         }}
                                       >
-                                        <BookOpen className="w-3.5 h-3.5" /> Watch textual material
+                                        <BookOpen className="w-3 h-3" /> Watch textual material
                                       </Button>
                                     )}
                                     {topic.topicPptPath && (
                                       <Button
                                         variant="link"
                                         size="sm"
-                                        className="h-auto p-0 text-xs font-medium gap-1.5"
+                                        className="h-auto p-0 text-[10px] sm:text-xs font-medium gap-1"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           const path = topic.topicPptPath!;
@@ -2652,11 +2759,11 @@ const TeacherDashboard = () => {
                                           setMaterialPreviewOpen(true);
                                         }}
                                       >
-                                        <Presentation className="w-3.5 h-3.5" /> Watch PPT
+                                        <Presentation className="w-3 h-3" /> Watch PPT
                                       </Button>
                                     )}
                                     {!ch.textbookChunkPdfPath && !topic.topicPptPath && (
-                                      <p className="text-xs text-muted-foreground">No textual material or PPT added yet.</p>
+                                      <p className="text-[10px] sm:text-xs text-muted-foreground">No textual material or PPT added yet.</p>
                                     )}
                                   </div>
                                 )}
@@ -2703,22 +2810,21 @@ const TeacherDashboard = () => {
             {/* STUDENTS TAB */}
             <TabsContent value="students" className="space-y-4">
               <Card className="shadow-card border-border">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="font-display text-lg flex items-center gap-2">
-                      <Users className="w-5 h-5 text-primary" /> {currentClass?.name} — Students ({classStudents.length})
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <CardTitle className="font-display text-base sm:text-lg flex items-center gap-2">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> <span className="truncate">{currentClass?.name} — Students ({classStudents.length})</span>
                     </CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => downloadClassCsv()}>
-                        <FileDown className="w-4 h-4" /> Download Students CSV
+                    <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
+                      <Button variant="outline" size="sm" className="gap-1 h-8 sm:h-9 text-[10px] sm:text-xs w-full sm:w-auto rounded-xl px-2" onClick={() => downloadClassCsv()}>
+                        <FileDown className="w-3.5 h-3.5 shrink-0" /> Download CSV
                       </Button>
-                      <Button variant="default" size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white" onClick={async () => {
+                      <Button variant="default" size="sm" className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white h-8 sm:h-9 text-[10px] sm:text-xs w-full sm:w-auto rounded-xl px-2 shadow-sm" onClick={async () => {
                         const promise = fetch(`${getApiBase()}/api/ai/class-report`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ className: currentClass?.name, classId: selectedClass })
                         }).then(res => res.json()).then(data => {
-                          // Could open a dialog, or just alert for now
                           console.log("Class Report:", data.report);
                           return data;
                         });
@@ -2732,13 +2838,14 @@ const TeacherDashboard = () => {
                           }
                         );
                       }}>
-                        <FileDown className="w-4 h-4" /> GENERATE CLASS REPORT
+                        <FileDown className="w-3.5 h-3.5 shrink-0" /> Class Report
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-secondary">
@@ -2829,24 +2936,135 @@ const TeacherDashboard = () => {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile Cards List View */}
+                  <div className="md:hidden p-4 space-y-4">
+                    {classStudents.map(s => {
+                      const att = studentAttendance.find(a => a.studentId === s.id);
+
+                      // Real database marks for this specific subject
+                      const subChapters = chapters.filter(ch => String(ch.subjectId) === String(selectedSubject));
+                      const chapterIds = subChapters.map(ch => String(ch.id));
+                      const studentMarks = studentQuizResults.filter(r => String(r.studentId) === String(s.id) && chapterIds.includes(String(r.chapterId)));
+
+                      const fa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA1')?.score;
+                      const fa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA2')?.score;
+                      const fa3 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA3')?.score;
+                      const fa4 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'FA4')?.score;
+                      const sa1 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'SA1')?.score;
+                      const sa2 = studentMarks.find(r => r.assessmentType?.toUpperCase() === 'SA2')?.score;
+
+                      const quizResultsList = studentMarks.filter(r => (r.assessmentType === 'live_quiz' || r.assessmentType === 'assessment'));
+
+                      const faList = [fa1, fa2, fa3, fa4].filter(v => v != null);
+                      const sumFA = faList.reduce((sum, v) => sum + Number(v), 0);
+                      const percFA = faList.length > 0 ? (sumFA / (faList.length * 100)) * 100 : null;
+
+                      const saList = [sa1, sa2].filter(v => v != null);
+                      const sumSA = saList.reduce((sum, v) => sum + Number(v), 0);
+                      const percSA = saList.length > 0 ? (sumSA / (saList.length * 100)) * 100 : null;
+
+                      const quizScore = quizResultsList.reduce((sum, r) => sum + r.score, 0);
+                      const totalQuizMax = quizResultsList.reduce((sum, r) => sum + r.total, 0);
+                      const percQuiz = totalQuizMax > 0 ? (quizScore / totalQuizMax) * 100 : null;
+
+                      const percAtt = att?.percentage != null ? att.percentage : null;
+
+                      const percentages = [percFA, percSA, percQuiz, percAtt].filter(p => p !== null);
+                      const mockPerfIndex = percentages.length > 0 ? Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length) : 0;
+
+                      return (
+                        <Card key={s.id} className="border border-border p-4 shadow-sm space-y-3 bg-card rounded-2xl">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-bold text-sm text-foreground">{s.name}</h4>
+                              <p className="text-[11px] text-muted-foreground">Roll No: {s.rollNo}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[9px] text-muted-foreground block">Perf Index</span>
+                              <Badge className="bg-primary/10 text-primary border border-primary/20 font-bold text-xs">
+                                {mockPerfIndex} / 100
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground">Attendance</span>
+                            {att ? (
+                              <div className="flex items-center gap-3">
+                                <Progress value={att.percentage} className="h-1.5 flex-1" />
+                                <span className="text-xs font-bold">{att.percentage}%</span>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground font-mono">—</p>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-border/40">
+                            <div>
+                              <label className="text-[9px] text-muted-foreground font-semibold block text-center mb-0.5">FA1</label>
+                              <Input defaultValue={fa1 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA1', e.target.value)} className="h-7 text-center text-xs p-1" />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-muted-foreground font-semibold block text-center mb-0.5">FA2</label>
+                              <Input defaultValue={fa2 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA2', e.target.value)} className="h-7 text-center text-xs p-1" />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-muted-foreground font-semibold block text-center mb-0.5">FA3</label>
+                              <Input defaultValue={fa3 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA3', e.target.value)} className="h-7 text-center text-xs p-1" />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-muted-foreground font-semibold block text-center mb-0.5">FA4</label>
+                              <Input defaultValue={fa4 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'FA4', e.target.value)} className="h-7 text-center text-xs p-1" />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-muted-foreground font-semibold block text-center mb-0.5">SA1</label>
+                              <Input defaultValue={sa1 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'SA1', e.target.value)} className="h-7 text-center text-xs p-1" />
+                            </div>
+                            <div>
+                              <label className="text-[9px] text-muted-foreground font-semibold block text-center mb-0.5">SA2</label>
+                              <Input defaultValue={sa2 ?? ''} onBlur={(e) => handleMarkChange(s.id, 'SA2', e.target.value)} className="h-7 text-center text-xs p-1" />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-3">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-muted-foreground">Quiz score</span>
+                              <span className="text-xs font-bold text-primary">{quizScore} / {totalQuizMax}</span>
+                            </div>
+                            <Button size="sm" variant="outline" className="h-8 text-[11px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 px-3" onClick={() => {
+                              setAiReportStudentId(s.id);
+                              setAiReportStudentName(s.name);
+                              setAiReportDialogOpen(true);
+                            }}>
+                              Generate Report
+                            </Button>
+                          </div>
+                          <div className="pt-1">
+                            <Input placeholder="Teacher feedback..." className="h-8 text-[11px] bg-transparent border-dashed" />
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
             {/* SELF ATTENDANCE TAB */}
             <TabsContent value="self-attendance" className="space-y-4">
-              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                <CalendarCheck className="w-5 h-5 text-primary" /> My Attendance
+              <h3 className="font-display text-sm sm:text-base md:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
+                <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> My Attendance
               </h3>
               <Card className="shadow-card border-border max-w-md">
-                <CardHeader>
-                  <CardTitle className="font-display text-base">Mark Today's Attendance</CardTitle>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="font-display text-sm sm:text-base">Mark Today's Attendance</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
+                <CardContent className="space-y-3 p-4 sm:p-6 pt-0 sm:pt-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Date: <span className="font-semibold text-foreground">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
                   </p>
-                  <div className="flex gap-3">
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5 w-full">
                     {(["present", "absent", "leave"] as const).map((s) => {
                       const isSelected = todayAttendance?.marked && todayAttendance.status === s;
                       const isDisabled = todayAttendance?.marked;
@@ -2856,7 +3074,7 @@ const TeacherDashboard = () => {
                           key={s}
                           variant={isSelected || (s === "present" && !todayAttendance?.marked) ? "default" : "outline"}
                           disabled={isDisabled}
-                          className={`capitalize flex-1 transition-all ${isSelected
+                          className={`capitalize flex-1 transition-all text-[10px] sm:text-xs h-8 sm:h-9 px-1.5 sm:px-2 ${isSelected
                             ? (s === "present" ? "bg-green-600 opacity-100 shadow-md" : s === "absent" ? "bg-red-600 text-white opacity-100 shadow-md" : "bg-amber-500 text-white opacity-100 shadow-md")
                             : (s === "present" ? "bg-green-600 hover:bg-green-700" : s === "absent" ? "border-red-300 text-red-600 hover:bg-red-50" : "border-amber-300 text-amber-600 hover:bg-amber-50")
                             } ${isDisabled && !isSelected ? "opacity-40 grayscale-[0.5]" : ""}`}
@@ -2871,9 +3089,9 @@ const TeacherDashboard = () => {
                             }
                           }}
                         >
-                          {s === "present" ? <CheckCircle2 className="w-4 h-4 mr-1" /> : s === "absent" ? <XCircle className="w-4 h-4 mr-1" /> : <CalendarOff className="w-4 h-4 mr-1" />}
-                          {s}
-                          {isSelected && <Badge variant="outline" className="ml-1.5 bg-white/20 border-white/40 text-white text-[9px] uppercase">Marked</Badge>}
+                          {s === "present" ? <CheckCircle2 className="w-3 h-3 mr-1 shrink-0" /> : s === "absent" ? <XCircle className="w-3 h-3 mr-1 shrink-0" /> : <CalendarOff className="w-3 h-3 mr-1 shrink-0" />}
+                          <span className="truncate">{s}</span>
+                          {isSelected && <Badge variant="outline" className="ml-1 bg-white/20 border-white/40 text-white text-[7px] sm:text-[9px] uppercase px-0.5 py-0 shrink-0">Marked</Badge>}
                         </Button>
                       );
                     })}
@@ -2885,18 +3103,18 @@ const TeacherDashboard = () => {
 
             {/* MY ASSESSMENTS TAB */}
             <TabsContent value="my-assessments" className="space-y-4">
-              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-primary" /> My Assessments
+              <h3 className="font-display text-sm sm:text-base md:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> My Assessments
               </h3>
               <Card className="shadow-card border-border">
-                <CardHeader>
+                <CardHeader className="p-4 sm:p-6">
                   <CardTitle className="font-display text-base">Teacher Chapter Assessments</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                   {loadingAssessments ? (
                     <p className="text-sm text-muted-foreground py-4">Loading assessments...</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {filteredChapters.map((ch) => {
                         const chId = String(ch.id);
                         const assessment = assessmentsData.find(a => String(a.chapter_id) === chId);
@@ -2904,31 +3122,31 @@ const TeacherDashboard = () => {
                         const isLocked = gatingStatus?.gatingEnabled && gs?.isLocked;
 
                         return (
-                          <div key={ch.id} className="border border-border rounded-xl p-4 bg-secondary/20 transition-all hover:shadow-md">
-                            <div className="flex justify-between items-start mb-3">
+                          <div key={ch.id} className="border border-border rounded-xl p-3 sm:p-4 bg-secondary/20 transition-all hover:shadow-md">
+                             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-3 mb-3">
                               <div>
-                                <h4 className="font-bold text-md text-foreground">{ch.name}</h4>
-                                <p className="text-xs text-muted-foreground">
+                                <h4 className="font-bold text-sm sm:text-base text-foreground">{ch.name}</h4>
+                                <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
                                   {currentSubject?.name}
                                   {assessment && ` • Taken on ${new Date(assessment.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
                                 </p>
                               </div>
-                              <div className="flex flex-col items-end gap-1.5">
+                              <div className="flex flex-wrap sm:flex-col items-center sm:items-end gap-2 w-full sm:w-auto mt-1 sm:mt-0">
                                 {isLocked ? (
-                                  <Badge variant="outline" className="bg-muted text-muted-foreground"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
+                                  <Badge variant="outline" className="bg-muted text-muted-foreground shrink-0 text-[9px] sm:text-xs px-1.5 py-0.5"><Lock className="w-3 h-3 mr-1" /> LOCKED</Badge>
                                 ) : (gs?.teacherPassed || assessment?.passed) ? (
-                                  <Badge className="bg-success text-success-foreground border-none">
+                                  <Badge className="bg-success text-success-foreground border-none shrink-0 text-[9px] sm:text-xs px-1.5 py-0.5">
                                     <CheckCircle2 className="w-3 h-3 mr-1" /> PASSED
                                   </Badge>
                                 ) : assessment ? (
-                                  <Badge variant="destructive" className="border-none">
+                                  <Badge variant="destructive" className="border-none shrink-0 text-[9px] sm:text-xs px-1.5 py-0.5">
                                     <XCircle className="w-3 h-3 mr-1" /> FAILED
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">AVAILABLE</Badge>
+                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 shrink-0 text-[9px] sm:text-xs px-1.5 py-0.5">AVAILABLE</Badge>
                                 )}
                                 {assessment && (
-                                  <div className="flex flex-col items-end gap-0.5">
+                                  <div className="flex flex-col items-start sm:items-end gap-0.5">
                                     <span className="text-[10px] font-bold text-slate-700">
                                       Score: {assessment.percentage}% ({assessment.score}/{assessment.total})
                                     </span>
@@ -2940,26 +3158,26 @@ const TeacherDashboard = () => {
                               </div>
                             </div>
 
-                            {isLocked && (
-                              <p className="text-sm text-muted-foreground mb-4 bg-muted/50 p-3 rounded-md border border-border/50">
-                                <Lock className="w-4 h-4 inline mr-1.5 text-muted-foreground mb-0.5" />
+                             {isLocked && (
+                              <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 bg-muted/50 p-2.5 sm:p-3 rounded-md border border-border/50">
+                                <Lock className="w-3.5 h-3.5 inline mr-1 text-muted-foreground mb-0.5" />
                                 {gs?.lockReason || "Locked until previous requirements are met."}
                               </p>
                             )}
 
-                            {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
-                              <div className="mb-4 bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center shadow-sm">
-                                <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-primary">
+                             {!isLocked && (!gs?.teacherPassed && (!assessment || !assessment.passed)) && (
+                              <div className="mb-3 sm:mb-4 bg-primary/5 p-3 sm:p-4 rounded-xl border border-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                  <p className="text-xs sm:text-sm font-semibold text-primary">
                                     {assessment ? "Retake Assessment" : "Assessment Ready"}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground">
                                     Pass threshold: {gatingStatus?.teacherPassThreshold || 70}%
                                   </p>
                                 </div>
                                 <Button
                                   size="sm"
-                                  className="shadow-lg bg-primary hover:bg-primary/90"
+                                  className="shadow-md bg-primary hover:bg-primary/90 w-full sm:w-auto h-8 sm:h-9 text-[11px] sm:text-xs px-3 sm:px-4"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setAssessmentChapter({ id: ch.id, name: ch.name });
@@ -2971,39 +3189,39 @@ const TeacherDashboard = () => {
                               </div>
                             )}
 
-                            {assessment && (
+                             {assessment && (
                               <>
-                                <div className="grid grid-cols-5 gap-2 mb-4 text-sm bg-background p-3 rounded-lg border border-border shadow-inner">
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Total Qs</p>
-                                    <p className="font-display font-bold text-foreground">{assessment.total}</p>
+                                <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-3 mb-3 sm:mb-4 text-xs sm:text-sm bg-background p-2.5 sm:p-3 rounded-lg border border-border shadow-inner">
+                                  <div className="text-center sm:border-r border-border last:border-0">
+                                    <p className="text-[8px] sm:text-[9px] text-slate-500 uppercase font-bold tracking-wider mb-0.5">Total Qs</p>
+                                    <p className="font-display font-bold text-foreground text-xs sm:text-sm">{assessment.total}</p>
                                   </div>
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Correct Qs</p>
-                                    <p className="font-display font-bold text-foreground">{assessment.score}</p>
+                                  <div className="text-center sm:border-r border-border last:border-0">
+                                    <p className="text-[8px] sm:text-[9px] text-slate-500 uppercase font-bold tracking-wider mb-0.5">Correct Qs</p>
+                                    <p className="font-display font-bold text-foreground text-xs sm:text-sm">{assessment.score}</p>
                                   </div>
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Pass Req %</p>
-                                    <p className="font-display font-bold text-foreground">{assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}%</p>
+                                  <div className="text-center sm:border-r border-border last:border-0">
+                                    <p className="text-[8px] sm:text-[9px] text-slate-500 uppercase font-bold tracking-wider mb-0.5">Pass Req %</p>
+                                    <p className="font-display font-bold text-foreground text-xs sm:text-sm">{assessment.passing_marks || gatingStatus?.teacherPassThreshold || 70}%</p>
                                   </div>
-                                  <div className="text-center border-r border-border last:border-0">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Your Score %</p>
-                                    <p className={`font-display font-bold ${assessment.passed ? "text-success" : "text-destructive"}`}>
+                                  <div className="text-center sm:border-r border-border last:border-0">
+                                    <p className="text-[8px] sm:text-[9px] text-slate-500 uppercase font-bold tracking-wider mb-0.5">Your Score</p>
+                                    <p className={`font-display font-bold text-xs sm:text-sm ${assessment.passed ? "text-success" : "text-destructive"}`}>
                                       {assessment.percentage}%
                                     </p>
                                   </div>
-                                  <div className="text-center">
-                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attempts</p>
-                                    <p className="font-display font-bold text-foreground">#{assessment.attempt_number}</p>
+                                  <div className="text-center col-span-2 xs:col-span-1">
+                                    <p className="text-[8px] sm:text-[9px] text-slate-500 uppercase font-bold tracking-wider mb-0.5">Attempts</p>
+                                    <p className="font-display font-bold text-foreground text-xs sm:text-sm">#{assessment.attempt_number}</p>
                                   </div>
                                 </div>
 
-                                {assessment.graded_summary && (
-                                  <div className="mt-4 pt-4 border-t border-border flex justify-center">
+                                 {assessment.graded_summary && (
+                                  <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-border flex justify-center">
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 font-semibold"
+                                      className="w-full rounded-xl text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-1.5 font-semibold h-8 sm:h-9 text-[11px] sm:text-xs"
                                       onClick={() => {
                                         try {
                                           const graded = typeof assessment.graded_summary === 'string'
@@ -3022,7 +3240,7 @@ const TeacherDashboard = () => {
                                         }
                                       }}
                                     >
-                                      <FileText className="w-4 h-4" /> View Questions Summary
+                                      <FileText className="w-3.5 h-3.5 shrink-0" /> View Questions Summary
                                     </Button>
                                   </div>
                                 )}
@@ -3037,78 +3255,77 @@ const TeacherDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* LEAVE TAB */}
             <TabsContent value="leave" className="space-y-4">
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid md:grid-cols-2 gap-4 lg:gap-6">
                 <Card className="shadow-card border-border">
-                  <CardHeader>
-                    <CardTitle className="font-display text-lg flex items-center gap-2">
-                      <CalendarOff className="w-5 h-5 text-primary" /> Apply for Leave
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="font-display text-base sm:text-lg flex items-center gap-2">
+                      <CalendarOff className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> Apply for Leave
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {leaveError && <p className="text-sm text-destructive">{leaveError}</p>}
+                  <CardContent className="space-y-3 p-4 sm:p-6 pt-0 sm:pt-0">
+                    {leaveError && <p className="text-xs text-destructive">{leaveError}</p>}
                     <div>
-                      <Label>Date</Label>
-                      <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} className="mt-1" />
+                      <Label className="text-xs font-semibold">Date</Label>
+                      <Input type="date" value={leaveDate} onChange={(e) => setLeaveDate(e.target.value)} className="mt-1 h-8 sm:h-9 text-xs sm:text-sm" />
                     </div>
                     <div>
-                      <Label>Reason</Label>
-                      <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Enter reason for leave..." className="mt-1" />
+                      <Label className="text-xs font-semibold">Reason</Label>
+                      <Textarea value={leaveReason} onChange={(e) => setLeaveReason(e.target.value)} placeholder="Enter reason for leave..." className="mt-1 text-xs sm:text-sm min-h-[60px]" />
                     </div>
-                    <Button onClick={handleApplyLeave} disabled={!leaveDate || !leaveReason || leaveSubmitting} className="w-full">
+                    <Button onClick={handleApplyLeave} disabled={!leaveDate || !leaveReason || leaveSubmitting} className="w-full h-8 sm:h-9 text-xs sm:text-sm">
                       {leaveSubmitting ? "Submitting…" : "Submit Leave Application"}
                     </Button>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
                       ⚠️ While on leave, your classes will be marked as cancelled and students will be notified.
                     </p>
                   </CardContent>
                 </Card>
                 {/* ─── Attendance Calendar ─── */}
                 <Card className="shadow-card border-border">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="font-display text-base flex items-center gap-2">
-                        <CalendarCheck className="w-5 h-5 text-primary" /> Attendance Overview
+                      <CardTitle className="font-display text-sm sm:text-base flex items-center gap-2">
+                        <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> Attendance Overview
                       </CardTitle>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => {
                             if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1); }
                             else setCalendarMonth(m => m - 1);
                           }}
-                          className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                          className="p-1 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
                         >
-                          <ChevronLeft className="w-4 h-4" />
+                          <ChevronLeft className="w-3.5 h-3.5" />
                         </button>
-                        <span className="text-xs font-medium text-foreground min-w-[90px] text-center">
-                          {new Date(calendarYear, calendarMonth).toLocaleString("default", { month: "long", year: "numeric" })}
+                        <span className="text-[11px] sm:text-xs font-medium text-foreground min-w-[75px] sm:min-w-[90px] text-center">
+                          {new Date(calendarYear, calendarMonth).toLocaleString("default", { month: "short", year: "numeric" })}
                         </span>
                         <button
                           onClick={() => {
                             if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1); }
                             else setCalendarMonth(m => m + 1);
                           }}
-                          className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                          className="p-1 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
                         >
-                          <ChevronRight className="w-4 h-4" />
+                          <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
                     {/* Legend */}
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span className="inline-block w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/40"></span> Present
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-2">
+                      <span className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40"></span> Present
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span className="inline-block w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40"></span> Absent (Leave)
+                      <span className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/40"></span> Absent (Leave)
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span className="inline-block w-3 h-3 rounded-full bg-secondary border border-border"></span> Sunday / Holiday
+                      <span className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-secondary border border-border"></span> Holiday
                       </span>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
+                  <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
                     {(() => {
                       const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
                       const firstWeekday = new Date(calendarYear, calendarMonth, 1).getDay(); // 0=Sun
@@ -3190,20 +3407,20 @@ const TeacherDashboard = () => {
                     {/* Approved leaves list — cancel if applied by mistake */}
                     {leaves.filter(lv => lv.status === "approved").length > 0 && (
                       <div className="mt-4 pt-3 border-t border-border space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Approved Leaves — click <span className="text-red-500">×</span> to cancel if applied by mistake</p>
+                        <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">Approved Leaves — cancel if applied by mistake:</p>
                         {leaves.filter(lv => lv.status === "approved").map(lv => (
-                          <div key={lv.id} className="flex items-center justify-between p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                            <div>
-                              <span className="text-xs font-medium text-red-600 dark:text-red-400">{lv.date}</span>
-                              <span className="text-xs text-muted-foreground ml-2">{lv.reason}</span>
+                          <div key={lv.id} className="flex flex-col xs:flex-row xs:items-center justify-between p-2 rounded-lg bg-red-500/10 border border-red-500/20 gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                              <span className="text-[11px] sm:text-xs font-bold text-red-600 dark:text-red-400 shrink-0">{lv.date}</span>
+                              <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{lv.reason}</span>
                             </div>
                             <button
                               onClick={() => handleCancelLeave(lv.id)}
                               disabled={calendarUpdating === lv.id}
-                              className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                              className="flex items-center gap-1 text-[10px] sm:text-xs text-destructive hover:text-destructive/80 px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50 w-full xs:w-auto justify-center"
                               title="Cancel this leave (applied by mistake)"
                             >
-                              <RotateCcw className={`w-3 h-3 ${calendarUpdating === lv.id ? "animate-spin" : ""}`} />
+                              <RotateCcw className={`w-3 h-3 shrink-0 ${calendarUpdating === lv.id ? "animate-spin" : ""}`} />
                               Cancel Leave
                             </button>
                           </div>
@@ -3235,19 +3452,19 @@ const TeacherDashboard = () => {
                 </Card>
               )} */}
               <Card className="shadow-card border-border">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <CalendarCheck className="w-5 h-5 text-primary" /> Staff Leaves & Public Holidays
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="font-display text-base sm:text-lg flex items-center gap-2">
+                    <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> Staff Leaves & Public Holidays
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-xs sm:text-sm">
                       <thead>
                         <tr className="border-b border-border bg-secondary">
-                          <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Event / Teacher</th>
-                          <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
+                          <th className="text-left p-2.5 sm:p-3 font-medium text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left p-2.5 sm:p-3 font-medium text-muted-foreground">Event / Teacher</th>
+                          <th className="text-left p-2.5 sm:p-3 font-medium text-muted-foreground">Type</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3255,28 +3472,28 @@ const TeacherDashboard = () => {
                           const t = teachers.find(teacher => teacher.id === lv.teacherId);
                           return (
                             <tr key={lv.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                              <td className="p-3 text-foreground whitespace-nowrap">{lv.date}</td>
-                              <td className="p-3 text-foreground font-bold">{t?.name || `Teacher ${lv.teacherId}`}</td>
-                              <td className="p-3"><Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">Staff Leave</Badge></td>
+                              <td className="p-2.5 sm:p-3 text-foreground whitespace-nowrap">{lv.date}</td>
+                              <td className="p-2.5 sm:p-3 text-foreground font-bold truncate max-w-[150px]">{t?.name || `Teacher ${lv.teacherId}`}</td>
+                              <td className="p-2.5 sm:p-3"><Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] sm:text-xs px-1.5 py-0.5 whitespace-nowrap">Staff Leave</Badge></td>
                             </tr>
                           );
                         })}
                         {leaveApplications.filter(lv => lv.status === 'approved').length === 0 && (
                           <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                            <td className="p-3 text-foreground whitespace-nowrap">2026-05-15</td>
-                            <td className="p-3 text-foreground font-bold">Venkatesh Rao</td>
-                            <td className="p-3"><Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">Staff Leave</Badge></td>
+                            <td className="p-2.5 sm:p-3 text-foreground whitespace-nowrap">2026-05-15</td>
+                            <td className="p-2.5 sm:p-3 text-foreground font-bold truncate max-w-[150px]">Venkatesh Rao</td>
+                            <td className="p-2.5 sm:p-3"><Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 text-[10px] sm:text-xs px-1.5 py-0.5 whitespace-nowrap">Staff Leave</Badge></td>
                           </tr>
                         )}
                         <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                          <td className="p-3 text-foreground whitespace-nowrap">2026-06-05</td>
-                          <td className="p-3 text-foreground font-bold">World Environment Day</td>
-                          <td className="p-3"><Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-200">Public Holiday</Badge></td>
+                          <td className="p-2.5 sm:p-3 text-foreground whitespace-nowrap">2026-06-05</td>
+                          <td className="p-2.5 sm:p-3 text-foreground font-bold truncate max-w-[150px]">World Environment Day</td>
+                          <td className="p-2.5 sm:p-3"><Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-200 text-[10px] sm:text-xs px-1.5 py-0.5 whitespace-nowrap">Public Holiday</Badge></td>
                         </tr>
                         <tr className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
-                          <td className="p-3 text-foreground whitespace-nowrap">2026-08-15</td>
-                          <td className="p-3 text-foreground font-bold">Independence Day</td>
-                          <td className="p-3"><Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-200">Public Holiday</Badge></td>
+                          <td className="p-2.5 sm:p-3 text-foreground whitespace-nowrap">2026-08-15</td>
+                          <td className="p-2.5 sm:p-3 text-foreground font-bold truncate max-w-[150px]">Independence Day</td>
+                          <td className="p-2.5 sm:p-3"><Badge variant="outline" className="bg-teal-100 text-teal-700 border-teal-200 text-[10px] sm:text-xs px-1.5 py-0.5 whitespace-nowrap">Public Holiday</Badge></td>
                         </tr>
                       </tbody>
                     </table>
@@ -3289,8 +3506,8 @@ const TeacherDashboard = () => {
             <TabsContent value="cocurricular" className="space-y-4">
               <Card className="shadow-card border-border">
                 <CardHeader>
-                  <CardTitle className="font-display text-lg flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-accent" /> Co-Curricular Activities
+                  <CardTitle className="font-display text-base sm:text-lg flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-accent shrink-0" /> Co-Curricular Activities
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

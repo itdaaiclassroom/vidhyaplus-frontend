@@ -238,7 +238,7 @@ export function TeacherAssessmentDialog({
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-2 text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-center">
                   <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-center">
                     <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Questions</span>
                     <span className="text-xl font-extrabold text-indigo-600 mt-1">{assessmentConfig.questionCount}</span>
@@ -295,10 +295,10 @@ export function TeacherAssessmentDialog({
                       <AlertTriangle className="w-10 h-10" />
                     )}
                   </div>
-                  <h3 className={`text-2xl font-bold ${result.passed ? "text-green-700" : "text-red-700"}`}>
+                  <h3 className={`text-xl sm:text-2xl font-bold ${result.passed ? "text-green-700" : "text-red-700"}`}>
                     {result.passed ? "Assessment Passed! 🎉" : "Not Passed"}
                   </h3>
-                  <p className="text-lg font-semibold mt-2">
+                  <p className="text-lg sm:text-xl font-semibold mt-2">
                     {result.scoredMarks ?? result.score} / {result.totalMarks ?? result.total} marks ({result.percentage}%)
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -382,41 +382,67 @@ export function TeacherAssessmentDialog({
                   return (
                     <button
                       key={key}
-                      className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm font-medium ${isSelected
+                      className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm font-medium flex items-start ${isSelected
                           ? "border-indigo-500 bg-indigo-50 text-indigo-800 shadow-sm"
                           : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-foreground"
                         }`}
                       onClick={() => selectOption(String(currentQuestion.id), key)}
                     >
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mr-3 text-xs font-bold ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-200 text-gray-600"
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full mr-3 text-xs font-bold flex-shrink-0 mt-0.5 ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-200 text-gray-600"
                         }`}>
                         {key}
                       </span>
-                      {optionText}
+                      <span className="flex-1 min-w-0 break-words">{optionText}</span>
                     </button>
                   );
                 })}
               </div>
 
               {/* Navigation */}
-              <div className="flex items-center justify-between pt-2 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentIndex === 0}
-                  onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                  className="gap-1"
-                >
-                  <ChevronLeft className="w-4 h-4" /> Previous
-                </Button>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t">
+                <div className="flex items-center justify-between w-full sm:w-auto gap-3 order-last sm:order-none">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentIndex === 0}
+                    onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                    className="gap-1 flex-1 sm:flex-initial"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Previous
+                  </Button>
+
+                  {currentIndex < totalQuestions - 1 ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentIndex((i) => Math.min(totalQuestions - 1, i + 1))}
+                      className="gap-1 flex-1 sm:flex-initial justify-center"
+                    >
+                      Next <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={!allAnswered || submitting}
+                      onClick={handleSubmit}
+                      className="gap-1 bg-indigo-600 hover:bg-indigo-700 flex-1 sm:flex-initial justify-center"
+                    >
+                      {submitting ? (
+                        <><Loader2 className="w-3 h-3 animate-spin" /> Submitting...</>
+                      ) : (
+                        `Submit (${answeredCount}/${totalQuestions})`
+                      )}
+                    </Button>
+                  )}
+                </div>
 
                 {/* Question dots */}
-                <div className="flex gap-1 flex-wrap justify-center max-w-[200px]">
+                <div className="flex gap-1 flex-wrap justify-center max-w-[280px] order-first sm:order-none">
                   {questions.map((q, i) => (
                     <button
                       key={q.id}
                       className={`w-6 h-6 rounded-full text-[10px] font-bold transition-all ${currentIndex === i
-                          ? "bg-indigo-500 text-white scale-110"
+                          ? "bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500 scale-110"
                           : answers[String(q.id)]
                             ? "bg-indigo-100 text-indigo-600"
                             : "bg-gray-100 text-gray-400"
@@ -427,30 +453,6 @@ export function TeacherAssessmentDialog({
                     </button>
                   ))}
                 </div>
-
-                {currentIndex < totalQuestions - 1 ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentIndex((i) => Math.min(totalQuestions - 1, i + 1))}
-                    className="gap-1"
-                  >
-                    Next <ChevronRight className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    disabled={!allAnswered || submitting}
-                    onClick={handleSubmit}
-                    className="gap-1 bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    {submitting ? (
-                      <><Loader2 className="w-3 h-3 animate-spin" /> Submitting...</>
-                    ) : (
-                      `Submit (${answeredCount}/${totalQuestions})`
-                    )}
-                  </Button>
-                )}
               </div>
             </div>
           ) : (
@@ -490,7 +492,7 @@ export function TeacherAssessmentHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="p-6 bg-indigo-600 text-white shrink-0">
-          <DialogTitle className="text-xl">Last Attempt Review</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Last Attempt Review</DialogTitle>
           <div className="mt-2 flex items-center justify-between">
             <span className="text-sm font-medium opacity-90">{chapterName}</span>
             <Badge className={passed ? "bg-green-500 text-white" : "bg-red-500 text-white"}>
