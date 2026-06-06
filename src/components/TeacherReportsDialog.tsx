@@ -185,16 +185,16 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
         <DialogTitle className="sr-only">Reports for {teacher.name}</DialogTitle>
 
         {/* Modal Header */}
-        <div className="bg-green-600 border-b border-green-700 px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="bg-primary border-b border-primary/20 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             {step > 1 && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-white hover:bg-green-700 hover:text-white" onClick={() => setStep(step - 1)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-white hover:bg-white/20 hover:text-white" onClick={() => setStep(step - 1)}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
             <div>
               <h2 className="text-xl font-bold text-white tracking-tight">Teacher Reports</h2>
-              <p className="text-sm text-green-100 font-medium">{teacher.name}</p>
+              <p className="text-sm text-white/80 font-medium">{teacher.name}</p>
             </div>
           </div>
           {step === 4 && (
@@ -394,7 +394,7 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
                       
                       return (
                         <div key={chapter.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                          <div className="p-2 -mx-2 mb-4 rounded-lg hover:bg-green-500 transition-colors group/chapter">
+                          <div className="p-2 -mx-2 mb-4 rounded-lg hover:bg-primary transition-colors group/chapter">
                             <h4 className="text-lg font-bold text-slate-800 group-hover/chapter:text-white">{chapter.name}</h4>
                           </div>
                           {chapterTopics.length === 0 ? (
@@ -406,7 +406,7 @@ export default function TeacherReportsDialog({ open, onOpenChange, teacherId }: 
                                 const isInProgress = topic.status === "in_progress" || topic.status === "active";
                                 
                                 return (
-                                  <div key={topic.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-green-500 transition-colors group/topic cursor-default">
+                                  <div key={topic.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-primary transition-colors group/topic cursor-default">
                                     {isCompleted ? (
                                       <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 group-hover/topic:text-white" />
                                     ) : isInProgress ? (

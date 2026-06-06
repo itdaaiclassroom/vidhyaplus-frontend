@@ -153,9 +153,9 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
     });
   }, [data]);
 
-  const progressDataToUse = dynamicProgressData;
-  const quizPerformanceDataToUse = dynamicQuizPerformanceData;
-  const gradesToUse = dynamicSubjectGrades;
+  const progressDataToUse = dynamicProgressData.length > 0 ? dynamicProgressData : [];
+  const quizPerformanceDataToUse = dynamicQuizPerformanceData.length > 0 ? dynamicQuizPerformanceData : [];
+  const gradesToUse = dynamicSubjectGrades.length > 0 ? dynamicSubjectGrades : (subjectGrades || []);
 
   const narrative = useMemo(() => {
     if (aiInsights) {
@@ -195,23 +195,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
         animate={{ opacity: 1, y: 0 }}
         className="w-full mx-auto"
       >
-        {/* Actions - Hidden during PDF export */}
-        <div className="flex items-center justify-end gap-3 p-6 pb-0" data-html2canvas-ignore>
-          <Button
-            onClick={onDownload}
-            className="bg-[#0D9488] hover:bg-[#0F766E] text-white rounded-xl px-5 shadow-lg shadow-teal-900/20 gap-2 border-none h-11"
-          >
-            <Download className="w-4 h-4" /> DOWNLOAD PDF
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onClose}
-            className="bg-white/80 hover:bg-white border-slate-200 rounded-xl h-11 w-11"
-          >
-            <X className="w-5 h-5 text-slate-600" />
-          </Button>
-        </div>
+
 
         {/* Main Report Content */}
         <div className="p-8 pt-6">
@@ -223,9 +207,9 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
               </div>
               <div>
                 <h1 className="text-3xl font-black tracking-tight text-[#0D9488]">VidhyaPlus<span className="text-slate-400 font-light">+</span></h1>
-                <div className="flex items-center gap-3 mt-1">
-                  <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Academic Performance Report Card</h2>
-                  <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 font-semibold px-3">Academic Year: {academicYear}</Badge>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <h2 className="text-[17px] font-bold text-slate-800 uppercase tracking-wide leading-none">Academic Performance Report Card</h2>
+                  <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 font-bold px-2.5 py-0 h-5 text-[10px] inline-flex items-center justify-center leading-none">Academic Year: {academicYear}</Badge>
                 </div>
               </div>
             </div>
@@ -242,7 +226,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
               </div>
               <div>
                 <p className="font-black text-slate-900 text-lg leading-tight">{displayStudentName}</p>
-                <Badge className="bg-[#DCFCE7] text-[#166534] hover:bg-[#DCFCE7] border-none text-[10px] h-5 mt-1 font-bold">Active</Badge>
+                <Badge className="bg-[#DCFCE7] text-[#166534] hover:bg-[#DCFCE7] border-none text-[9px] px-2 h-[18px] mt-1 font-bold inline-flex items-center justify-center leading-none uppercase tracking-wider">Active</Badge>
               </div>
             </div>
           </div>
@@ -443,7 +427,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                                   <circle cx="24" cy="24" r="20" fill="none" stroke="#0D9488" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 * (1 - attendance / 100)} strokeLinecap="round" />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="text-[10px] font-black">{displayAttendance}%</span>
+                                  <span className="text-[9px] font-black leading-none tracking-tighter m-0 p-0 text-slate-700">{displayAttendance}%</span>
                                 </div>
                               </div>
                               <div>
@@ -458,7 +442,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
                                   <circle cx="24" cy="24" r="20" fill="none" stroke="#0D9488" strokeWidth="4" strokeDasharray={125.6} strokeDashoffset={125.6 * (1 - 0.92)} strokeLinecap="round" />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="text-[10px] font-black">92%</span>
+                                  <span className="text-[9px] font-black leading-none tracking-tighter m-0 p-0 text-slate-700">92%</span>
                                 </div>
                               </div>
                               <div>
@@ -650,7 +634,7 @@ const StudentReportCard: React.FC<StudentReportCardProps> = ({
         </div>
 
         {/* Footer info */}
-        <div className="bg-slate-100 p-4 px-8 text-center border-t border-slate-200" data-html2canvas-ignore>
+        <div className="bg-slate-100 p-4 px-8 text-center border-t border-slate-200">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             VidhyaPlus+ Education Systems • AI-Generated Performance Report • Confidential
           </p>

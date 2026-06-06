@@ -381,32 +381,43 @@ const TeacherDashboard = () => {
     const toastId = toast.loading("Finalizing your premium PDF...");
 
     try {
-      // Temporarily set a fixed width for the capture to ensure it looks identical every time
-      const originalStyle = reportRef.current.style.width;
-      reportRef.current.style.width = "800px";
+      // Temporarily set a fixed wide width for the capture to ensure desktop layout
+      const originalWidth = reportRef.current.style.width;
+      const originalMaxWidth = reportRef.current.style.maxWidth;
+      reportRef.current.style.width = "1200px";
+      reportRef.current.style.maxWidth = "none";
 
       const canvas = await html2canvas(reportRef.current, {
         scale: 2, // High resolution
         useCORS: true,
         logging: false,
-        backgroundColor: "#ffffff",
-        windowWidth: 800
+        backgroundColor: "#F8FAFC",
+        width: 1200,
+        height: reportRef.current.scrollHeight,
+        windowWidth: 1200,
+        windowHeight: reportRef.current.scrollHeight,
+        scrollY: 0,
+        x: 0,
+        y: 0
       });
 
       // Restore original style
-      reportRef.current.style.width = originalStyle;
+      reportRef.current.style.width = originalWidth;
+      reportRef.current.style.maxWidth = originalMaxWidth;
 
       const imgData = canvas.toDataURL('image/png');
 
-      // Create A4 PDF (210mm x 297mm)
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      // Calculate image size to fit A4 with margins (10mm margin)
+      // Create PDF matching A4 width but dynamic height to fit content
+      const pdfWidth = 210; // A4 width in mm
       const margin = 10;
       const contentWidth = pdfWidth - (margin * 2);
       const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: [pdfWidth, contentHeight + (margin * 2)]
+      });
 
       pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, contentHeight);
       pdf.save(`VidhyaPlus_Report_${studentName.replace(/\s+/g, '_')}.pdf`);
@@ -2241,7 +2252,26 @@ const TeacherDashboard = () => {
         {/* AI Report Card Result Dialog - Premium Redesign */}
         <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
           <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
-            <div ref={reportRef}>
+            <div className="bg-white sticky top-0 z-10 px-6 py-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
+              <DialogTitle className="text-xl font-bold text-slate-800 tracking-tight">AI Generated Report</DialogTitle>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => downloadReport(aiReportStudentName)}
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl px-5 shadow-lg shadow-primary/20 gap-2 border-none h-10"
+                >
+                  <Download className="w-4 h-4" /> DOWNLOAD PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setAiReportDialogOpen(false)}
+                  className="bg-white/80 hover:bg-slate-50 border-slate-200 rounded-xl h-10 w-10"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </Button>
+              </div>
+            </div>
+            <div ref={reportRef} className="p-6">
               <StudentReportCard
                 studentId={aiReportStudentId}
                 studentName={aiReportStudentName}
@@ -3538,8 +3568,26 @@ const TeacherDashboard = () => {
       {/* AI Report Card Result Dialog - Premium Redesign */}
       <Dialog open={aiReportDialogOpen} onOpenChange={setAiReportDialogOpen}>
         <DialogContent className="max-w-[1200px] w-[95vw] max-h-[95vh] p-0 overflow-y-auto border-none shadow-2xl rounded-3xl bg-[#F8FAFC]">
-          <DialogTitle className="sr-only">Student Report Card</DialogTitle>
-          <div ref={reportRef}>
+          <div className="bg-white sticky top-0 z-10 px-6 py-4 border-b border-slate-100 flex items-center justify-between shadow-sm">
+            <DialogTitle className="text-xl font-bold text-slate-800 tracking-tight">AI Generated Report</DialogTitle>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => downloadReport(aiReportStudentName)}
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl px-5 shadow-lg shadow-primary/20 gap-2 border-none h-10"
+              >
+                <Download className="w-4 h-4" /> DOWNLOAD PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setAiReportDialogOpen(false)}
+                className="bg-white/80 hover:bg-slate-50 border-slate-200 rounded-xl h-10 w-10"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </Button>
+            </div>
+          </div>
+          <div ref={reportRef} className="p-6">
             <StudentReportCard
               studentId={aiReportStudentId}
               studentName={aiReportStudentName}
