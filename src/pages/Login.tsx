@@ -477,7 +477,7 @@ const Login = () => {
             <div style={{ marginTop: "1.25rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(0,185,138,0.1)" }}>
               <p style={{ fontSize: ".73rem", color: G.text3, textAlign: "center", marginBottom: ".6rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>Other Portals</p>
               <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: ".5rem" }}>
-                {(["student", "teacher", "principal", "admin", "team"] as const).filter(r => r !== role).map(r => (
+                {(["student", "teacher", "principal"] as const).filter(r => r !== role).map(r => (
                   <Link
                     key={r}
                     to={`/login?role=${r}`}
@@ -505,7 +505,7 @@ const Login = () => {
             borderRadius: 8, padding: "6px 16px",
             color: G.tealDark, fontSize: ".72rem", fontWeight: 700,
           }}>
-            🏛 Tribal Government Schools · Kumuram Bheem Asifabad
+            🏛 Government Schools · Kumuram Bheem Asifabad
           </span>
         </div>
       </div>

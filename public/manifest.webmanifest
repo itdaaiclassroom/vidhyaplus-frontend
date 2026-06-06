@@ -1,0 +1,9 @@
+{
+  "short_name": "VidhyaPlus",
+  "name": "Vidhya Plus",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#020617",
+  "icons": []
+}

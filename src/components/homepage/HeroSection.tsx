@@ -71,7 +71,7 @@ const HeroSection = () => {
             letterSpacing: ".04em", textTransform: "uppercase",
           }}>
             <span style={{ width: 8, height: 8, background: G.teal, borderRadius: "50%", animation: "heroPulse 1.5s infinite" }} />
-            🏛 Tribal Government Schools · Kumuram Bheem Asifabad
+            Government Schools · Kumuram Bheem Asifabad
           </span>
         </div>
 
@@ -99,7 +99,7 @@ const HeroSection = () => {
           maxWidth: 620, margin: "0 auto 2rem",
           animation: "heroFadeUp .7s .18s ease both",
         }}>
-          A complete LMS for tribal government schools — live AI sessions, QR quiz cards,
+          A complete platform for government schools of Kumaram Bheem Asifabad District — live AI sessions, QR quiz cards,
           real-time monitoring &amp; smart analytics for students, teachers &amp; administrators.
         </p>
 
@@ -195,7 +195,7 @@ const HeroSection = () => {
             display: "flex", alignItems: "center", gap: 12,
           }}>
             <div style={{ display: "flex", gap: 6 }}>
-              {["#EF4444","#F59E0B","#22C55E"].map(c => (
+              {["#EF4444", "#F59E0B", "#22C55E"].map(c => (
                 <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />
               ))}
             </div>
@@ -227,7 +227,7 @@ const HeroSection = () => {
                   <div style={{ fontSize: ".6rem", color: G.text3 }}>Student Portal</div>
                 </div>
               </div>
-              {[["🏠","Dashboard",true],["📚","My Subjects",false],["🔲","QR Quiz",false],["📊","Analytics",false],["🏆","Leaderboard",false],["📜","Certificates",false]].map(([icon,label,active]) => (
+              {[["🏠", "Dashboard", true], ["📚", "My Subjects", false], ["🔲", "QR Quiz", false], ["📊", "Analytics", false], ["🏆", "Leaderboard", false], ["📜", "Certificates", false]].map(([icon, label, active]) => (
                 <div key={label as string} style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "7px 10px", borderRadius: 8, marginBottom: 3,
@@ -263,7 +263,7 @@ const HeroSection = () => {
                 </div>
               </div>
 
-              {[["Math","#00B98A",85],["Science","#4FB8F0",72],["English","#7C6FEE",66]].map(([sub,col,pct]) => (
+              {[["Math", "#00B98A", 85], ["Science", "#4FB8F0", 72], ["English", "#7C6FEE", 66]].map(([sub, col, pct]) => (
                 <div key={sub as string} style={{ marginBottom: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".65rem", fontWeight: 700, color: G.text2, marginBottom: 3 }}>
                     <span>{sub as string}</span><span style={{ color: col as string }}>{pct as number}%</span>
@@ -282,8 +282,9 @@ const HeroSection = () => {
                 </div>
                 <div style={{ fontSize: ".6rem", color: G.text2, marginBottom: ".5rem" }}>Which is the powerhouse of the cell?</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                  {[["A","Nucleus",false],["B","Mitochondria",true],["C","Ribosome",false],["D","Vacuole",false]].map(([o,l,c]) => (
-                    <div key={o as string} style={{ padding: "4px 7px", borderRadius: 6, fontSize: ".58rem", fontWeight: 600,
+                  {[["A", "Nucleus", false], ["B", "Mitochondria", true], ["C", "Ribosome", false], ["D", "Vacuole", false]].map(([o, l, c]) => (
+                    <div key={o as string} style={{
+                      padding: "4px 7px", borderRadius: 6, fontSize: ".58rem", fontWeight: 600,
                       border: `1px solid ${(c as boolean) ? "rgba(0,185,138,.4)" : "rgba(0,185,138,.1)"}`,
                       background: (c as boolean) ? "rgba(0,185,138,.12)" : "transparent",
                       color: (c as boolean) ? G.tealDark : G.text2,
@@ -308,11 +309,11 @@ const HeroSection = () => {
                   <span style={{ fontSize: ".58rem", fontWeight: 700, color: G.teal, background: "#E0FAF3", padding: "2px 7px", borderRadius: 4 }}>LIVE</span>
                 </div>
                 {[
-                  ["1","Priya N.","460","linear-gradient(135deg,#FFB830,#FF8C30)"],
-                  ["2","Arjun K.","440","linear-gradient(135deg,#94A3B8,#64748B)"],
-                  ["3","Rohan V.","420","linear-gradient(135deg,#CD7F32,#A0522D)"],
-                  ["4","Kavitha R.","400","rgba(200,210,220,0.6)"],
-                ].map(([rank,name,pts,bg]) => (
+                  ["1", "Priya N.", "460", "linear-gradient(135deg,#FFB830,#FF8C30)"],
+                  ["2", "Arjun K.", "440", "linear-gradient(135deg,#94A3B8,#64748B)"],
+                  ["3", "Rohan V.", "420", "linear-gradient(135deg,#CD7F32,#A0522D)"],
+                  ["4", "Kavitha R.", "400", "rgba(200,210,220,0.6)"],
+                ].map(([rank, name, pts, bg]) => (
                   <div key={rank as string} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 8, marginBottom: 3, background: rank === "2" ? "rgba(0,185,138,0.06)" : "transparent" }}>
                     <div style={{ width: 20, height: 20, borderRadius: 6, background: bg as string, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: ".6rem", color: "white", flexShrink: 0 }}>{rank as string}</div>
                     <span style={{ flex: 1, fontSize: ".7rem", fontWeight: 700, color: rank === "2" ? G.teal : G.text2 }}>{name as string}</span>
@@ -325,10 +326,10 @@ const HeroSection = () => {
               <div style={{ background: "linear-gradient(135deg,#0A1628,#0F2040)", borderRadius: 12, padding: "1rem" }}>
                 <div style={{ fontWeight: 900, fontSize: ".75rem", color: "white", marginBottom: ".75rem" }}>📅 Today's Classes</div>
                 {[
-                  [G.teal,"Mathematics","9:00 AM","Ch.5 Algebra"],
-                  ["#4FB8F0","Science","11:00 AM","Cell Biology"],
-                  ["#7C6FEE","English","2:00 PM","Grammar"],
-                ].map(([col,sub,time,topic]) => (
+                  [G.teal, "Mathematics", "9:00 AM", "Ch.5 Algebra"],
+                  ["#4FB8F0", "Science", "11:00 AM", "Cell Biology"],
+                  ["#7C6FEE", "English", "2:00 PM", "Grammar"],
+                ].map(([col, sub, time, topic]) => (
                   <div key={sub as string} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
                     <div style={{ width: 3, height: 32, borderRadius: 2, background: col as string, flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
@@ -344,7 +345,7 @@ const HeroSection = () => {
               <div style={{ marginTop: "1rem" }}>
                 <div style={{ fontWeight: 900, fontSize: ".75rem", color: G.navy, marginBottom: ".6rem" }}>🎖️ Recent Badges</div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {[["🏅","#E0FAF3"],["⭐","#FEF3C7"],["🎯","#F0EEFF"],["🔥","#E8F3FF"]].map(([em,bg]) => (
+                  {[["🏅", "#E0FAF3"], ["⭐", "#FEF3C7"], ["🎯", "#F0EEFF"], ["🔥", "#E8F3FF"]].map(([em, bg]) => (
                     <div key={em as string} style={{ width: 34, height: 34, borderRadius: 10, background: bg as string, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>{em as string}</div>
                   ))}
                 </div>

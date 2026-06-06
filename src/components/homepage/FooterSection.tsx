@@ -51,7 +51,7 @@ const FooterSection = () => {
               </div>
               <span style={{ fontFamily: "Nunito,sans-serif", fontWeight: 900, fontSize: "1.2rem", color: "white" }}>VidyaPlus</span>
             </div>
-            <p style={{ color: "rgba(255,255,255,.4)", fontSize: ".82rem", lineHeight: 1.7, maxWidth: 240, marginBottom: "1.5rem" }}>A government-led AI innovation initiative bringing standardized, monitored education to tribal government schools — Classes 5 to 10.</p>
+            <p style={{ color: "rgba(255,255,255,.4)", fontSize: ".82rem", lineHeight: 1.7, maxWidth: 240, marginBottom: "1.5rem" }}>A government-led AI innovation initiative bringing standardized, monitored education to government schools — Classes 5 to 10.</p>
             <div style={{ display: "flex", gap: 8 }}>
               {["twitter", "youtube", "mail"].map(s => (
                 <div key={s} className="social-btn">
@@ -83,7 +83,7 @@ const FooterSection = () => {
         </div>
         <div className="footer-bottom">
           <span style={{ color: "rgba(255,255,255,.25)", fontSize: ".75rem" }}>© 2026 VidyaPlus · AI-Powered School LMS · All rights reserved</span>
-          <span style={{ background: "rgba(0,185,138,.08)", border: "1px solid rgba(0,185,138,.15)", borderRadius: 8, padding: "5px 14px", color: "rgba(0,185,138,.7)", fontSize: ".72rem", fontWeight: 600 }}>🏛 Tribal Government Schools · Kumuram Bheem Asifabad</span>
+          <span style={{ background: "rgba(0,185,138,.08)", border: "1px solid rgba(0,185,138,.15)", borderRadius: 8, padding: "5px 14px", color: "rgba(0,185,138,.7)", fontSize: ".72rem", fontWeight: 600 }}> Government Schools · Kumuram Bheem Asifabad</span>
         </div>
       </div>
     </footer>

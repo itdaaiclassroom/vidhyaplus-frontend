@@ -32,6 +32,7 @@ import type { AuditLogEntry } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
 import GatingAdminPanel from "./GatingAdminPanel";
 import UserManagementPanel from "./UserManagementPanel";
+import { ReportsPanel } from "./ReportsPanel";
 import TeacherReportsDialog from "@/components/TeacherReportsDialog";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -422,11 +423,12 @@ const ModernAdminDashboard = () => {
     { id: "teachers", label: "Teachers", icon: Users },
     { id: "students", label: "Students", icon: GraduationCap },
     { id: "materials", label: "Materials", icon: BookOpen },
-    { id: "logs", label: "Logs", icon: ClipboardList },
-    { id: "announcements", label: "Announcements", icon: MessageSquare },
     { id: "gating", label: "Gating Controls", icon: ShieldCheck },
-    { id: "profile", label: "Profile", icon: Settings },
+    { id: "reports", label: "Reports", icon: ClipboardList },
+    { id: "announcements", label: "Announcements", icon: MessageSquare },
     { id: "usermanagement", label: "User Management", icon: Shield },
+    { id: "logs", label: "Activity Logs", icon: ClipboardList },
+    { id: "profile", label: "Profile", icon: Settings },
   ];
 
   const teamRole = localStorage.getItem("auth.teamRole")?.toLowerCase() || "";
@@ -2074,6 +2076,11 @@ const ModernAdminDashboard = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* Reports Content */}
+          <TabsContent value="reports" className="space-y-6">
+            <ReportsPanel />
           </TabsContent>
         </Tabs>
       </main>
