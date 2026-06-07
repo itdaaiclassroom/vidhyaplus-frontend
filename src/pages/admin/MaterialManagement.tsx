@@ -4,8 +4,12 @@ import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt,
 import { toast } from 'sonner';
 import QuestionBankPanel from './QuestionBankPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function MaterialManagement() {
+  const { role, permissions } = useAuth();
+  const isReadOnly = role === "admin" && permissions?.materials === "read";
+
   const getAdminMaterialUrl = (url: string | null): string => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -523,10 +527,18 @@ export default function MaterialManagement() {
         <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
           <Book className="w-6 h-6" />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl font-bold text-slate-800">Materials Management</h2>
           <p className="text-sm text-slate-500">Upload textbooks for entire subjects or presentations for specific topics.</p>
         </div>
+        {isReadOnly && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 h-fit">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            Read-only access
+          </div>
+        )}
       </div>
 
       <div className="flex gap-1 p-1 bg-slate-200 rounded-lg mb-6 max-w-md">
@@ -668,9 +680,9 @@ export default function MaterialManagement() {
               <div className="flex flex-col gap-2">
                 <button
                   type="submit"
-                  disabled={uploading || isExtracting}
-                  className="w-full bg-slate-600 text-white rounded-xl py-3 font-medium hover:bg-slate-700 transition-colors flex justify-center items-center gap-2"
-                  title={uploadScope === 'subject' ? 'Upload textbook file' : 'Upload PPT/PDF for this topic'}
+                  disabled={uploading || isExtracting || isReadOnly}
+                  className="w-full bg-slate-600 text-white rounded-xl py-3 font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2"
+                  title={isReadOnly ? "Read-only access" : (uploadScope === 'subject' ? 'Upload textbook file' : 'Upload PPT/PDF for this topic')}
                 >
                   {uploading ? (
                     <><Loader className="w-5 h-5 animate-spin" /> Uploading...</>
@@ -727,8 +739,9 @@ export default function MaterialManagement() {
                         </a>
                         <button
                           onClick={() => handleDeleteSubjectMaterial(m.id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete material"
+                          disabled={isReadOnly}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+                          title={isReadOnly ? "Read-only access" : "Delete material"}
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
@@ -753,7 +766,9 @@ export default function MaterialManagement() {
                       </div>
                       <button
                         onClick={() => handleDeleteTopicPpt(activeTopic.id)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+                        disabled={isReadOnly}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 disabled:opacity-50 disabled:hover:bg-red-100 transition-colors text-sm font-medium"
+                        title={isReadOnly ? "Read-only access" : "Delete PPT"}
                       >
                         <Trash2 className="w-4 h-4" /> Delete PPT
                       </button>
@@ -838,7 +853,9 @@ export default function MaterialManagement() {
               </button>
               <button 
                 onClick={() => { setCurriculumFile(null); setCurriculumResult(null); setIsCurriculumUploadOpen(true); }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-100 hover:shadow-none transition-all"
+                disabled={isReadOnly}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-100 hover:shadow-none transition-all disabled:opacity-50"
+                title={isReadOnly ? "Read-only access" : ""}
               >
                 <Upload className="w-4 h-4" /> Import Excel
               </button>
@@ -1061,8 +1078,9 @@ export default function MaterialManagement() {
                                       loadCurriculumData(curriculumFilterSubject, curriculumFilterGrade);
                                     } catch (e: any) { toast.error(e.message); }
                                   }}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                                  title="Delete topic"
+                                  disabled={isReadOnly}
+                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
+                                  title={isReadOnly ? "Read-only access" : "Delete topic"}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -1189,8 +1207,9 @@ export default function MaterialManagement() {
                   </button>
                   <button
                     onClick={handleCurriculumUpload}
-                    disabled={curriculumUploading || !curriculumFile}
+                    disabled={curriculumUploading || !curriculumFile || isReadOnly}
                     className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-emerald-100 disabled:shadow-none"
+                    title={isReadOnly ? "Read-only access" : ""}
                   >
                     {curriculumUploading ? (
                       <span className="flex items-center gap-1"><Loader className="w-3.5 h-3.5 animate-spin" /> Uploading...</span>

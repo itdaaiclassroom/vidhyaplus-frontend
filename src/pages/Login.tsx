@@ -108,32 +108,19 @@ const Login = () => {
         }
       } else if (role === "admin" || role === "team") {
         try {
-          let isTeam = role === "team";
-          let data: any;
+          // Both Superadmins and Admins now use adminLogin
+          const data = await adminLogin({ email: email.trim(), password });
 
-          if (isTeam) {
-            data = await teamLogin({ email: email.trim(), password });
-          } else {
-            try {
-              data = await adminLogin({ email: email.trim(), password });
-            } catch (err: any) {
-              // If admin login fails, try team login automatically
-              try {
-                data = await teamLogin({ email: email.trim(), password });
-                isTeam = true;
-              } catch (err2: any) {
-                throw err; // Throw the original error if both fail
-              }
-            }
-          }
-
-          if (isTeam) {
-            login("team", data.team_name || data.full_name, undefined, undefined, undefined, data.token);
-            if (data.role) localStorage.setItem("auth.teamRole", data.role);
-          } else {
-            login(data.role || "admin", data.full_name, undefined, undefined, undefined, data.token);
-            localStorage.removeItem("auth.teamRole");
-          }
+          login(
+            data.role as any || "admin", 
+            data.full_name, 
+            undefined, 
+            undefined, 
+            undefined, 
+            data.token,
+            data.permissions
+          );
+          
           navigate("/admin");
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Login failed");
