@@ -44,6 +44,7 @@ import {
 } from "@/api/client";
 import { TeacherAssessmentDialog, ChapterGatingBadge, StudentPerformancePanel, TeacherAssessmentHistoryDialog } from "./TeacherAssessment";
 import StudentReportCard from "@/components/StudentReportCard";
+import TeacherProfile from "./TeacherProfile";
 
 import { liveQuizCheckpoint } from "@/lib/liveQuizCheckpoint";
 import { toast } from "sonner";
@@ -58,7 +59,7 @@ import {
   Microscope, Globe, Sparkles, BarChart3, MonitorPlay, Monitor, X,
   Maximize, Minimize, Pause, Send, MessageCircle, Medal, RotateCcw,
   Youtube, ExternalLink, Lock, AlertTriangle, Download, GraduationCap,
-  Menu
+  Menu, User as UserIcon
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
@@ -2427,10 +2428,16 @@ const TeacherDashboard = () => {
               <TabsTrigger value="cocurricular" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
                 <Lightbulb className="w-4 h-4" /> Co-Curricular
               </TabsTrigger>
+              <TabsTrigger value="profile" className="justify-start w-full data-[state=active]:bg-primary/10 data-[state=active]:text-primary hover:bg-secondary/80 rounded-xl px-4 py-3 transition-colors gap-3 font-semibold text-sm">
+                <UserIcon className="w-4 h-4" /> Profile
+              </TabsTrigger>
             </TabsList>
           </aside>
           {/* Content Area */}
           <div className="flex-1 min-w-0 w-full">
+            <TabsContent value="profile" className="space-y-4">
+              <TeacherProfile />
+            </TabsContent>
             <TabsContent value="overview" className="space-y-4">
               <h3 className="font-display text-sm sm:text-base md:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" /> Overview — <span className="truncate">{currentSubject?.name} • {currentClass?.name}</span>

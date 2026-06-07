@@ -34,6 +34,7 @@ import {
   fetchTeacherAttendanceSummary, fetchStudentAttendanceSummary,
   fetchPrincipalSubjects, fetchSchoolRanking, fetchBroadcastMessages
 } from "@/api/client";
+import PrincipalProfile from "./PrincipalProfile";
 import { toast } from "sonner";
 import { Edit2, Save, XCircle } from "lucide-react";
 import { 
@@ -57,6 +58,7 @@ const navigationGroups = [
     title: "Dashboard",
     items: [
       { value: "overview", label: "Overview", icon: BarChart3 },
+      { value: "profile", label: "Profile", icon: User },
       { value: "teacher-view", label: "Switch to Teacher View", icon: BookOpen, action: true }
     ]
   },
@@ -378,6 +380,9 @@ const PrincipalDashboardInner: React.FC = () => {
 
           {/* Main Content Area */}
           <section className="flex-1 min-w-0">
+            <TabsContent value="profile" className="space-y-4 mt-0">
+              <PrincipalProfile />
+            </TabsContent>
             <TabsContent value="overview" className="space-y-4 mt-0">
             <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" /> Overview

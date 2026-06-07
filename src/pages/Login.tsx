@@ -178,7 +178,7 @@ const Login = () => {
   };
 
   const handleForgotPassword = () => {
-    toast.info("Password reset is handled by the administrator. Please contact support.");
+    navigate("/forgot-password");
   };
 
   const cfg = ROLE_CONFIG[role];
@@ -383,7 +383,7 @@ const Login = () => {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
                   <label htmlFor="password" style={{ ...labelStyle, margin: 0 }}>Password</label>
-                  {role === "teacher" && (
+                  {role !== "student" && (
                     <button type="button" onClick={handleForgotPassword} style={{
                       background: "none", border: "none", cursor: "pointer",
                       fontSize: ".75rem", fontWeight: 700, color: G.teal,
