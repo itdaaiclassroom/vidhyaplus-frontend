@@ -804,6 +804,28 @@ export async function teamLogin(body: { email: string; password: string }): Prom
   return { ...data, token: data.token || '' };
 }
 
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function resetPassword(email: string, token: string, newPassword: string): Promise<{ message: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, token, newPassword }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 export async function teacherLogin(body: { email: string; password: string }): Promise<{ id: string; email: string; full_name: string; school_id: string; role: string; token: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/login/teacher`, {
@@ -2125,6 +2147,46 @@ export async function fetchAdminProfile() {
 export async function updateAdminProfile(data: any) {
   if (!API_BASE) throw new Error("API URL not set.");
   const res = await fetch(`${API_BASE}/api/admin/profile`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchTeacherProfile() {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/teacher/profile`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateTeacherProfile(data: any) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/teacher/profile`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchPrincipalProfile() {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/principal/profile`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updatePrincipalProfile(data: any) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/principal/profile`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(data)
