@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-type Role = "teacher" | "admin" | "student" | "principal" | "team" | null;
+type Role = "teacher" | "admin" | "superadmin" | "student" | "principal" | null;
 
 
 interface AuthContextType {
@@ -10,7 +10,8 @@ interface AuthContextType {
   teacherId: string | null;
   schoolId: string | null;
   token: string | null;
-  login: (role: Role, name?: string, studentId?: string, teacherId?: string, schoolId?: string, token?: string) => void;
+  permissions: Record<string, 'none' | 'read' | 'write'> | null;
+  login: (role: Role, name?: string, studentId?: string, teacherId?: string, schoolId?: string, token?: string, permissions?: Record<string, any>) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   teacherId: null,
   schoolId: null,
   token: null,
+  permissions: null,
   login: () => {},
   logout: () => {},
   isAuthenticated: false,
@@ -37,8 +39,7 @@ export function getStoredToken(): string | null {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<Role>(() => {
     const saved = localStorage.getItem("auth.role");
-    return (saved === "teacher" || saved === "admin" || saved === "student" || saved === "principal" || saved === "team") ? saved : null;
-
+    return (saved === "teacher" || saved === "admin" || saved === "superadmin" || saved === "student" || saved === "principal" || saved === "team") ? saved as Role : null;
   });
   const [userName, setUserName] = useState(() => localStorage.getItem("auth.userName") || "");
   const [studentId, setStudentId] = useState<string | null>(() => localStorage.getItem("auth.studentId"));
@@ -48,14 +49,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return s === "undefined" || s === "null" ? null : s;
   });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("auth.token"));
+  const [permissions, setPermissions] = useState<Record<string, 'none' | 'read' | 'write'> | null>(() => {
+    const saved = localStorage.getItem("auth.permissions");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
 
-  const login = (r: Role, name = "", sId?: string, tId?: string, schId?: string, tkn?: string) => {
+  const login = (r: Role, name = "", sId?: string, tId?: string, schId?: string, tkn?: string, perms?: Record<string, any>) => {
     setRole(r);
-    setUserName(name || (r === "admin" ? "Administrator" : r === "team" ? "Team Member" : r === "student" ? "Student" : r === "principal" ? "Principal" : "Teacher"));
+    setUserName(name || (r === "superadmin" ? "Super Admin" : r === "admin" ? "Administrator" : r === "student" ? "Student" : r === "principal" ? "Principal" : "Teacher"));
     setStudentId(sId || null);
     setTeacherId(tId || null);
     setSchoolId(schId || null);
     setToken(tkn || null);
+    setPermissions(perms || null);
 
     // Sync to localStorage immediately so API client sees it before navigate()
     if (r) localStorage.setItem("auth.role", r);
@@ -64,6 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (tId) localStorage.setItem("auth.teacherId", tId);
     if (schId) localStorage.setItem("auth.schoolId", schId);
     if (tkn) localStorage.setItem("auth.token", tkn);
+    if (perms) localStorage.setItem("auth.permissions", JSON.stringify(perms));
   };
 
   const logout = () => {
@@ -73,6 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setTeacherId(null);
     setSchoolId(null);
     setToken(null);
+    setPermissions(null);
     localStorage.clear();
   };
 
@@ -104,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ role, userName, studentId, teacherId, schoolId, token, login, logout, isAuthenticated: !!role }}>
+    <AuthContext.Provider value={{ role, userName, studentId, teacherId, schoolId, token, permissions, login, logout, isAuthenticated: !!role }}>
       {children}
     </AuthContext.Provider>
   );

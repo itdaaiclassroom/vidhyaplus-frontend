@@ -188,6 +188,8 @@ export interface PrincipalTeacher {
   email: string;
   role: string;
   subject_ids: string | null;
+  subjects?: string[];
+  class_names?: string[];
 }
 
 export async function fetchAll(): Promise<AllDataResponse> {
@@ -1579,13 +1581,19 @@ export async function fetchChapterOverrides(teacherId?: string, classId?: string
   return res.json();
 }
 
-// âââ Admin Management CRUD ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ——— Admin Management CRUD ————————————————————————————————————————
 
 export interface AdminAccount {
   id: number;
   name: string;
   email: string;
+  phone?: string;
+  location?: string;
+  mandal?: string;
+  district?: string;
   role: string;
+  designation?: string;
+  permissions?: Record<string, 'none' | 'read' | 'write'>;
   created_at: string;
 }
 
@@ -1600,7 +1608,7 @@ export interface TeamAccount {
   created_at: string;
 }
 
-/** GET /api/admin/management â list all admin accounts */
+/** GET /api/admin/management — list all admin accounts */
 export async function fetchAdmins(): Promise<AdminAccount[]> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/admin/management`, { headers: getAuthHeaders() });
@@ -1608,13 +1616,19 @@ export async function fetchAdmins(): Promise<AdminAccount[]> {
   return res.json();
 }
 
-/** POST /api/admin/management â create a new admin account */
+/** POST /api/admin/management — create a new admin account */
 export async function createAdminAccount(body: {
   name: string;
   email: string;
-  password: string;
+  phone?: string;
+  location?: string;
+  mandal?: string;
+  district?: string;
+  password?: string;
   role?: string;
-}): Promise<{ ok: boolean; id: string; name: string; email: string; role: string }> {
+  designation?: string;
+  permissions?: Record<string, 'none' | 'read' | 'write'>;
+}): Promise<{ ok: boolean; id: string; name: string; email: string; role: string; permissions?: Record<string, string> }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/admin/management`, {
     method: "POST",
@@ -1628,7 +1642,7 @@ export async function createAdminAccount(body: {
 /** PUT /api/admin/management/:id â update an admin account (password optional) */
 export async function updateAdminAccount(
   id: number,
-  body: { name?: string; email?: string; password?: string; role?: string }
+  body: { name?: string; email?: string; phone?: string; location?: string; mandal?: string; district?: string; password?: string; role?: string; designation?: string; permissions?: Record<string, 'none' | 'read' | 'write'> }
 ): Promise<{ ok: boolean; id: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/admin/management/${id}`, {
@@ -2094,6 +2108,26 @@ export async function deleteCurriculumEntry(id: number): Promise<{ ok: boolean; 
   const res = await fetch(`${API_BASE}/api/subjects/curriculum/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function fetchAdminProfile() {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/admin/profile`, {
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateAdminProfile(data: any) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/admin/profile`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
   });
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();

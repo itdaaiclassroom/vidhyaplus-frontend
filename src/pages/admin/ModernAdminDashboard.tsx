@@ -9,7 +9,8 @@ import {
   MessageSquare, Calendar as CalendarIcon, LogOut, 
   Settings, Search, Eye, Plus, Shield, Clock,
   BookOpen, ClipboardList, Radio, MonitorPlay, ChevronRight,
-  Trash2, Edit, ShieldCheck, AlertTriangle, Download, X
+  Trash2, Edit, ShieldCheck, AlertTriangle, Download, X,
+  User as UserIcon, Mail, Phone, MapPin, Globe, Key
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { uploadFileToR2 } from "@/services/uploadService";
 import { toast } from "sonner";
-import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchAdminAnnouncements, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool, fetchAuditLogs } from "@/api/client";
+import { fetchAdminOverview, fetchAdminAnalytics, createAnnouncement, fetchAdminAnnouncements, fetchTeacherLogs, getApiBase, createSchool, updateSchool, deleteSchool, fetchAuditLogs, fetchAdminProfile, updateAdminProfile } from "@/api/client";
 import type { AuditLogEntry } from "@/api/client";
 import MaterialManagement from "./MaterialManagement";
 import GatingAdminPanel from "./GatingAdminPanel";
@@ -81,7 +82,7 @@ const ModernAdminDashboard = () => {
   };
 
   const { data, loading, refetch } = useAppData();
-  const { userName, logout, role } = useAuth();
+  const { userName, logout, role, permissions } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedNavs, setExpandedNavs] = useState<string[]>([]);
@@ -141,6 +142,64 @@ const ModernAdminDashboard = () => {
   const [aiReportStudentId, setAiReportStudentId] = useState<string | number | undefined>(undefined);
   const [aiReportStudentClass, setAiReportStudentClass] = useState<string>("");
   const reportRef = useRef<HTMLDivElement>(null);
+
+  // ── Admin Profile state ───────────────────────────────────────────────────
+  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [editProfileModalOpen, setEditProfileModalOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    location: "",
+    mandal: "",
+    district: "",
+    password: ""
+  });
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "profile") {
+      setProfileLoading(true);
+      fetchAdminProfile()
+        .then(setAdminProfile)
+        .catch(err => {
+          console.error("Failed to fetch admin profile:", err);
+          toast.error("Failed to load profile details");
+        })
+        .finally(() => setProfileLoading(false));
+    }
+  }, [activeTab]);
+
+  const handleEditProfileClick = () => {
+    setProfileForm({
+      full_name: adminProfile?.full_name || userName || "",
+      email: adminProfile?.email || "",
+      phone: adminProfile?.phone || "",
+      location: adminProfile?.location || "",
+      mandal: adminProfile?.mandal || "",
+      district: adminProfile?.district || "",
+      password: ""
+    });
+    setEditProfileModalOpen(true);
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSubmitting(true);
+    try {
+      await updateAdminProfile(profileForm);
+      toast.success("Profile updated successfully!");
+      setEditProfileModalOpen(false);
+      // Re-fetch profile
+      const updatedProfile = await fetchAdminProfile();
+      setAdminProfile(updatedProfile);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update profile");
+    } finally {
+      setProfileSubmitting(false);
+    }
+  };
 
   const filteredStudentData = useMemo(() => {
     if (!analytics || !analytics.students || !Array.isArray(analytics.students)) return [];
@@ -472,32 +531,37 @@ const ModernAdminDashboard = () => {
     { id: "profile", label: "Profile", icon: Settings },
   ];
 
-  const teamRole = localStorage.getItem("auth.teamRole")?.toLowerCase() || "";
-
-  // Map each team sub-role to the nav tab IDs it is allowed to see.
-  // Kept as a lookup so adding a new role only touches this one object.
-  const TEAM_ROLE_NAV_MAP: Record<string, string[]> = {
-    material_management: ["materials"],
-    school_management:   ["schools"],
-    student_management:  ["students"],
-    teacher_management:  ["teachers"],
-  };
+  // Keep all state declarations intact ...
+  // Since we replaced role="team" with role="admin" and permissions, we handle that here.
 
   const navItems = rawNavItems.filter(item => {
-    if (role === "admin") return true; // Super admin sees everything
-    if (role === "team") {
+    if (role === "superadmin") return true; // Super admin sees everything
+    if (role === "admin") {
       if (item.id === "profile") return true; // Profile always visible
-      const allowed = TEAM_ROLE_NAV_MAP[teamRole] ?? [];
-      return allowed.includes(item.id);
+      // Overview might be visible to all admins, or we can restrict it. Let's make overview visible to all.
+      if (item.id === "overview") return true;
+      
+      if (item.id === "usermanagement") return false; // Only superadmin can manage admins
+      if (item.id === "logs") return false; // Only superadmin sees audit logs
+      if (item.id === "gating") return false; // Only superadmin sees gating
+
+      // For feature tabs, check permissions
+      if (permissions && permissions[item.id]) {
+        return permissions[item.id] !== 'none';
+      }
+      
+      if (item.id === "announcements") return false; // Strictly Superadmin only
+      
+      // Other generic tabs (reports) visible to all admins by default or we can check permissions.
+      return true;
     }
     return false;
   });
 
-  // When a team member lands on a tab they cannot see (e.g. "overview"),
-  // auto-redirect them to their first allowed tab.
+  // When an admin lands on a tab they cannot see, auto-redirect them to their first allowed tab.
   useEffect(() => {
-    if (role === "team") {
-      const allowedIds = navItems.map(n => n.id);
+    if (role === "admin") {
+      const allowedIds = navItems.flatMap(n => n.subItems ? [n.id, ...n.subItems.map((sub: any) => sub.id)] : [n.id]);
       if (!allowedIds.includes(activeTab)) {
         const firstTab = navItems[0]?.id;
         if (firstTab) setActiveTab(firstTab);
@@ -521,15 +585,14 @@ const ModernAdminDashboard = () => {
           </div>
           <div>
             <span className="font-display font-bold text-xl text-slate-800">Vidhyaplus</span>
-            {role === "team" && teamRole && (
-              <div className={`mt-0.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                teamRole === "material_management" ? "bg-indigo-100 text-indigo-700" :
-                teamRole === "school_management"   ? "bg-emerald-100 text-emerald-700" :
-                teamRole === "student_management"  ? "bg-amber-100 text-amber-700" :
-                teamRole === "teacher_management"  ? "bg-purple-100 text-purple-700" :
-                "bg-slate-100 text-slate-600"
-              }`}>
-                {teamRole.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
+            {role === "superadmin" && (
+              <div className="mt-0.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                Superadmin
+              </div>
+            )}
+            {role === "admin" && (
+              <div className="mt-0.5 inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                Administrator
               </div>
             )}
           </div>
@@ -635,8 +698,7 @@ const ModernAdminDashboard = () => {
               )}
               {activeTab !== "overview" && (
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <Input className="pl-10 w-64 bg-white border-slate-200" placeholder="Search everything..." />
+                  {/* Search bar removed per user request */}
                 </div>
               )}
               {activeTab === "schools" && (
@@ -2060,115 +2122,163 @@ const ModernAdminDashboard = () => {
           </TabsContent>
 
           {/* Profile Content */}
-          <TabsContent value="profile" className="space-y-8">
-            <div className="relative">
-              {/* Cover Gradient */}
-              <div className="h-48 w-full bg-gradient-to-r from-primary/80 to-blue-600/80 rounded-3xl overflow-hidden shadow-lg">
-                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
+          <TabsContent value="profile" className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+            <div className="relative group">
+              {/* Cover Gradient - Soft Theme */}
+              <div className="h-48 w-full bg-slate-100/80 rounded-3xl overflow-hidden border border-slate-200 transition-all duration-700 relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-200 to-slate-100 opacity-50"></div>
               </div>
               
               {/* Profile Header */}
-              <div className="px-8 -mt-16 relative flex flex-col md:flex-row items-end gap-6 pb-6 border-b border-slate-100">
-                <div className="p-1.5 bg-white rounded-3xl shadow-2xl">
-                  <div className="w-32 h-32 rounded-2xl bg-slate-100 flex items-center justify-center text-4xl font-bold text-primary border-4 border-white overflow-hidden shadow-inner">
-                    {userName?.charAt(0) || "A"}
+              <div className="px-10 -mt-20 relative flex flex-col md:flex-row items-end gap-8 pb-8 border-b border-slate-100">
+                <div className="p-2 bg-white rounded-3xl shadow-sm border border-slate-100">
+                  <div className="w-32 h-32 rounded-2xl bg-slate-50 flex items-center justify-center text-4xl font-bold text-slate-700 border-2 border-white overflow-hidden shadow-inner uppercase">
+                    {(adminProfile?.full_name || userName)?.charAt(0) || "A"}
                   </div>
                 </div>
-                <div className="flex-1 pb-2">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h2 className="text-3xl font-bold text-slate-800">{userName || "Administrator"}</h2>
-                    <Badge className="bg-primary/10 text-primary border-0 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">
-                      {role === 'admin' ? 'Super Admin' : role === 'team' ? `Team: ${teamRole}` : role}
+                <div className="flex-1 pb-3">
+                  <div className="flex items-center gap-4 mb-2">
+                    <h2 className="text-3xl font-bold text-slate-800">{adminProfile?.full_name || userName || "Administrator"}</h2>
+                    <Badge className="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1 text-xs font-semibold rounded-md uppercase tracking-wider">
+                      {role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Administrator' : role}
                     </Badge>
                   </div>
-                  <p className="text-slate-500 font-medium">System Management & Administration</p>
+                  <p className="text-slate-500 font-medium text-lg">{adminProfile?.designation || "System Management & Administration"}</p>
                 </div>
-                <div className="flex gap-3 pb-2">
-                  <Button variant="outline" className="rounded-xl border-slate-200">Edit Details</Button>
-                  <Button className="rounded-xl shadow-lg shadow-primary/20" onClick={handleLogout}>Logout</Button>
+                <div className="flex gap-4 pb-3">
+                  <Button variant="outline" className="rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition-all" onClick={handleEditProfileClick}>
+                    <Edit className="w-4 h-4 mr-2" /> Edit Details
+                  </Button>
+                  <Button variant="outline" className="rounded-xl border-slate-200 bg-white text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-medium transition-all" onClick={handleLogout}>
+                    <LogOut className="w-4 h-4 mr-2" /> Logout
+                  </Button>
                 </div>
               </div>
 
               {/* Profile Details Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+              <div className="mt-8 px-2">
                 {/* Account Information */}
-                <Card className="border-0 shadow-sm rounded-3xl lg:col-span-2 overflow-hidden">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4">
-                    <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-primary" /> Account Information
+                <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white transition-all duration-300">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4 px-8">
+                    <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                      <UserIcon className="w-5 h-5 text-slate-400" /> Account Information
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Full Name</Label>
-                        <p className="text-lg font-semibold text-slate-800">{userName}</p>
+                    {profileLoading ? (
+                      <div className="flex justify-center p-12"><div className="w-8 h-8 border-4 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div></div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-10">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <UserIcon className="w-3.5 h-3.5" /> Full Name
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.full_name || userName}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Shield className="w-3.5 h-3.5" /> Account ID
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800 font-mono bg-slate-50 inline-block px-2 py-0.5 rounded border border-slate-200">{`${role === 'superadmin' ? 'SA' : 'A'}${String(adminProfile?.id || localStorage.getItem("auth.teamId") || 1).padStart(4, '0')}`}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <UserIcon className="w-3.5 h-3.5" /> Designation
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.designation || "-"}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Mail className="w-3.5 h-3.5" /> Email
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.email || "Not Set"}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Phone className="w-3.5 h-3.5" /> Phone Number
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.phone || "Not Set"}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5" /> Assigned Location
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.location || "Not Set"}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5" /> Mandal
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.mandal || "Not Set"}</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <MapPin className="w-3.5 h-3.5" /> District
+                          </Label>
+                          <p className="text-lg font-medium text-slate-800">{adminProfile?.district || "Not Set"}</p>
+                        </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Account ID</Label>
-                        <p className="text-lg font-semibold text-slate-800 font-mono">#{role === 'admin' ? '001' : (localStorage.getItem("auth.teamId") || 'ADM-882')}</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Primary Email</Label>
-                        <p className="text-lg font-semibold text-slate-800">{role === 'admin' ? 'admin@vidhyaplus.com' : 'team@vidhyaplus.com'}</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Phone Number</Label>
-                        <p className="text-lg font-semibold text-slate-800">+91 98765 43210</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Assigned Location</Label>
-                        <p className="text-lg font-semibold text-slate-800">Headquarters (Remote)</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Language</Label>
-                        <p className="text-lg font-semibold text-slate-800">English (Primary), Telugu</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Permissions & Role Card */}
-                <Card className="border-0 shadow-sm rounded-3xl overflow-hidden h-fit">
-                  <CardHeader className="bg-primary/5 border-b border-primary/10 py-4">
-                    <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-primary" /> Role & Access
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-6">
-                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                      <p className="text-sm font-bold text-primary mb-1 uppercase tracking-wider">Access Level</p>
-                      <p className="text-2xl font-black text-slate-800">{role?.toUpperCase()}</p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Permissions</p>
-                      <div className="space-y-3">
-                        {role === 'admin' ? (
-                          <>
-                            <PermissionBadge label="Full System Access" />
-                            <PermissionBadge label="User Management" />
-                            <PermissionBadge label="Database Write Access" />
-                            <PermissionBadge label="School Configurations" />
-                            <PermissionBadge label="Audit Log Viewer" />
-                          </>
-                        ) : (
-                          <>
-                            <PermissionBadge label="Material Management" />
-                            <PermissionBadge label="Syllabus Control" />
-                            <PermissionBadge label="Profile View" />
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="pt-4 mt-4 border-t border-slate-100">
-                      <p className="text-xs text-slate-400 italic">Account created on May 12, 2024</p>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
             </div>
+
+            {/* Edit Profile Modal */}
+            <Dialog open={editProfileModalOpen} onOpenChange={setEditProfileModalOpen}>
+              <DialogContent className="max-w-md p-0 overflow-hidden bg-white border-0 shadow-xl rounded-3xl">
+                <DialogTitle className="sr-only">Edit Profile</DialogTitle>
+                <div className="bg-slate-50 border-b border-slate-100 p-6 text-center">
+                  <h2 className="text-xl font-bold text-slate-800">Edit Profile</h2>
+                  <p className="text-slate-500 text-sm mt-1">Update your account information</p>
+                </div>
+                <form onSubmit={handleProfileSubmit} className="p-6 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Full Name</Label>
+                    <Input required value={profileForm.full_name} onChange={e => setProfileForm({ ...profileForm, full_name: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Email Address</Label>
+                    <Input type="email" required value={profileForm.email} onChange={e => setProfileForm({ ...profileForm, email: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Phone Number</Label>
+                      <Input value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" placeholder="+91..." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Location</Label>
+                      <Input value={profileForm.location} onChange={e => setProfileForm({ ...profileForm, location: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" placeholder="e.g. Headquarters" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Mandal</Label>
+                      <Input value={profileForm.mandal} onChange={e => setProfileForm({ ...profileForm, mandal: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" placeholder="e.g. Mandal" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>District</Label>
+                      <Input value={profileForm.district} onChange={e => setProfileForm({ ...profileForm, district: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" placeholder="e.g. District" />
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-slate-100 mt-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-500">Change Password (optional)</Label>
+                      <Input type="password" value={profileForm.password} onChange={e => setProfileForm({ ...profileForm, password: e.target.value })} className="rounded-xl border-slate-200 bg-slate-50/50" placeholder="Leave blank to keep current" />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button type="button" variant="outline" className="flex-1 rounded-xl border-slate-200 text-slate-600" onClick={() => setEditProfileModalOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={profileSubmitting} className="flex-1 rounded-xl bg-slate-800 hover:bg-slate-900 text-white shadow-sm">
+                      {profileSubmitting ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
           </TabsContent>
 
           {/* Schools Content */}
@@ -2662,11 +2772,11 @@ const ModernAdminDashboard = () => {
               </div>
               <div>
                 <Label>Principal Email</Label>
-                <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
+                <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" autoComplete="off" />
               </div>
               <div>
                 <Label>Principal Password {editingSchool && "(leave blank to keep current)"}</Label>
-                <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
+                <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" autoComplete="new-password" />
               </div>
             </div>
 

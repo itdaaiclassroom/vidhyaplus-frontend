@@ -42,9 +42,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BulkUpload from "@/components/BulkUpload";
 
 const TeacherRegistration: React.FC = () => {
-  const { schoolId } = useAuth();
+  const { schoolId, role, permissions } = useAuth();
   const { grades: principalGrades, refetchTeachers, schoolId: principalSchoolId } = usePrincipal();
   const effectiveSchoolId = principalSchoolId || schoolId;
+  const isReadOnly = role === "admin" && permissions?.teachers === "read";
   const [current, setCurrent] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [subjects, setSubjects] = useState<Array<{ id: string, name: string }>>([]);
@@ -217,6 +218,7 @@ const TeacherRegistration: React.FC = () => {
                 />
                 <Input
                   type="email"
+                  required
                   placeholder="Email Address"
                   value={form.email}
                   onChange={(e) => handleChange("email", e.target.value)}
@@ -226,6 +228,7 @@ const TeacherRegistration: React.FC = () => {
                 />
                 <Input
                   type="password"
+                  required
                   placeholder="Password (for login)"
                   value={form.password}
                   onChange={(e) => handleChange("password", e.target.value)}
@@ -484,7 +487,15 @@ const TeacherRegistration: React.FC = () => {
               <div className="flex min-h-[600px]">
                 {/* Left sidebar with steps */}
                 <nav className="w-1/4 bg-gray-50 px-6 py-12 space-y-8 border-r">
-                  <h3 className="font-bold text-lg text-foreground mb-8">Teacher Registration</h3>
+                  <h3 className="font-bold text-lg text-foreground mb-4">Teacher Registration</h3>
+                  {isReadOnly && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-lg text-xs font-semibold mb-6 flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Read-only access
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {steps.map((s, i) => (
                       <div
@@ -522,7 +533,11 @@ const TeacherRegistration: React.FC = () => {
                       {current < steps.length - 1 ? (
                         <Button onClick={next}>Next</Button>
                       ) : (
-                        <Button onClick={handleSubmit} disabled={loading}>
+                        <Button 
+                          onClick={handleSubmit} 
+                          disabled={loading || isReadOnly}
+                          title={isReadOnly ? "You have read-only access" : ""}
+                        >
                           {loading ? "Registering..." : "Submit"}
                         </Button>
                       )}
@@ -535,7 +550,22 @@ const TeacherRegistration: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="bulk">
-          <Card className="w-full border-0 shadow-lg p-6">
+          <Card className="w-full border-0 shadow-lg p-6 relative">
+            {isReadOnly && (
+              <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
+                <div className="bg-white px-6 py-4 rounded-2xl shadow-xl border border-amber-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">Read-Only Access</h4>
+                    <p className="text-xs text-slate-500">You do not have permission to bulk upload.</p>
+                  </div>
+                </div>
+              </div>
+            )}
             <BulkUpload />
           </Card>
         </TabsContent>

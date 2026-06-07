@@ -2455,11 +2455,11 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <Label>Principal Email</Label>
-                  <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" />
+                  <Input type="email" value={schoolForm.principalEmail} onChange={(e) => setSchoolForm(f => ({ ...f, principalEmail: e.target.value }))} placeholder="principal@school.edu" autoComplete="off" />
                 </div>
                 <div>
                   <Label>Principal Password</Label>
-                  <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" />
+                  <Input type="password" value={schoolForm.principalPassword} onChange={(e) => setSchoolForm(f => ({ ...f, principalPassword: e.target.value }))} placeholder="••••••••" autoComplete="new-password" />
                 </div>
               </div>
             )}

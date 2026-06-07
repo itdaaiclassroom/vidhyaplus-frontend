@@ -134,7 +134,7 @@ export const StudentForm: React.FC<StudentFormProps> = ({ onClose, schools = [],
           </div>
           <div className="space-y-2">
             <Label>Email (required for login)</Label>
-            <Input type="email" placeholder="Enter email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+            <Input type="email" placeholder="Enter email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="off" />
           </div>
           <div className="space-y-2">
             <Label>Password (required for login)</Label>
