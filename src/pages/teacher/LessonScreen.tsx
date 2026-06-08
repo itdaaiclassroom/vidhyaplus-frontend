@@ -27,7 +27,7 @@ import {
   BookOpen, Play, CheckCircle2, Clock, ArrowLeft, Maximize, Minimize,
   Pause, Send, MessageCircle, Monitor, X, Video, Users, Radio, Sparkles,
   Bot, Lightbulb, FileText, MonitorPlay, Youtube, ExternalLink, RotateCcw, XCircle,
-  QrCode, Book, Info, ScanLine, MousePointerClick
+  QrCode, Book, Info, ScanLine, MousePointerClick, Presentation
 } from "lucide-react";
 
 type LiveSessionLike = {
@@ -203,6 +203,11 @@ const LessonScreen = () => {
     if (!activeSession || !data.students) return [];
     return data.students.filter((s: any) => sameId(s.classId, activeSession.classId));
   }, [data.students, activeSession]);
+
+  const sessionTopic = useMemo(() => {
+    if (!activeSession || !data.topics) return null;
+    return data.topics.find((t: any) => sameId(t.id, activeSession.topicId));
+  }, [activeSession, data.topics]);
 
 
 
@@ -722,75 +727,70 @@ const LessonScreen = () => {
 
             {/* Curriculum Materials Area */}
             <div className="space-y-3">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">Curriculum Materials</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">Materials</p>
 
-              <Card className="border-border shadow-sm hover:shadow-md transition-all cursor-pointer group bg-white" onClick={() => {
-                // Get subject materials filtered by subject ID and current grade (actual uploaded textbook)
-                const subMaterial = sessionSubjectMaterials?.find((m: any) =>
-                  sameId(m.subject_id || m.subjectId, activeSession.subjectId) &&
-                  (!m.grade_id || sameId(m.grade_id, grade))
-                ) || data.subjectMaterials?.find((m: any) =>
-                  sameId(m.subject_id || m.subjectId, activeSession.subjectId) &&
-                  (!m.grade_id || sameId(m.grade_id, grade))
-                );
-
-                console.log("Subject Materials (Session):", sessionSubjectMaterials);
-                console.log("Subject Materials (Global):", data.subjectMaterials);
-                console.log("Active Session:", { subjectId: activeSession.subjectId, subjectName: activeSession.subjectName });
-                console.log("Found material:", subMaterial);
-
-                if (subMaterial) {
-                  const materialUrl = subMaterial.url || subMaterial.file_path;
-                  if (materialUrl) {
-                    setMainScreenContentUrl(getMaterialViewerUrl(materialUrl));
-                    setMainScreenTitle(subMaterial.title);
-                    setMainScreenDirectUrl(materialUrl);
-                    return;
-                  }
-                }
-
-                toast.info("No textbook is uploaded. Please upload the textbook from the Admin Textbook-wise tab.");
-              }}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Book className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs leading-tight">Textbook</h3>
-                    <p className="text-[10px] text-muted-foreground">Open chapter material</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border shadow-sm hover:shadow-md transition-all cursor-pointer group bg-white" onClick={() => {
-                // Priority 1: Chapter-specific PPT from studyMaterials
-                const chapterPpt = data.studyMaterials?.find((m: any) => sameId(m.chapterId, activeSession.chapterId) && isPptxPath(m.url));
-
-                // Priority 2: Global subject PPT from subjectMaterials (filtered by grade)
-                const subjectPpt = sessionSubjectMaterials?.find((m: any) => isPptxPath(m.url || m.file_path) && (!m.grade_id || sameId(m.grade_id, grade))) ||
-                  data.subjectMaterials?.find((m: any) => sameId(m.subject_id || m.subjectId, activeSession.subjectId) && isPptxPath(m.url) && (!m.grade_id || sameId(m.grade_id, grade)));
-
-                const ppt = chapterPpt || subjectPpt;
-
-                if (ppt) {
-                  const pptUrl = ppt.url || ppt.file_path;
-                  setMainScreenContentUrl(getMaterialViewerUrl(pptUrl));
-                  setMainScreenTitle(ppt.title || "Subject Presentation");
-                  setMainScreenDirectUrl(pptUrl);
-                } else {
-                  toast.info("No PPT found for this lesson.");
-                }
-              }}>
-                <CardContent className="p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <FileText className="w-5 h-5 text-amber" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs leading-tight">Presentation</h3>
-                    <p className="text-[10px] text-muted-foreground">Open topic PPT</p>
-                  </div>
-                </CardContent>
-              </Card>
+              {sessionTopic && (
+                <div className="space-y-3">
+                  {(!sessionTopic.materials || sessionTopic.materials.length === 0) ? (
+                    <p className="text-[11px] text-muted-foreground italic px-1 py-1">No materials uploaded yet.</p>
+                  ) : (
+                    sessionTopic.materials.map((m: any, idx: number) => {
+                      const isMandatory = m.is_mandatory;
+                      const Icon = m.type === 'youtube' ? Youtube : m.type === 'activity' ? Lightbulb : m.type === 'ppt' ? Presentation : FileText;
+                      const colorClass = m.type === 'ppt' ? 'bg-indigo-100 text-indigo-600' : m.type === 'pdf' ? 'bg-red-100 text-red-600' : m.type === 'youtube' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600';
+                      return (
+                        <Card
+                          key={`${m.id}-${idx}`}
+                          className={`border-border shadow-sm hover:shadow-md transition-all cursor-pointer group bg-white ${isMandatory ? 'ring-1 ring-amber-500/30' : ''}`}
+                          onClick={() => {
+                            if (m.type === 'youtube') {
+                              const vidId = m.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1];
+                              if (vidId) {
+                                setMainScreenContentUrl(`https://www.youtube.com/embed/${vidId}?autoplay=1`);
+                                setMainScreenTitle(m.title);
+                                setMainScreenDirectUrl(m.url);
+                              } else {
+                                window.open(m.url, '_blank');
+                              }
+                              return;
+                            }
+                            if (m.type === 'activity') {
+                              const path = m.url;
+                              if (path && (path.startsWith('http') || path.includes('.') || path.includes('/'))) {
+                                setMainScreenContentUrl(getMaterialViewerUrl(path));
+                                setMainScreenTitle("Activity — " + m.title);
+                                setMainScreenDirectUrl(path);
+                              } else {
+                                toast.info(`Activity Details: ${m.url || m.title}`);
+                              }
+                              return;
+                            }
+                            const path = m.url;
+                            setMainScreenContentUrl(getMaterialViewerUrl(path));
+                            setMainScreenTitle(m.title);
+                            setMainScreenDirectUrl(path);
+                          }}
+                        >
+                          <CardContent className="p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl ${colorClass} flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                                <Icon className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-xs leading-tight flex items-center gap-1.5">
+                                  {m.title}
+                                  {isMandatory && <Badge className="bg-amber-600 hover:bg-amber-600 text-white text-[8px] px-1 py-0 h-4 uppercase font-extrabold tracking-wider border-none">Mandatory</Badge>}
+                                </h3>
+                                <p className="text-[10px] text-muted-foreground capitalize">{m.type} Material</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

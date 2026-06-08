@@ -42,6 +42,7 @@ export interface AllDataResponse {
     phone_number?: string;
   }>;
   subjects: Array<{ id: string; name: string; icon: string; grades: number[] }>;
+  grades?: Array<{ id: number; grade_label: string }>;
   chapters: Array<{
     id: string;
     subjectId: string;
@@ -1039,10 +1040,10 @@ export async function uploadSubjectMaterial(subjectId: string, payload: { title:
   return res.json();
 }
 
-export async function uploadTopicPpt(topicId: string, payload: { title: string; file: string; filename: string }): Promise<{ ok: boolean; path: string }> {
+export async function uploadTopicPpt(topicId: string, payload: { title?: string; file?: string; filename?: string; path?: string; is_mandatory?: boolean }): Promise<{ ok: boolean; path: string }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/topics/${topicId}/ppt`, {
-    method: "PUT",
+    method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
@@ -2188,3 +2189,245 @@ export async function updatePrincipalProfile(data: any) {
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
+
+export async function fetchTopicMaterials(topicId: string): Promise<any[]> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/materials`, { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createGrade(data: { id: number; grade_label: string }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/grades`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateGrade(id: string | number, data: { grade_label: string }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/grades/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteGrade(id: string | number) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/grades/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createChapter(data: { subject_id: number; grade_id: number; chapter_no: number; chapter_name: string }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/chapters`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateChapter(id: string | number, data: { chapter_no: number; chapter_name: string }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/chapters/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteChapter(id: string | number) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/chapters/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createTopic(data: { chapter_id: number; name: string; order_num: number }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/topics`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateTopic(id: string | number, data: { name: string; order_num: number }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/topics/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteTopic(id: string | number) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/curriculum/topics/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function createSubject(data: { name: string; grades?: number[]; icon?: string }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/subjects`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateSubject(id: string | number, data: { name: string; grades?: number[]; icon?: string }) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const res = await fetch(`${API_BASE}/api/subjects/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteSubject(id: string | number, gradeId?: string | number) {
+  if (!API_BASE) throw new Error("API URL not set.");
+  const url = gradeId ? `${API_BASE}/api/subjects/${id}?grade_id=${gradeId}` : `${API_BASE}/api/subjects/${id}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateTopicPdf(
+  topicId: string,
+  payload: { title?: string; path?: string; file?: string; filename?: string; is_mandatory?: boolean }
+): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/pdf`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteTopicPdf(topicId: string): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/pdf`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateTopicYoutube(
+  topicId: string,
+  payload: { title?: string; url: string; is_mandatory?: boolean }
+): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/youtube`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteTopicYoutube(topicId: string): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/youtube`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function updateTopicActivity(
+  topicId: string,
+  payload: { title?: string; description?: string; is_mandatory?: boolean; file?: string; filename?: string; path?: string }
+): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/activity`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteTopicActivity(topicId: string): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/activity`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function toggleTopicMaterialMandatory(
+  topicId: string,
+  type: string,
+  materialId: string,
+  is_mandatory: boolean
+): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/materials/${type}/${materialId}/mandatory`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ is_mandatory }),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function deleteTopicMaterial(
+  topicId: string,
+  type: string,
+  materialId: string
+): Promise<{ ok: boolean }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/topics/${topicId}/materials/${type}/${materialId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+
+
+
