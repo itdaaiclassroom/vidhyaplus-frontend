@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Phone, Settings, Shield } from 'lucide-react';
 import { fetchPrincipalProfile, updatePrincipalProfile } from '@/api/client';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function PrincipalProfile() {
   const [profile, setProfile] = useState<any>(null);
