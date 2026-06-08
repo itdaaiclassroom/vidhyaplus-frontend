@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -7,7 +7,7 @@ import SessionAnalytics from "@/components/SessionAnalytics";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
   MessageSquare, Calendar as CalendarIcon, LogOut, 
-  Settings, Search, Eye, Plus, Shield, Clock,
+  Settings, Search, Eye, Plus, Shield, Clock, HelpCircle,
   BookOpen, ClipboardList, Radio, MonitorPlay, ChevronRight,
   Trash2, Edit, ShieldCheck, AlertTriangle, Download, X,
   User as UserIcon, Mail, Phone, MapPin, Globe, Key
@@ -43,6 +43,7 @@ import IdCardGenerator from "./IdCardGenerator";
 import { AdminManageTeachers } from "./AdminManageTeachers";
 import AdminProfile from "./AdminProfile";
 import { ChevronDown } from "lucide-react";
+import QuestionBankPanel from "./QuestionBankPanel";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -85,7 +86,14 @@ const ModernAdminDashboard = () => {
   const { data, loading, refetch } = useAppData();
   const { userName, logout, role, permissions } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+
+  // Read initial tab from URL hash (e.g. /admin#materials → "materials")
+  const getTabFromHash = useCallback(() => {
+    const hash = window.location.hash.replace('#', '');
+    return hash || 'overview';
+  }, []);
+
+  const [activeTab, setActiveTab] = useState(getTabFromHash);
   const [expandedNavs, setExpandedNavs] = useState<string[]>([]);
   const [studentStartDate, setStudentStartDate] = useState<string>("");
   const [studentEndDate, setStudentEndDate] = useState<string>("");
@@ -526,6 +534,7 @@ const ModernAdminDashboard = () => {
       ]
     },
     { id: "materials", label: "Materials", icon: BookOpen },
+    { id: "question_bank", label: "Question Bank", icon: HelpCircle },
     { id: "gating", label: "Gating Controls", icon: ShieldCheck },
     { id: "reports", label: "Reports", icon: ClipboardList },
     { id: "announcements", label: "Announcements", icon: MessageSquare },
@@ -541,8 +550,7 @@ const ModernAdminDashboard = () => {
     if (role === "superadmin") return true; // Super admin sees everything
     if (role === "admin") {
       if (item.id === "profile") return true; // Profile always visible
-      // Overview might be visible to all admins, or we can restrict it. Let's make overview visible to all.
-      if (item.id === "overview") return true;
+      // Overview visibility is now controlled by permissions (if specified). By default, it falls through to true if unset.
       
       if (item.id === "usermanagement") return false; // Only superadmin can manage admins
       if (item.id === "logs") return false; // Only superadmin sees audit logs
@@ -571,6 +579,24 @@ const ModernAdminDashboard = () => {
       }
     }
   }, [role, navItems, activeTab]);
+
+  // Sync activeTab → URL hash so refresh preserves the current section
+  useEffect(() => {
+    const currentHash = window.location.hash.replace('#', '');
+    if (activeTab !== currentHash) {
+      window.history.replaceState(null, '', `#${activeTab}`);
+    }
+  }, [activeTab]);
+
+  // Listen for browser back/forward to update the active tab from hash
+  useEffect(() => {
+    const onHashChange = () => {
+      const tab = window.location.hash.replace('#', '') || 'overview';
+      setActiveTab(tab);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const resolveImageUrl = (path?: string | null) => {
     if (!path) return "";
@@ -1651,6 +1677,11 @@ const ModernAdminDashboard = () => {
           {/* Materials Content */}
           <TabsContent value="materials" className="space-y-6">
             <MaterialManagement />
+          </TabsContent>
+
+          {/* Question Bank Content */}
+          <TabsContent value="question_bank" className="space-y-6">
+            <QuestionBankPanel subjects={subjects} />
           </TabsContent>
 
           {/* User Management Content */}

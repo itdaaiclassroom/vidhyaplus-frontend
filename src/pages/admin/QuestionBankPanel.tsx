@@ -356,7 +356,7 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
             <Label className="text-xs font-bold text-slate-500 uppercase">Subject</Label>
             <select className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm" value={qbPendingSubject} onChange={e => setQbPendingSubject(e.target.value ? Number(e.target.value) : "")}>
               <option value="">All Subjects</option>
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {(subjects || []).map(s => <option key={s.id} value={s.id}>{s.name || s.subject_name}</option>)}
             </select>
           </div>
           <div className="space-y-1 w-32">
@@ -510,8 +510,8 @@ export default function QuestionBankPanel({ subjects }: QuestionBankPanelProps) 
               <div className="space-y-1">
                 <Label>Subject <span className="text-red-500">*</span></Label>
                 <select className="w-full h-10 px-3 border rounded-xl" value={modalSubjectId} onChange={e => setModalSubjectId(e.target.value ? Number(e.target.value) : "")} required disabled={!!editingQuestion}>
-                  <option value="">Select...</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <option value="">Select a Subject</option>
+                  {(subjects || []).map(s => <option key={s.id} value={s.id}>{s.name || s.subject_name}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

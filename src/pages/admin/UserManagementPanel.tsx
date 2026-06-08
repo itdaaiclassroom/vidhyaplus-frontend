@@ -18,11 +18,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const ITEMS_PER_PAGE = 5;
 
 const FEATURES = [
+  { key: "overview", label: "Overview" },
   { key: "schools", label: "Schools Management" },
   { key: "students", label: "Students Management" },
   { key: "teachers", label: "Teachers Management" },
   { key: "materials", label: "Materials Management" },
   { key: "reports", label: "Reports" },
+  { key: "question_bank", label: "Question Bank" },
 ];
 
 const PERMISSION_LEVELS = [
@@ -97,6 +99,9 @@ const UserManagementPanel = () => {
     } else {
       setEditingAdmin(null);
       setIsEditingMode(true);
+      let newRole = "admin";
+      if (activeTab === "superadmins") newRole = "superadmin";
+      
       setForm({ 
         name: "", 
         email: "", 
@@ -105,7 +110,7 @@ const UserManagementPanel = () => {
         mandal: "",
         district: "",
         password: "", 
-        role: activeTab === "superadmins" ? "superadmin" : "admin",
+        role: newRole,
         designation: "",
         permissions: FEATURES.reduce((acc, feat) => ({ ...acc, [feat.key]: 'none' }), {})
       });
@@ -155,7 +160,7 @@ const UserManagementPanel = () => {
           ...(form.password ? { password: form.password } : {}),
           role: form.role,
           designation: form.designation,
-          permissions: form.role === 'superadmin' ? {} : form.permissions
+          permissions: form.role === 'admin' ? form.permissions : {}
         });
         toast.success("Admin updated successfully");
       } else {
@@ -169,10 +174,12 @@ const UserManagementPanel = () => {
           password: form.password,
           role: form.role,
           designation: form.designation,
-          permissions: form.role === 'superadmin' ? {} : form.permissions
+          permissions: form.role === 'admin' ? form.permissions : {}
         });
         toast.success("Admin created successfully");
-        setActiveTab(form.role === 'superadmin' ? 'superadmins' : 'admins');
+        let nextTab = "admins";
+        if (form.role === "superadmin") nextTab = "superadmins";
+        setActiveTab(nextTab);
       }
       setDialogOpen(false);
       loadAdmins();
@@ -195,12 +202,17 @@ const UserManagementPanel = () => {
     }
   };
 
-  const formatId = (id: number, role: string) => `${role === 'superadmin' ? 'SA' : 'A'}${String(id).padStart(4, '0')}`;
+  const formatId = (id: number, role: string) => {
+    if (role === 'superadmin') return `SA${String(id).padStart(4, '0')}`;
+    if (role === 'question_bank_admin') return `QB${String(id).padStart(4, '0')}`;
+    return `A${String(id).padStart(4, '0')}`;
+  };
 
   const superadmins = admins.filter(a => a.role === 'superadmin');
   const regularAdmins = admins.filter(a => a.role === 'admin');
   
-  const currentAdmins = activeTab === "superadmins" ? superadmins : regularAdmins;
+  let currentAdmins = regularAdmins;
+  if (activeTab === "superadmins") currentAdmins = superadmins;
 
   const filteredAdmins = currentAdmins.filter(admin => {
     if (!searchTerm) return true;
@@ -336,8 +348,8 @@ const UserManagementPanel = () => {
           <div className="bg-slate-50 border-b border-slate-100 px-8 py-5 flex items-center justify-between sticky top-0 z-10">
             <DialogTitle className="text-xl font-bold text-slate-800 flex items-center gap-2">
               {editingAdmin 
-                ? (isEditingMode ? `Edit ${form.role === 'superadmin' ? "Superadmin" : "Administrator"}` : `${form.role === 'superadmin' ? "Superadmin" : "Administrator"} Profile`)
-                : `Add New ${form.role === 'superadmin' ? "Superadmin" : "Administrator"}`
+                ? (isEditingMode ? `Edit Profile` : `Admin Profile`)
+                : `Add New Administrator`
               }
             </DialogTitle>
             {editingAdmin && (
@@ -460,7 +472,7 @@ const UserManagementPanel = () => {
                       <div className={`flex items-center gap-1 ${isEditingMode ? 'bg-slate-50 p-1 rounded-lg border border-slate-200' : ''}`}>
                         {isEditingMode ? (
                           PERMISSION_LEVELS.map(level => {
-                            const isActive = form.permissions[feat.key] === level.value || (level.value === 'none' && !form.permissions[feat.key]);
+                            const isActive = form.permissions[feat.key] === level.value || (level.value === 'write' && !form.permissions[feat.key]);
                             return (
                               <button
                                 key={level.value}
@@ -478,7 +490,7 @@ const UserManagementPanel = () => {
                           })
                         ) : (
                           <Badge variant="outline" className="bg-slate-50 text-slate-600 capitalize">
-                            {form.permissions[feat.key] || 'None'}
+                            {form.permissions[feat.key] || 'read & write'}
                           </Badge>
                         )}
                       </div>

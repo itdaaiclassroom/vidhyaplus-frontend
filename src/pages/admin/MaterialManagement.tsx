@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2, Settings2, ShieldCheck, BookOpen, Save, Table2, ChevronDown, ChevronRight, ChevronLeft, Search, ExternalLink, X, Download, GraduationCap } from 'lucide-react';
-import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, getPresignedUploadUrl, uploadToR2Direct, extractTextbookCurriculum, getApiBase, bulkUploadCurriculum, fetchCurriculumStructure, deleteCurriculumEntry, type ChapterAssessmentConfigItem, type CurriculumChapter } from '@/api/client';
+import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, updateTopicPdf, deleteTopicPdf, updateTopicYoutube, deleteTopicYoutube, updateTopicActivity, deleteTopicActivity, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, getPresignedUploadUrl, uploadToR2Direct, extractTextbookCurriculum, getApiBase, bulkUploadCurriculum, fetchCurriculumStructure, deleteCurriculumEntry, toggleTopicMaterialMandatory, fetchTopicMaterials, type ChapterAssessmentConfigItem, type CurriculumChapter } from '@/api/client';
 import { toast } from 'sonner';
-import QuestionBankPanel from './QuestionBankPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from "@/contexts/AuthContext";
+import { CurriculumBuilderModal } from './CurriculumBuilderModal';
+
+const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
+
+export type PendingMaterial = 
+  | { id: string; type: 'file'; file: File; materialType: 'pdf' | 'ppt' | 'textbook'; title: string; isMandatory: boolean }
+  | { id: string; type: 'youtube'; url: string; title: string; isMandatory: boolean }
+  | { id: string; type: 'activity'; description?: string; title: string; file?: File | null; isMandatory: boolean };
 
 export default function MaterialManagement() {
   const { role, permissions } = useAuth();
@@ -26,18 +33,38 @@ export default function MaterialManagement() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [chapters, setChapters] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
 
-  const [selectedGrade, setSelectedGrade] = useState('10');
+  const gradesList = grades.length > 0 ? grades : [
+    { id: 1, grade_label: 'Class 1' },
+    { id: 2, grade_label: 'Class 2' },
+    { id: 3, grade_label: 'Class 3' },
+    { id: 4, grade_label: 'Class 4' },
+    { id: 5, grade_label: 'Class 5' },
+    { id: 6, grade_label: 'Class 6' },
+    { id: 7, grade_label: 'Class 7' },
+    { id: 8, grade_label: 'Class 8' },
+    { id: 9, grade_label: 'Class 9' },
+    { id: 10, grade_label: 'Class 10' }
+  ];
+
+  const [selectedGrade, setSelectedGrade] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [activityFile, setActivityFile] = useState<File | null>(null);
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
-  const [uploadScope, setUploadScope] = useState<'subject' | 'topic'>('subject');
+
+  // Ref to prevent cascading useEffects from overwriting user selections on data reload
+  const isInitialLoad = useRef(true);
+  const currentUploadScope = selectedTopic ? 'topic' : 'subject';
 
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [file, setFile] = useState<File | null>(null);
+  const [pendingMaterials, setPendingMaterials] = useState<PendingMaterial[]>([]);
   const [title, setTitle] = useState('');
+  
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -45,9 +72,10 @@ export default function MaterialManagement() {
   // AI Extraction state
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractResult, setExtractResult] = useState<{ chapters: number; topics: number; bookTitle: string } | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
 
   // Curriculum Structure state
-  const [curriculumTab, setCurriculumTab] = useState<'textbook' | 'topic' | 'curriculum'>('textbook');
+  const [curriculumTab, setCurriculumTab] = useState<'materials' | 'curriculum'>('materials');
   const [curriculumFile, setCurriculumFile] = useState<File | null>(null);
   const [curriculumUploading, setCurriculumUploading] = useState(false);
   const [curriculumResult, setCurriculumResult] = useState<{ uploaded: number; skipped: number; failed: number; errors: any[] } | null>(null);
@@ -60,6 +88,10 @@ export default function MaterialManagement() {
   const [curriculumSearchText, setCurriculumSearchText] = useState('');
   const [curriculumPage, setCurriculumPage] = useState(1);
   const [isCurriculumUploadOpen, setIsCurriculumUploadOpen] = useState(false);
+
+  // Curriculum Builder Modal state
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderType, setBuilderType] = useState<'grade' | 'subject' | 'chapter' | 'topic'>('grade');
 
   // PDF Viewer state
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
@@ -167,6 +199,7 @@ export default function MaterialManagement() {
       if (result.uploaded > 0) {
         toast.success(`✅ ${result.uploaded} topics uploaded successfully!`);
         await loadCurriculumData(curriculumFilterSubject, curriculumFilterGrade);
+        await loadData();
       } else {
         toast.info(`No new topics uploaded. ${result.skipped} skipped, ${result.failed} failed.`);
       }
@@ -206,13 +239,8 @@ export default function MaterialManagement() {
       setSubjects(data.subjects || []);
       setChapters(data.chapters || []);
       setTopics(data.topics || []);
-
-      // Find first subject for Grade 10 by default
-      const grade10Subs = (data.subjects || []).filter((s: any) => (s.grades || []).includes(10));
-      if (grade10Subs.length > 0 && !selectedSubject) {
-        setSelectedGrade('10');
-        setSelectedSubject(grade10Subs[0].id);
-      }
+      setGrades(data.grades || []);
+      // No auto-selection — let user pick subject manually
     } catch (err) {
       console.error("Error loading data:", err);
     }
@@ -235,32 +263,34 @@ export default function MaterialManagement() {
     setCurriculumFilterChapter('');
   }, [curriculumFilterSubject, curriculumFilterGrade, curriculumSearchText]);
 
-  // When grade changes, update available subjects
+  // When grade changes, clear subject only if current selection is no longer valid
   useEffect(() => {
-    const gradeSubs = subjects.filter(s => (s.grades || []).includes(parseInt(selectedGrade)));
-    if (gradeSubs.length > 0) {
-      if (!gradeSubs.find(s => String(s.id) === String(selectedSubject))) {
-        setSelectedSubject(gradeSubs[0].id);
-      }
-    } else {
-      setSelectedSubject('');
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      return;
     }
+    const gradeSubs = subjects.filter(s => (s.grades || []).includes(parseInt(selectedGrade)));
+    if (selectedSubject && gradeSubs.find(s => String(s.id) === String(selectedSubject))) {
+      // Current selection is still valid for this grade — keep it
+      return;
+    }
+    // Current selection is invalid — clear it (don't auto-pick)
+    setSelectedSubject('');
   }, [selectedGrade, subjects]);
 
   useEffect(() => {
     if (!selectedSubject) return;
     loadMaterials(selectedSubject, selectedGrade);
 
-    // Filter chapters for this subject AND grade
+    // Only auto-pick chapter if user hasn't already selected one that's valid
     const subChapters = chapters.filter(c =>
       String(c.subjectId) === String(selectedSubject) &&
       String(c.grade) === String(selectedGrade)
     );
-    if (subChapters.length > 0) {
-      setSelectedChapter(subChapters[0].id);
-    } else {
-      setSelectedChapter('');
+    if (selectedChapter && subChapters.find(c => String(c.id) === String(selectedChapter))) {
+      return; // current chapter selection is still valid
     }
+    setSelectedChapter('');
   }, [selectedSubject, selectedGrade, chapters]);
 
   useEffect(() => {
@@ -268,14 +298,19 @@ export default function MaterialManagement() {
       setSelectedTopic('');
       return;
     }
-    // Filter topics for this chapter
+    // Only clear topic if current selection is no longer valid
     const chapTopics = topics.filter(t => String(t.chapterId) === String(selectedChapter));
-    if (chapTopics.length > 0) {
-      setSelectedTopic(chapTopics[0].id);
-    } else {
-      setSelectedTopic('');
+    if (selectedTopic && chapTopics.find(t => String(t.id) === String(selectedTopic))) {
+      return; // current topic selection is still valid
     }
+    setSelectedTopic('');
   }, [selectedChapter, topics]);
+
+  useEffect(() => {
+    if (selectedTopic) {
+      refreshTopicMaterials(selectedTopic);
+    }
+  }, [selectedTopic]);
 
   const loadMaterials = async (subId: string, grade: string) => {
     setLoading(true);
@@ -289,25 +324,115 @@ export default function MaterialManagement() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+  const refreshTopicMaterials = async (topicId: string) => {
+    try {
+      const topicMats = await fetchTopicMaterials(topicId);
+      setTopics(prev => prev.map(t => String(t.id) === String(topicId) ? { ...t, materials: topicMats } : t));
+    } catch (err) {
+      console.error("Error refreshing topic materials:", err);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const allFiles = Array.from(e.target.files);
+      const rejected = allFiles.filter(f => f.size > MAX_FILE_SIZE);
+      const accepted = allFiles.filter(f => f.size <= MAX_FILE_SIZE);
+
+      if (rejected.length > 0) {
+        const names = rejected.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ');
+        toast.error(`File(s) exceed 1 MB limit and were not added: ${names}`);
+      }
+
+      if (accepted.length > 0) {
+        const newFiles = accepted.map(f => {
+          const isPpt = f.name.toLowerCase().endsWith('.ppt') || f.name.toLowerCase().endsWith('.pptx');
+          return {
+            id: Math.random().toString(36).substring(7),
+            type: 'file' as const,
+            file: f,
+            materialType: (isPpt ? 'ppt' : 'pdf') as 'ppt' | 'pdf',
+            title: f.name.split('.')[0],
+            isMandatory: false
+          };
+        });
+        setPendingMaterials(prev => [...prev, ...newFiles]);
+      }
+    }
+  };
+
+  const handleTextbookFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const allFiles = Array.from(e.target.files);
+      const rejected = allFiles.filter(f => f.size > MAX_FILE_SIZE);
+      const accepted = allFiles.filter(f => f.size <= MAX_FILE_SIZE);
+
+      if (rejected.length > 0) {
+        const names = rejected.map(f => `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`).join(', ');
+        toast.error(`File(s) exceed 1 MB limit and were not added: ${names}`);
+      }
+
+      if (accepted.length > 0) {
+        const newFiles = accepted.map(f => {
+          return {
+            id: Math.random().toString(36).substring(7),
+            type: 'file' as const,
+            file: f,
+            materialType: 'textbook' as const,
+            title: f.name.split('.')[0],
+            isMandatory: false
+          };
+        });
+        setPendingMaterials(prev => [...prev, ...newFiles]);
+      }
+    }
+  };
+
+  const addYoutubeLink = () => {
+    if (!youtubeUrl) return;
+    setPendingMaterials(prev => [
+      ...prev,
+      { id: Math.random().toString(36).substring(7), type: 'youtube', url: youtubeUrl, title: title || 'YouTube Video', isMandatory: false }
+    ]);
+    setYoutubeUrl('');
+    setTitle('');
+  };
+
+  const addActivity = () => {
+    if (!activityFile) return;
+    setPendingMaterials(prev => [
+      ...prev,
+      { id: Math.random().toString(36).substring(7), type: 'activity', title: activityFile.name.split('.')[0] || 'Class Activity', file: activityFile, isMandatory: false }
+    ]);
+    setActivityFile(null);
+  };
+
+  const updatePendingTitle = (id: string, newTitle: string) => {
+    setPendingMaterials(prev => prev.map(item => item.id === id ? { ...item, title: newTitle } : item));
+  };
+
+  const removePendingMaterial = (id: string) => {
+    setPendingMaterials(prev => prev.filter(item => item.id !== id));
+  };
+
+  const togglePendingMaterialMandatory = (id: string) => {
+    setPendingMaterials(prev => prev.map(item => item.id === id ? { ...item, isMandatory: !item.isMandatory } : item));
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !title) {
-      setErrorMsg("Please provide a title and select a file.");
-      return;
-    }
-    if (uploadScope === 'subject' && !selectedSubject) {
-      setErrorMsg("Please select a subject.");
-      return;
-    }
-    if (uploadScope === 'topic' && !selectedTopic) {
-      setErrorMsg("Please select a topic.");
-      return;
+    
+    const isTopicUpload = !!selectedTopic;
+
+    if (!isTopicUpload) {
+      if (!selectedSubject) { setErrorMsg("Please select a subject."); return; }
+      if (pendingMaterials.length === 0) { setErrorMsg("Please select at least one file."); return; }
+    } else {
+      if (!selectedTopic) { setErrorMsg("Please select a topic."); return; }
+      if (pendingMaterials.length === 0) {
+        setErrorMsg("Please add at least one material to the pending queue.");
+        return;
+      }
     }
 
     setUploading(true);
@@ -315,38 +440,122 @@ export default function MaterialManagement() {
     setSuccessMsg('');
 
     try {
-      const buffer = await file.arrayBuffer();
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64String = btoa(binary);
-      const dataUrl = `data:${file.type || 'application/octet-stream'};base64,${base64String}`;
+      if (!isTopicUpload) {
+        for (const item of pendingMaterials) {
+          if (item.type !== 'file') continue;
+          const { file, title } = item;
+          const buffer = await file.arrayBuffer();
+          let binary = '';
+          const bytes = new Uint8Array(buffer);
+          for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+          const base64String = btoa(binary);
+          const dataUrl = `data:${file.type || 'application/octet-stream'};base64,${base64String}`;
 
-      if (uploadScope === 'subject') {
-        await uploadSubjectMaterial(selectedSubject, {
-          title,
-          file: dataUrl,
-          contentType: file.type || 'application/pdf',
-          grade_id: selectedGrade
-        } as any);
-        setSuccessMsg("Textbook uploaded successfully!");
+          await uploadSubjectMaterial(selectedSubject, {
+            title: title || file.name,
+            file: dataUrl,
+            contentType: file.type || 'application/pdf',
+            grade_id: selectedGrade
+          } as any);
+        }
+        setSuccessMsg("Textbook(s) uploaded successfully!");
       } else {
-        await uploadTopicPpt(selectedTopic, {
-          title,
-          file: base64String,
-          filename: file.name
-        });
-        setSuccessMsg("Topic presentation uploaded successfully!");
-        loadData();
+        // Topic materials
+        for (const item of pendingMaterials) {
+          if (item.type === 'file') {
+            const { file, isMandatory, materialType, title } = item;
+            if (materialType === 'textbook') {
+              const buffer = await file.arrayBuffer();
+              let binary = '';
+              const bytes = new Uint8Array(buffer);
+              for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+              const base64String = btoa(binary);
+              const dataUrl = `data:${file.type || 'application/octet-stream'};base64,${base64String}`;
+
+              await uploadSubjectMaterial(selectedSubject, {
+                title: title || file.name,
+                file: dataUrl,
+                contentType: file.type || 'application/pdf',
+                grade_id: selectedGrade
+              } as any);
+              continue;
+            }
+            let publicUrl = '';
+            const safeFilename = file.name.replace(/[^a-z0-9._-]/gi, '_');
+            const r2Key = materialType === 'ppt' 
+              ? `ppt/${selectedTopic}_${Date.now()}_${safeFilename}`
+              : `materials/${selectedTopic}_${Date.now()}_${safeFilename}`;
+            
+            try {
+              const presignResult = await getPresignedUploadUrl(r2Key, file.type || 'application/octet-stream');
+              await uploadToR2Direct(presignResult.uploadUrl, file);
+              publicUrl = presignResult.publicUrl;
+            } catch (r2Err) {
+              console.warn('R2 upload failed, falling back to Base64:', r2Err);
+              const buffer = await file.arrayBuffer();
+              let binary = '';
+              const bytes = new Uint8Array(buffer);
+              for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+              const base64String = btoa(binary);
+              
+              if (materialType === 'ppt') {
+                await uploadTopicPpt(selectedTopic, { title: title || file.name, file: base64String, filename: file.name, is_mandatory: isMandatory });
+              } else {
+                await updateTopicPdf(selectedTopic, { title: title || file.name, file: base64String, filename: file.name, is_mandatory: isMandatory });
+              }
+              continue; // proceed to next file
+            }
+
+            if (materialType === 'ppt') {
+              await uploadTopicPpt(selectedTopic, { title: title || file.name, path: publicUrl, is_mandatory: isMandatory });
+            } else {
+              await updateTopicPdf(selectedTopic, { title: title || file.name, path: publicUrl, is_mandatory: isMandatory });
+            }
+          } else if (item.type === 'youtube') {
+            await updateTopicYoutube(selectedTopic, { title: item.title, url: item.url, is_mandatory: item.isMandatory });
+          } else if (item.type === 'activity') {
+            // Activity upload logic
+            const payload: any = { title: item.title, description: item.description, is_mandatory: item.isMandatory };
+            
+            if (item.file) {
+              let publicUrl = '';
+              const safeFilename = item.file.name.replace(/[^a-z0-9._-]/gi, '_');
+              const r2Key = `materials/activity_${selectedTopic}_${Date.now()}_${safeFilename}`;
+              
+              try {
+                const presignResult = await getPresignedUploadUrl(r2Key, item.file.type || 'application/octet-stream');
+                await uploadToR2Direct(presignResult.uploadUrl, item.file);
+                publicUrl = presignResult.publicUrl;
+                payload.path = publicUrl;
+              } catch (r2Err) {
+                console.warn('Activity R2 upload failed, falling back to Base64:', r2Err);
+                const buffer = await item.file.arrayBuffer();
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                for (let i = 0; i < bytes.byteLength; i++) { binary += String.fromCharCode(bytes[i]); }
+                payload.file = btoa(binary);
+                payload.filename = item.file.name;
+              }
+            }
+            
+            await updateTopicActivity(selectedTopic, payload);
+          }
+        }
+
+        setSuccessMsg(`Topic material(s) uploaded successfully!`);
       }
 
       toast.success("Upload successful!");
-      setFile(null);
+      setPendingMaterials([]);
       setTitle('');
-      if (uploadScope === 'subject') loadMaterials(selectedSubject, selectedGrade);
+      setYoutubeUrl('');
+      // Reload both subject textbooks and topic materials to ensure right-hand panel is fully in sync
+      if (selectedSubject) {
+        await loadMaterials(selectedSubject, selectedGrade);
+      }
+      if (selectedTopic) {
+        await refreshTopicMaterials(selectedTopic);
+      }
     } catch (err: any) {
       console.error("Upload error:", err);
       setErrorMsg(err.message || "Failed to upload.");
@@ -361,10 +570,11 @@ export default function MaterialManagement() {
    * then triggers the Express AI pipeline to auto-generate chapters & topics.
    */
   const handleAiExtract = async () => {
-    if (!file) {
+    if (!files || files.length === 0) {
       setErrorMsg("Please select a PDF file first.");
       return;
     }
+    const file = files[0];
     if (!selectedSubject) {
       setErrorMsg("Please select a subject.");
       return;
@@ -430,7 +640,7 @@ export default function MaterialManagement() {
       // Step 4: Refresh global data — Teacher Dashboard will instantly update
       await loadData();
       loadMaterials(selectedSubject, selectedGrade);
-      setFile(null);
+      setFiles([]);
       setTitle('');
     } catch (err: any) {
       console.error('[AI Extract] Error:', err);
@@ -452,14 +662,35 @@ export default function MaterialManagement() {
     }
   };
 
-  const handleDeleteTopicPpt = async (topicId: string) => {
-    if (!window.confirm("Are you sure you want to delete this topic presentation?")) return;
+  const handleDeleteTopicMaterial = async (topicId: string, type: string, materialId?: string) => {
+    if (!window.confirm(`Are you sure you want to delete this ${type} material?`)) return;
     try {
-      await deleteTopicPpt(topicId);
-      toast.success("Presentation deleted successfully");
-      loadData(); // Refresh to see changes
+      if (materialId) {
+        const { deleteTopicMaterial } = await import('@/api/client');
+        await deleteTopicMaterial(topicId, type, materialId);
+      } else {
+        // Fallback for old bulk delete functions
+        if (type === 'ppt') await deleteTopicPpt(topicId);
+        else if (type === 'pdf') await deleteTopicPdf(topicId);
+        else if (type === 'youtube') await deleteTopicYoutube(topicId);
+        else if (type === 'activity') await deleteTopicActivity(topicId);
+      }
+      
+      toast.success("Material deleted successfully");
+      await refreshTopicMaterials(topicId);
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete");
+      toast.error(err.message || "Failed to delete material");
+    }
+  };
+
+  const handleToggleMandatory = async (topicId: string, type: string, materialId: string, currentStatus: boolean) => {
+    if (isReadOnly) return;
+    try {
+      await toggleTopicMaterialMandatory(topicId, type, materialId, !currentStatus);
+      toast.success("Mandatory status updated");
+      await refreshTopicMaterials(topicId);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update mandatory status");
     }
   };
 
@@ -469,6 +700,12 @@ export default function MaterialManagement() {
   );
   const filteredTopics = topics.filter(t => String(t.chapterId) === String(selectedChapter));
   const activeTopic = topics.find(t => String(t.id) === String(selectedTopic));
+
+  const showTextbookUpload = !!selectedSubject && materials.length === 0 && (
+    !!selectedTopic || 
+    filteredChapters.length === 0 || 
+    (!!selectedChapter && filteredTopics.length === 0)
+  );
 
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -541,20 +778,13 @@ export default function MaterialManagement() {
         )}
       </div>
 
-      <div className="flex gap-1 p-1 bg-slate-200 rounded-lg mb-6 max-w-md">
+      <div className="flex gap-1 p-1 bg-slate-200 rounded-lg mb-6 max-w-sm">
         <button
           type="button"
-          onClick={() => { setUploadScope('subject'); setCurriculumTab('textbook'); }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-medium transition-all ${curriculumTab === 'textbook' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+          onClick={() => setCurriculumTab('materials')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-medium transition-all ${curriculumTab === 'materials' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
         >
-          <Layers className="w-4 h-4" /> Textbook-wise
-        </button>
-        <button
-          type="button"
-          onClick={() => { setUploadScope('topic'); setCurriculumTab('topic'); }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-xs font-medium transition-all ${curriculumTab === 'topic' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
-        >
-          <List className="w-4 h-4" /> Topic PPT-wise
+          <Layers className="w-4 h-4" /> Upload Materials
         </button>
         <button
           type="button"
@@ -572,98 +802,244 @@ export default function MaterialManagement() {
             <form onSubmit={handleUpload} className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200">
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Select Class</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-700">Select Class</label>
+                  {!isReadOnly && (
+                    <button type="button" onClick={() => { setBuilderType('grade'); setBuilderOpen(true); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Manage Classes</button>
+                  )}
+                </div>
                 <select
                   value={selectedGrade}
                   onChange={(e) => setSelectedGrade(e.target.value)}
                   className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all mb-4"
                   required
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => (
-                    <option key={g} value={g}>Class {g}</option>
+                  <option value="">-- Select Class --</option>
+                  {gradesList.map(g => (
+                    <option key={g.id} value={g.id}>{g.grade_label || `Class ${g.id}`}</option>
                   ))}
                 </select>
 
-                <label className="block text-sm font-medium text-slate-700 mb-1">Select Subject</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-700">Select Subject</label>
+                  {!isReadOnly && selectedGrade && (
+                    <button type="button" onClick={() => { setBuilderType('subject'); setBuilderOpen(true); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Manage Subjects</button>
+                  )}
+                </div>
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
                   className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   required
                 >
+                  <option value="">-- Select Subject --</option>
                   {subjects.filter(s => (s.grades || []).includes(parseInt(selectedGrade))).map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
+
+                <label className="block text-sm font-medium text-slate-700 mb-1 mt-4">Select Chapter <span className="text-xs text-slate-500 font-normal">(Optional for Textbook)</span></label>
+                <select
+                  value={selectedChapter}
+                  onChange={(e) => setSelectedChapter(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  disabled={!selectedSubject}
+                >
+                  <option value="">-- Select Chapter --</option>
+                  {filteredChapters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+
+                <label className="block text-sm font-medium text-slate-700 mb-1 mt-4">Select Topic <span className="text-xs text-slate-500 font-normal">(Optional for Textbook)</span></label>
+                <select
+                  value={selectedTopic}
+                  onChange={(e) => setSelectedTopic(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  disabled={!selectedChapter}
+                >
+                  <option value="">-- Select Topic --</option>
+                  {filteredTopics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
               </div>
 
-              {uploadScope === 'topic' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Select Chapter</label>
-                    <select
-                      value={selectedChapter}
-                      onChange={(e) => setSelectedChapter(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      required
-                    >
-                      <option value="">-- Choose Chapter --</option>
-                      {filteredChapters.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+              {!!selectedTopic && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm mt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-bold text-slate-800">Unified Upload Queue</h4>
+                    <span className="text-xs text-slate-500">Drop files or use quick-add below</span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Select Topic</label>
-                    <select
-                      value={selectedTopic}
-                      onChange={(e) => setSelectedTopic(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      required
-                    >
-                      <option value="">-- Choose Topic --</option>
-                      {filteredTopics.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
+                  
+                  {/* Universal Drag & Drop Zone */}
+                  <div className="relative border-2 border-dashed border-indigo-200 bg-indigo-50/10 rounded-2xl p-8 hover:bg-indigo-50/30 hover:border-indigo-500 transition-all text-center cursor-pointer mb-4 shadow-sm hover:shadow group">
+                    <input
+                      type="file"
+                      multiple={true}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={handleFileChange}
+                      accept=".pdf,.ppt,.pptx"
+                    />
+                    <Upload className="w-8 h-8 text-indigo-500 mx-auto mb-2 group-hover:scale-110 transition-transform duration-300" />
+                    <p className="text-sm font-semibold text-slate-800">Drag & drop PDFs and PPTs here</p>
+                    <p className="text-xs text-slate-500 mt-1">Files are automatically categorized</p>
                   </div>
-                </>
+
+                  {/* Quick-Add Actions */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* YouTube Quick Add */}
+                    <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm hover:shadow transition-shadow">
+                      <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-rose-500" /> Add YouTube Link
+                      </label>
+                      <input
+                        type="url"
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                        placeholder="https://youtube.com/watch?v=..."
+                        className="w-full text-sm border border-slate-300 rounded p-2 mb-2 focus:ring-2 focus:ring-rose-500 outline-none"
+                      />
+                      <button type="button" onClick={addYoutubeLink} disabled={!youtubeUrl} className="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-50 text-xs font-bold py-2 rounded transition-colors">
+                        Add to Queue
+                      </button>
+                    </div>
+
+                    {/* Activity Quick Add */}
+                    <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm hover:shadow transition-shadow">
+                      <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
+                        <List className="w-3.5 h-3.5 text-emerald-500" /> Add Class Activity
+                      </label>
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <input 
+                          type="file" 
+                          id="activity-doc" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              const f = e.target.files[0];
+                              if (f.size > MAX_FILE_SIZE) {
+                                toast.error(`${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB) exceeds the 1 MB limit.`);
+                                return;
+                              }
+                              setActivityFile(f);
+                            }
+                          }} 
+                        />
+                        <label htmlFor="activity-doc" className="text-xs px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded cursor-pointer truncate flex-1 text-center font-medium transition-colors">
+                          {activityFile ? activityFile.name : "📎 Choose Activity Document"}
+                        </label>
+                        {activityFile && (
+                          <button type="button" onClick={() => setActivityFile(null)} className="text-slate-400 hover:text-red-500">
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mb-2">Max 1 MB per file</p>
+                      <button type="button" onClick={addActivity} disabled={!activityFile} className="w-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 text-xs font-bold py-2 rounded transition-colors">
+                        Add to Queue
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {uploadScope === 'subject' ? 'Textbook / Syllabus Title' : 'Topic Presentation Title'}
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={uploadScope === 'subject' ? "e.g. Biology Standard Textbook" : "e.g. Introduction to Cells PPT"}
-                  className="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {uploadScope === 'subject' ? 'Upload PDF (Textbook)' : 'Upload PPT/PDF (Topic Presentation)'}
-                </label>
-                <div className="relative border-2 border-dashed border-slate-300 rounded-xl p-6 hover:bg-slate-100 transition-colors text-center cursor-pointer">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".pdf,.ppt,.pptx"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    required
-                  />
-                  <Upload className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
-                  {file ? (
-                    <p className="text-sm font-medium text-indigo-600">{file.name}</p>
-                  ) : (
-                    <p className="text-sm text-slate-500">Drag & drop or click to upload</p>
-                  )}
+              {/* Subject Textbook Fallback Upload UI */}
+              {showTextbookUpload && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Upload Subject Textbook (PDF)</label>
+                  <div className="relative border-2 border-dashed border-slate-300 bg-white rounded-xl p-8 hover:bg-slate-50 hover:border-indigo-400 transition-colors text-center cursor-pointer mb-4">
+                    <input
+                      type="file"
+                      multiple={true}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={handleTextbookFileChange}
+                      accept=".pdf"
+                    />
+                    <Upload className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-slate-700">Drag & drop Textbook PDF</p>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Pending Queue List */}
+              {pendingMaterials.length > 0 && (
+                <div className="mt-6 space-y-3">
+                  <label className="block text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Items to Upload ({pendingMaterials.length})</label>
+                  <div className="grid grid-cols-1 gap-3">
+                    {pendingMaterials.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md hover:border-indigo-150 transition-all group">
+                        <div className="flex items-center gap-3 flex-1 overflow-hidden pr-4">
+                          <div className={`p-2 rounded-lg shrink-0 ${
+                            item.type === 'file' && item.materialType === 'ppt' ? 'bg-indigo-100 text-indigo-600' :
+                            item.type === 'file' && item.materialType === 'pdf' ? 'bg-red-100 text-red-600' :
+                            item.type === 'file' && item.materialType === 'textbook' ? 'bg-violet-100 text-violet-600' :
+                            item.type === 'youtube' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+                          }`}>
+                            {item.type === 'file' && item.materialType === 'ppt' && <Layers className="w-4 h-4" />}
+                            {item.type === 'file' && item.materialType === 'pdf' && <FileText className="w-4 h-4" />}
+                            {item.type === 'file' && item.materialType === 'textbook' && <Book className="w-4 h-4" />}
+                            {item.type === 'youtube' && <Sparkles className="w-4 h-4" />}
+                            {item.type === 'activity' && <List className="w-4 h-4" />}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              value={item.title}
+                              onChange={(e) => updatePendingTitle(item.id, e.target.value)}
+                              placeholder="Material Title..."
+                              className="w-full text-sm font-semibold text-slate-800 border-none bg-transparent focus:ring-0 p-0 mb-0.5 placeholder:text-slate-400 outline-none"
+                            />
+                            <div className="text-[10px] text-slate-500 truncate flex gap-2">
+                              <span className="uppercase font-bold tracking-wider">{item.type === 'file' ? item.materialType : item.type}</span>
+                              {item.type === 'file' && <span>{(item.file.size / 1024 / 1024).toFixed(2)} MB</span>}
+                              {item.type === 'youtube' && <span className="truncate">{item.url}</span>}
+                              {item.type === 'activity' && <span className="truncate">{item.description || "No description"} {item.file && `(Attached: ${item.file.name})`}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!!selectedTopic && !(item.type === 'file' && item.materialType === 'textbook') && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-bold text-slate-400 mr-1 uppercase">Gating:</span>
+                              <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200/60">
+                                <button
+                                  type="button"
+                                  onClick={() => { if (!item.isMandatory) togglePendingMaterialMandatory(item.id); }}
+                                  className={`px-2.5 py-1 rounded-md text-[9px] font-extrabold uppercase transition-all ${
+                                    item.isMandatory 
+                                      ? 'bg-amber-500 text-white shadow-sm' 
+                                      : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                                  }`}
+                                >
+                                  Mandatory
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { if (item.isMandatory) togglePendingMaterialMandatory(item.id); }}
+                                  className={`px-2.5 py-1 rounded-md text-[9px] font-extrabold uppercase transition-all ${
+                                    !item.isMandatory 
+                                      ? 'bg-white text-slate-700 shadow-sm border border-slate-200/30' 
+                                      : 'text-slate-400 hover:text-slate-600 bg-transparent'
+                                  }`}
+                                >
+                                  Optional
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removePendingMaterial(item.id)}
+                            className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"
+                            title="Remove item"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {errorMsg && (
                 <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
@@ -682,7 +1058,7 @@ export default function MaterialManagement() {
                   type="submit"
                   disabled={uploading || isExtracting || isReadOnly}
                   className="w-full bg-slate-600 text-white rounded-xl py-3 font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2"
-                  title={isReadOnly ? "Read-only access" : (uploadScope === 'subject' ? 'Upload textbook file' : 'Upload PPT/PDF for this topic')}
+                  title={isReadOnly ? "Read-only access" : (currentUploadScope === 'subject' ? 'Upload textbook file' : 'Upload material for this topic')}
                 >
                   {uploading ? (
                     <><Loader className="w-5 h-5 animate-spin" /> Uploading...</>
@@ -696,109 +1072,160 @@ export default function MaterialManagement() {
 
           {/* Existing Materials */}
           <div>
-            <h3 className="text-lg font-bold text-slate-800 mb-4">
-              {uploadScope === 'subject' ? "Uploaded Subject Materials" : "Topic Material Status"}
-            </h3>
-
-            {uploadScope === 'subject' ? (
-              loading ? (
-                <div className="flex justify-center p-8"><Loader className="w-8 h-8 text-indigo-500 animate-spin" /></div>
-              ) : materials.length === 0 ? (
-                <div className="text-center p-8 bg-slate-50 rounded-xl border border-slate-200">
-                  <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 font-medium">No subject materials uploaded yet</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {materials.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-800">{m.title}</p>
-                          <p className="text-xs text-slate-500">Uploaded {new Date(m.created_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { setPdfViewerUrl(getAdminMaterialUrl(m.file_path || m.url)); setPdfViewerTitle(m.title); }}
-                          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-                        >
-                          <FileText className="w-3.5 h-3.5" /> View
-                        </button>
-                        <a
-                          href={getAdminMaterialUrl(m.file_path || m.url)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-lg transition-colors"
-                          title="Open in new tab"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                        <button
-                          onClick={() => handleDeleteSubjectMaterial(m.id)}
-                          disabled={isReadOnly}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
-                          title={isReadOnly ? "Read-only access" : "Delete material"}
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
-              <div className="space-y-4">
-                {activeTopic && activeTopic.topicPptPath ? (
-                  <div className="p-5 bg-green-50 border border-green-200 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-                          <CheckCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-green-900">Presentation Active</h4>
-                          <p className="text-xs text-green-700">File: {activeTopic.topicPptPath.split('/').pop()}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteTopicPpt(activeTopic.id)}
-                        disabled={isReadOnly}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 disabled:opacity-50 disabled:hover:bg-red-100 transition-colors text-sm font-medium"
-                        title={isReadOnly ? "Read-only access" : "Delete PPT"}
-                      >
-                        <Trash2 className="w-4 h-4" /> Delete PPT
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div className="flex items-center gap-3 text-slate-500">
-                      <AlertCircle className="w-5 h-5" />
-                      <p className="text-sm">No presentation uploaded for the selected topic yet.</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-amber-900 mb-1">Smart Topic PPTs</h4>
-                      <p className="text-sm text-amber-800 leading-relaxed">
-                        Topic-specific presentations are automatically linked to the teacher's lesson screen.
-                        When a teacher starts a session for the selected topic, your uploaded PPT will be the primary presentation shown.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                {!!selectedTopic ? <List className="w-32 h-32" /> : <Book className="w-32 h-32" />}
               </div>
-            )}
+              <h3 className="font-bold text-slate-800 mb-2">
+                {!!selectedTopic ? 'Topic & Subject Materials' : 'Subject Textbook'}
+              </h3>
+              <p className="text-sm text-slate-500 mb-4">
+                {!!selectedTopic 
+                  ? 'View uploaded textbooks for the subject or topic-specific resources.' 
+                  : 'Upload the comprehensive textbook PDF for this entire subject.'}
+              </p>
+              
+              {!selectedSubject ? (
+                <div className="text-sm text-slate-400 italic">Select a subject to view uploaded materials.</div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Subject Textbooks List */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-bold text-slate-700 border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                      <Book className="w-4 h-4 text-indigo-500" /> Subject Textbooks
+                    </h4>
+                    {loading ? (
+                      <div className="flex justify-center p-4"><Loader className="w-6 h-6 text-indigo-500 animate-spin" /></div>
+                    ) : materials.length > 0 ? (
+                      <div className="space-y-2">
+                        {materials.map((m) => (
+                          <div key={m.id} className="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow transition-shadow">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-red-100 text-red-600 rounded-lg">
+                                <FileText className="w-4.5 h-4.5" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-slate-800">{m.title}</p>
+                                <p className="text-[10px] text-slate-500">Uploaded {new Date(m.created_at).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => { setPdfViewerUrl(getAdminMaterialUrl(m.file_path || m.url)); setPdfViewerTitle(m.title); }}
+                                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <FileText className="w-3 h-3" /> View
+                              </button>
+                              <a
+                                href={getAdminMaterialUrl(m.file_path || m.url)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-lg transition-colors"
+                                title="Open in new tab"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                              <button
+                                onClick={() => handleDeleteSubjectMaterial(m.id)}
+                                disabled={isReadOnly}
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                title={isReadOnly ? "Read-only access" : "Delete material"}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 py-3 text-center border border-dashed border-slate-200 rounded-lg">
+                        No textbooks uploaded yet.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Topic Materials List */}
+                  {selectedTopic && (
+                    <div className="space-y-3 pt-2">
+                      <h4 className="text-sm font-bold text-slate-700 border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
+                        <List className="w-4 h-4 text-emerald-500" /> Topic Materials
+                      </h4>
+                      {activeTopic && activeTopic.materials && activeTopic.materials.length > 0 ? (
+                        <div className="space-y-2">
+                          {activeTopic.materials.map((m: any, idx: number) => (
+                            <div key={idx} className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow transition-shadow flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${m.type === 'ppt' ? 'bg-indigo-100 text-indigo-600' : m.type === 'pdf' ? 'bg-red-100 text-red-600' : m.type === 'youtube' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                  {m.type === 'youtube' ? <ExternalLink className="w-4 h-4" /> : m.type === 'activity' ? <List className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <h4 className="text-sm font-semibold text-slate-800">
+                                      {m.title || m.type.toUpperCase()}
+                                    </h4>
+                                    <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200/60 w-max shrink-0">
+                                      <button
+                                        type="button"
+                                        disabled={isReadOnly}
+                                        onClick={() => { if (!m.is_mandatory) handleToggleMandatory(activeTopic.id, m.type, m.id, false); }}
+                                        className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase transition-all ${
+                                          m.is_mandatory 
+                                            ? 'bg-amber-500 text-white shadow-sm' 
+                                            : 'text-slate-500 hover:text-slate-700 bg-transparent disabled:opacity-50'
+                                        }`}
+                                      >
+                                        Mandatory
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={isReadOnly}
+                                        onClick={() => { if (m.is_mandatory) handleToggleMandatory(activeTopic.id, m.type, m.id, true); }}
+                                        className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase transition-all ${
+                                          !m.is_mandatory 
+                                            ? 'bg-white text-slate-700 shadow-sm border border-slate-200/30' 
+                                            : 'text-slate-400 hover:text-slate-600 bg-transparent disabled:opacity-50'
+                                        }`}
+                                      >
+                                        Optional
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 capitalize">{m.type} Material</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {(m.type === 'ppt' || m.type === 'pdf' || m.type === 'youtube') && (
+                                  <a
+                                    href={m.type === 'youtube' ? m.url : getAdminMaterialUrl(m.url)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                  >
+                                    <ExternalLink className="w-3 h-3" /> View
+                                  </a>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteTopicMaterial(activeTopic.id, m.type, m.id)}
+                                  disabled={isReadOnly}
+                                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                  title={isReadOnly ? "Read-only access" : "Delete material"}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-500 py-3 text-center border border-dashed border-slate-200 rounded-lg">
+                          No materials uploaded for this topic yet.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1224,9 +1651,6 @@ export default function MaterialManagement() {
         </div>
       )}
 
-      {/* Quiz Questions Upload */}
-      <QuestionBankPanel subjects={subjects} />
-
       {/* Per-Chapter Assessment Settings */}
       <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex items-center justify-between mb-6">
@@ -1411,6 +1835,28 @@ export default function MaterialManagement() {
         })()}
       </div>
 
+      {/* Curriculum Builder Modal */}
+      <CurriculumBuilderModal 
+        isOpen={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        entityType={builderType}
+        parentData={{ gradeId: selectedGrade, subjectId: selectedSubject, chapterId: selectedChapter }}
+        existingList={
+          builderType === 'grade' ? gradesList :
+          builderType === 'subject' ? (selectedGrade ? subjects.filter(s => (s.grades || []).includes(parseInt(selectedGrade))) : subjects) :
+          builderType === 'chapter' ? filteredChapters :
+          builderType === 'topic' ? filteredTopics : []
+        }
+        onRefresh={() => {
+          // Trigger a re-fetch of the main data
+          fetchAll().then(data => {
+            setSubjects(data.subjects || []);
+            setChapters(data.chapters || []);
+            setTopics(data.topics || []);
+            setGrades(data.grades || []);
+          });
+        }}
+      />
     </div>
   );
 }

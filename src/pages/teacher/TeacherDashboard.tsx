@@ -1563,6 +1563,12 @@ const TeacherDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
+                  {currentSubjectMaterials.length === 0 && (!sessionTopic?.materials || sessionTopic.materials.length === 0) && (
+                    <div className="text-xs text-muted-foreground italic w-full text-center py-2">
+                      No materials uploaded for this topic or subject.
+                    </div>
+                  )}
+
                   {currentSubjectMaterials.map((m) => (
                     <Button
                       key={m.id}
@@ -1576,39 +1582,52 @@ const TeacherDashboard = () => {
                         setMaterialPreviewOpen(true);
                       }}
                     >
-                      <BookOpen className="w-3.5 h-3.5" /> {m.title}
+                      <BookOpen className="w-3.5 h-3.5" /> {m.title || "Textbook"}
                     </Button>
                   ))}
-                  {currentSubjectMaterials.length === 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 opacity-60"
-                      onClick={() => toast.info("No textbook is uploaded. Please upload the textbook from the Admin Textbook-wise tab.")}
-                    >
-                      <BookOpen className="w-3.5 h-3.5" /> Textual Reference
-                    </Button>
-                  )}
-                  {sessionTopic?.topicPptPath ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => {
-                        // PPT opens directly on screen — no dialog
-                        const path = sessionTopic.topicPptPath!;
-                        setMainScreenContentUrl(getMaterialViewerUrl(path));
-                        setMainScreenTitle("PPT — " + (sessionTopic?.name ?? "Presentation"));
-                        setMainScreenDirectUrl(getMaterialDirectUrl(path));
-                      }}
-                    >
-                      <Presentation className="w-3.5 h-3.5" /> PPT
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" className="gap-1.5 opacity-60" onClick={() => toast.error("No PPT available for this topic")}>
-                      <Presentation className="w-3.5 h-3.5" /> PPT
-                    </Button>
-                  )}
+
+                  {sessionTopic?.materials?.map((m: any, idx: number) => {
+                    const isMandatory = m.is_mandatory;
+                    const Icon = materialTypeIcons[m.type] || FileText;
+                    return (
+                      <Button
+                        key={`${m.id}-${idx}`}
+                        variant={isMandatory ? "default" : "outline"}
+                        size="sm"
+                        className={`gap-1.5 ${isMandatory ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
+                        onClick={() => {
+                          if (m.type === 'youtube') {
+                            window.open(m.url, '_blank');
+                            return;
+                          }
+                          if (m.type === 'activity') {
+                            setMaterialPreviewRelativePath(null);
+                            setMaterialPreviewUrl(null);
+                            setMaterialPreviewTitle("Activity — " + m.title);
+                            setMainScreenContentUrl(null);
+                            setMainScreenTitle("Activity — " + m.title);
+                            toast.info(`Activity Details: ${m.description || m.title}`);
+                            return;
+                          }
+                          const path = m.url;
+                          if (m.type === 'ppt') {
+                            setMainScreenContentUrl(getMaterialViewerUrl(path));
+                            setMainScreenTitle("PPT — " + m.title);
+                            setMainScreenDirectUrl(getMaterialDirectUrl(path));
+                          } else {
+                            setMaterialPreviewRelativePath(path);
+                            setMaterialPreviewUrl(getMaterialViewerUrl(path));
+                            setMaterialPreviewTitle((m.type.toUpperCase()) + " — " + m.title);
+                            setMaterialPreviewOpen(true);
+                          }
+                        }}
+                      >
+                        <Icon className="w-3.5 h-3.5" /> 
+                        {m.title || m.type.toUpperCase()}
+                        {isMandatory && <span className="ml-1 text-[10px] uppercase font-bold bg-white/20 px-1 rounded">Mandatory</span>}
+                      </Button>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
