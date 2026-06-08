@@ -599,6 +599,8 @@ export interface PrincipalProfile {
   school_id: number;
   school_name: string;
   role: string;
+  phone?: string;
+  designation?: string;
 }
 
 export async function fetchPrincipalProfile(schoolIdOverride?: string | number): Promise<PrincipalProfile> {
