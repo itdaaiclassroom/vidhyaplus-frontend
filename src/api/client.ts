@@ -598,6 +598,8 @@ export interface PrincipalProfile {
   school_id: number;
   school_name: string;
   role: string;
+  phone?: string;
+  designation?: string;
 }
 
 export async function fetchPrincipalProfile(schoolIdOverride?: string | number): Promise<PrincipalProfile> {
@@ -2175,14 +2177,6 @@ export async function updateTeacherProfile(data: any) {
   return res.json();
 }
 
-export async function fetchPrincipalProfile() {
-  if (!API_BASE) throw new Error("API URL not set.");
-  const res = await fetch(`${API_BASE}/api/principal/profile`, {
-    headers: getAuthHeaders()
-  });
-  if (!res.ok) throw new Error(await parseErrorResponse(res));
-  return res.json();
-}
 
 export async function updatePrincipalProfile(data: any) {
   if (!API_BASE) throw new Error("API URL not set.");

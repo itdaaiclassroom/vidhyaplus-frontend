@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Phone, BookOpen, Layers, Star, Award, Settings, CheckCircle } from 'lucide-react';
 import { fetchTeacherProfile, updateTeacherProfile } from '@/api/client';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export default function TeacherProfile() {
   const [profile, setProfile] = useState<any>(null);
