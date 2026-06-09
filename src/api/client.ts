@@ -19,9 +19,21 @@ const AI_API_BASE = (import.meta.env.VITE_AI_API_URL || "http://187.127.158.229:
 
 
 export interface AllDataResponse {
-  schools: Array<{ id: string; name: string; code: string; district: string; mandal?: string; teachers: number; students: number; classes: number; sessionsCompleted: number; activeStatus: boolean }>;
+  schools: Array<{ id: string; name: string; code: string; district: string; mandal?: string; teachers: number; students: number; classes: number; sessionsCompleted: number; activeStatus: boolean; principalName?: string; principalEmail?: string }>;
   classes: Array<{ id: string; schoolId: string; name: string; section: string; grade: number; studentCount: number }>;
-  teachers: Array<{ id: string; name: string; email: string; schoolId: string; classIds: string[]; subjects: string[] }>;
+  teachers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    schoolId: string;
+    classIds: string[];
+    subjects: string[];
+    phone?: string;
+    designation?: string;
+    skills?: string;
+    experience?: string;
+    highest_qualification?: string;
+  }>;
   students: Array<{
     id: string;
     name: string;
@@ -57,7 +69,7 @@ export interface AllDataResponse {
     textbookChunkPdfPath?: string | null;
   }>;
   topics: Array<{ id: string; chapterId: string; name: string; order: number; status: string; topicPptPath?: string | null; materials: Array<{ id: string; type: string; title: string; url: string }>; microLessons?: Array<{ id: string; periodNo: number; conceptText: string; planText: string }> }>;
-  studentQuizResults: Array<{ studentId: string; chapterId: string; assessmentType?: string; score: number; total: number; date: string | null; answers: unknown[] }>;
+  studentQuizResults: Array<{ id: string; studentId: string; subjectId?: string; chapterId?: string; assessmentType?: string; score: number; total: number; date: string | null; detailedAnswers?: any[] }>;
   activityLogs: Array<{ id: string; user: string; role: string; action: string; school: string; class: string; timestamp: string; gps: string }>;
   classStatus: Array<{ id: string; date: string; classId: string; subjectId?: string | null; status: string; teacherId: string; reason: string | null }>;
   leaveApplications: Array<{ id: string; teacherId: string; date: string; reason: string; status: string; appliedOn: string }>;
@@ -601,6 +613,9 @@ export interface PrincipalProfile {
   role: string;
   phone?: string;
   designation?: string;
+  skills?: string | string[];
+  experience?: string;
+  highest_qualification?: string;
 }
 
 export async function fetchPrincipalProfile(schoolIdOverride?: string | number): Promise<PrincipalProfile> {
@@ -706,7 +721,7 @@ export async function createSchool(body: {
   return res.json();
 }
 
-export async function updateSchool(id: string, body: { name?: string; code?: string; district?: string; mandal?: string; sessions_completed?: number; active_status?: boolean; logo_url?: string }): Promise<{ id: string; updated: boolean }> {
+export async function updateSchool(id: string, body: { name?: string; code?: string; district?: string; mandal?: string; sessions_completed?: number; active_status?: boolean; logo_url?: string; principalName?: string; principalEmail?: string; principalPassword?: string }): Promise<{ id: string; updated: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/schools/${id}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
@@ -738,7 +753,22 @@ export async function deleteStudent(id: string): Promise<{ deleted: boolean }> {
   return res.json();
 }
 
-export async function updateTeacher(id: string, body: { full_name?: string; email?: string; school_id?: string; password?: string }): Promise<{ id: string; updated: boolean }> {
+export async function updateTeacher(
+  id: string,
+  body: {
+    full_name?: string;
+    email?: string;
+    school_id?: string;
+    password?: string;
+    phone?: string;
+    designation?: string;
+    skills?: string;
+    experience?: string;
+    highest_qualification?: string;
+    assigned_class_ids?: string[];
+    assigned_subject_ids?: string[];
+  }
+): Promise<{ id: string; updated: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/${id}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
@@ -749,6 +779,17 @@ export async function deleteTeacher(id: string): Promise<{ deleted: boolean }> {
   if (!API_BASE) throw new Error("VITE_API_URL is not set");
   const res = await fetch(`${API_BASE}/api/teachers/${id}`, { method: "DELETE", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+  return res.json();
+}
+
+export async function createTeacher(body: { full_name: string; email: string; school_id: string; password?: string }): Promise<{ id: string; full_name: string; email: string; school_id: string }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/teachers`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
 
@@ -2427,6 +2468,57 @@ export async function deleteTopicMaterial(
   if (!res.ok) throw new Error(await parseErrorResponse(res));
   return res.json();
 }
+
+export async function getStudentQuizQuestions(
+  subjectId: string,
+  chapterId?: string | null,
+  topicId?: string | null,
+  limit?: number
+): Promise<{
+  questions: Array<{
+    id: string | number;
+    question_text: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
+    correct_option: string;
+    explanation: string;
+  }>;
+}> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const q = new URLSearchParams();
+  q.append("subject_id", subjectId);
+  if (chapterId) q.append("chapter_id", chapterId);
+  if (topicId) q.append("topic_id", topicId);
+  if (limit) q.append("limit", String(limit));
+
+  const res = await fetch(`${API_BASE}/api/students/quiz-questions?${q.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
+export async function saveStudentMarks(payload: {
+  studentId: string;
+  subjectId: string;
+  chapterId?: string | null;
+  score: number;
+  total: number;
+  assessmentType?: string;
+  detailedAnswers?: any[];
+}): Promise<{ ok: boolean; id: string | number }> {
+  if (!API_BASE) throw new Error("VITE_API_URL is not set");
+  const res = await fetch(`${API_BASE}/api/student-marks`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  return res.json();
+}
+
 
 
 

@@ -472,7 +472,7 @@ const UserManagementPanel = () => {
                       <div className={`flex items-center gap-1 ${isEditingMode ? 'bg-slate-50 p-1 rounded-lg border border-slate-200' : ''}`}>
                         {isEditingMode ? (
                           PERMISSION_LEVELS.map(level => {
-                            const isActive = form.permissions[feat.key] === level.value || (level.value === 'write' && !form.permissions[feat.key]);
+                            const isActive = (form.permissions[feat.key] || 'none') === level.value;
                             return (
                               <button
                                 key={level.value}
@@ -490,7 +490,7 @@ const UserManagementPanel = () => {
                           })
                         ) : (
                           <Badge variant="outline" className="bg-slate-50 text-slate-600 capitalize">
-                            {form.permissions[feat.key] || 'read & write'}
+                            {PERMISSION_LEVELS.find(l => l.value === (form.permissions[feat.key] || 'none'))?.label || 'None'}
                           </Badge>
                         )}
                       </div>

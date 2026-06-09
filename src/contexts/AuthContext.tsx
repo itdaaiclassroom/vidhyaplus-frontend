@@ -13,6 +13,7 @@ interface AuthContextType {
   permissions: Record<string, 'none' | 'read' | 'write'> | null;
   login: (role: Role, name?: string, studentId?: string, teacherId?: string, schoolId?: string, token?: string, permissions?: Record<string, any>) => void;
   logout: () => void;
+  updatePermissions: (permissions: Record<string, 'none' | 'read' | 'write'>) => void;
   isAuthenticated: boolean;
 }
 
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   permissions: null,
   login: () => {},
   logout: () => {},
+  updatePermissions: () => {},
   isAuthenticated: false,
 });
 
@@ -91,6 +93,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.clear();
   };
 
+  const updatePermissions = (perms: Record<string, 'none' | 'read' | 'write'>) => {
+    setPermissions(perms);
+    localStorage.setItem("auth.permissions", JSON.stringify(perms));
+  };
+
   useEffect(() => {
     if (role) localStorage.setItem("auth.role", role);
     else localStorage.removeItem("auth.role");
@@ -119,7 +126,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ role, userName, studentId, teacherId, schoolId, token, permissions, login, logout, isAuthenticated: !!role }}>
+    <AuthContext.Provider value={{ role, userName, studentId, teacherId, schoolId, token, permissions, login, logout, updatePermissions, isAuthenticated: !!role }}>
       {children}
     </AuthContext.Provider>
   );

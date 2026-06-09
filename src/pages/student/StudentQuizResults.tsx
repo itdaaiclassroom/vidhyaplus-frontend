@@ -6,80 +6,85 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, CheckCircle2, XCircle, BookOpen } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, BookOpen, Calendar, Trophy, Loader2 } from "lucide-react";
 import { useAppData } from "@/contexts/DataContext";
 import { getLiveQuizResult } from "@/api/client";
-
-type SubjectResult = {
-  subjectId: string;
-  subjectName: string;
-  correct: number;
-  wrong: number;
-  total: number;
-  pct: number;
-  chaptersWithWrong: Array<{ chapterId: string; chapterName: string; correct: number; wrong: number; total: number }>;
-};
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const StudentQuizResults = () => {
   const { studentId } = useAuth();
   const { data } = useAppData();
-  const { subjects, chapters, students, classes, studentQuizResults, liveQuizSessions = [], liveQuizAnswers = [] } = data;
+  const { subjects, chapters, students, classes, studentQuizResults } = data;
 
   const student = useMemo(() => students.find((s) => s.id === studentId) ?? students[0], [students, studentId]);
   const studentClass = useMemo(() => (student ? classes.find((c) => c.id === student.classId) : undefined), [classes, student]);
   const grade = studentClass?.grade ?? 8;
 
+  // Filters state
+  const [filterSubject, setFilterSubject] = useState<string>("all");
+  const [filterChapter, setFilterChapter] = useState<string>("all");
+  const [filterType, setFilterType] = useState<"all" | "self_study" | "live_quiz">("all");
+
   const myResults = useMemo(() => (student?.id ? studentQuizResults.filter((r) => r.studentId === student.id) : []), [studentQuizResults, student?.id]);
 
   const gradeSubjects = useMemo(() => subjects.filter((s) => s.grades.includes(grade)), [subjects, grade]);
+  const subjectChapters = useMemo(
+    () => (filterSubject !== "all" ? chapters.filter((ch) => ch.subjectId === filterSubject && ch.grade === grade) : []),
+    [chapters, filterSubject, grade]
+  );
 
-  const subjectResults: SubjectResult[] = useMemo(() => {
-    return gradeSubjects.map((sub) => {
-      const subChapters = chapters.filter((ch) => ch.subjectId === sub.id && ch.grade === grade);
-      const subResults = myResults.filter((r) => subChapters.some((ch) => ch.id === r.chapterId));
-      const correct = subResults.reduce((a, r) => a + (r.score ?? 0), 0);
-      const total = subResults.reduce((a, r) => a + (r.total ?? 0), 0);
-      const wrong = total - correct;
-      const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-      const chaptersWithWrong = subResults
-        .filter((r) => (r.total ?? 0) > (r.score ?? 0))
-        .map((r) => {
+  // Filtered quiz attempts list
+  const filteredAttempts = useMemo(() => {
+    return myResults.filter((r) => {
+      // 1. Subject filter
+      if (filterSubject !== "all") {
+        let matchesSubject = false;
+        if (r.chapterId) {
           const ch = chapters.find((c) => c.id === r.chapterId);
-          return {
-            chapterId: r.chapterId,
-            chapterName: ch?.name ?? "Chapter",
-            correct: r.score ?? 0,
-            wrong: (r.total ?? 0) - (r.score ?? 0),
-            total: r.total ?? 0,
-          };
-        });
-      return {
-        subjectId: sub.id,
-        subjectName: sub.name,
-        correct,
-        wrong,
-        total,
-        pct,
-        chaptersWithWrong,
-      };
-    }).filter((s) => s.total > 0);
-  }, [gradeSubjects, chapters, grade, myResults]);
+          if (ch && ch.subjectId === filterSubject) matchesSubject = true;
+        } else if (r.subjectId && r.subjectId === filterSubject) {
+          matchesSubject = true;
+        }
+        if (!matchesSubject) return false;
+      }
 
-  const [liveResult, setLiveResult] = useState<{ sessionId: string; topicName: string; total: number; correct: number; wrong: number; percentage: number; details: Array<{ questionText: string; correctOption: string; selectedOption: string; isCorrect: boolean; explanation: string }> } | null>(null);
+      // 2. Chapter filter
+      if (filterChapter !== "all" && r.chapterId !== filterChapter) {
+        return false;
+      }
 
-  const myLiveQuizSessionIds = useMemo(() => {
-    if (!studentId) return [];
-    const ids = new Set((liveQuizAnswers as Array<{ studentId: string; liveQuizSessionId: string }>).filter((a) => a.studentId === studentId).map((a) => a.liveQuizSessionId));
-    return Array.from(ids);
-  }, [studentId, liveQuizAnswers]);
+      // 3. Quiz type filter
+      if (filterType !== "all") {
+        const isLive = r.assessmentType === "live_quiz" || r.liveQuizSessionId;
+        if (filterType === "live_quiz" && !isLive) return false;
+        if (filterType === "self_study" && isLive) return false;
+      }
 
-  const myLiveQuizSessions = useMemo(() => {
-    return (liveQuizSessions as Array<{ id: string; topicName: string; status: string }>).filter((s) => myLiveQuizSessionIds.includes(s.id));
-  }, [liveQuizSessions, myLiveQuizSessionIds]);
+      return true;
+    });
+  }, [myResults, filterSubject, filterChapter, filterType, chapters]);
 
-  const openLiveResult = (sid: string, topicName: string) => {
-    if (!studentId) return;
-    getLiveQuizResult(sid, studentId).then((r) => setLiveResult({ sessionId: sid, topicName, ...r, details: r.details || [] }));
+  // Solution review state
+  const [selectedAttempt, setSelectedAttempt] = useState<any | null>(null);
+  const [selectedAttemptDetails, setSelectedAttemptDetails] = useState<any | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const openAttemptSolutions = async (attempt: any) => {
+    setSelectedAttempt(attempt);
+    setSelectedAttemptDetails(null);
+    setLoadingDetails(true);
+    try {
+      if (attempt.assessmentType === "live_quiz" && attempt.liveQuizSessionId) {
+        const res = await getLiveQuizResult(attempt.liveQuizSessionId, student.id);
+        setSelectedAttemptDetails(res.details || []);
+      } else {
+        setSelectedAttemptDetails(attempt.detailedAnswers || []);
+      }
+    } catch (err) {
+      console.error("Failed to load attempt details:", err);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   return (
@@ -88,103 +93,233 @@ const StudentQuizResults = () => {
         <Link to="/student"><ArrowLeft className="w-4 h-4" /> Back to Dashboard</Link>
       </Button>
 
-      <p className="text-sm text-muted-foreground mb-6">
-        Quiz marks per subject, correct vs wrong counts, and explanations where available.
-      </p>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="font-display text-xl font-bold text-foreground">Quiz History</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            View details, marks, and explanations of all attempted quizzes.
+          </p>
+        </div>
+      </div>
 
-      {myLiveQuizSessions.length > 0 && (
-        <Card className="shadow-card border-border mb-6">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-display text-sm">Live quiz attempts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {myLiveQuizSessions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary">
-                <span className="text-sm">{s.topicName}</span>
-                <Button variant="outline" size="sm" onClick={() => openLiveResult(s.id, s.topicName)}>
-                  View result & explanations
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Filters Card */}
+      <Card className="shadow-card border-border mb-6">
+        <CardContent className="p-4 flex flex-wrap gap-4 items-end">
+          {/* Subject Filter */}
+          <div className="flex-1 min-w-[150px] space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Filter by Subject</label>
+            <Select
+              value={filterSubject}
+              onValueChange={(val) => {
+                setFilterSubject(val);
+                setFilterChapter("all");
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {gradeSubjects.map((sub) => (
+                  <SelectItem key={sub.id} value={sub.id}>
+                    {sub.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      {liveResult && (
-        <Card className="shadow-card border-border mb-6">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="font-display text-sm">Result: {liveResult.topicName}</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setLiveResult(null)}>Close</Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm">Score: {liveResult.correct}/{liveResult.total} ({liveResult.percentage}%)</p>
-            <div>
-              <p className="text-xs font-medium mb-2">Wrong answers – explanation</p>
-              {liveResult.details.filter((d) => !d.isCorrect).length === 0 ? (
-                <p className="text-muted-foreground text-sm">All correct!</p>
-              ) : (
-                <ul className="space-y-2">
-                  {liveResult.details.filter((d) => !d.isCorrect).map((d, i) => (
-                    <li key={i} className="p-2 bg-destructive/5 rounded text-xs">
-                      <p className="font-medium">{d.questionText}</p>
-                      <p className="text-muted-foreground">Your answer: {d.selectedOption} · Correct: {d.correctOption}</p>
-                      <p className="mt-1">{d.explanation}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          {/* Chapter Filter */}
+          <div className="flex-1 min-w-[150px] space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Filter by Chapter</label>
+            <Select
+              value={filterChapter}
+              onValueChange={setFilterChapter}
+              disabled={filterSubject === "all"}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Chapters" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Chapters</SelectItem>
+                {subjectChapters.map((ch) => (
+                  <SelectItem key={ch.id} value={ch.id}>
+                    {ch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      {subjectResults.length === 0 && myLiveQuizSessions.length === 0 ? (
+          {/* Quiz Type Filter */}
+          <div className="flex-1 min-w-[150px] space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Quiz Type</label>
+            <Select
+              value={filterType}
+              onValueChange={(val: any) => setFilterType(val)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="self_study">Self-Study Quizzes</SelectItem>
+                <SelectItem value="live_quiz">Live Session Quizzes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Attempts List */}
+      {filteredAttempts.length === 0 ? (
         <Card className="shadow-card border-border">
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No quiz results yet. Take chapter-wise quizzes from the Take Quiz section.</p>
-            <Button asChild className="mt-4"><Link to="/student/quiz">Take Quiz</Link></Button>
+          <CardContent className="p-12 text-center text-muted-foreground">
+            <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
+            <p className="text-sm">No quiz results found matching the selected criteria.</p>
+            <Button asChild className="mt-4" size="sm">
+              <Link to="/student/quiz">Take a Quiz</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {subjectResults.length > 0 && subjectResults.map((sr) => (
-            <Card key={sr.subjectId} className="shadow-card border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="font-display text-base flex items-center justify-between">
-                  <span>{sr.subjectName}</span>
-                  <Badge variant={sr.pct >= 60 ? "default" : "secondary"}>{sr.pct}%</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
-                    <CheckCircle2 className="w-4 h-4" /> {sr.correct} correct
-                  </span>
-                  <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
-                    <XCircle className="w-4 h-4" /> {sr.wrong} wrong
-                  </span>
-                  <span className="text-muted-foreground">{sr.total} questions total</span>
-                </div>
-                <Progress value={sr.pct} className="h-2" />
-                {sr.chaptersWithWrong.length > 0 && (
-                  <div className="pt-2">
-                    <p className="text-xs text-muted-foreground mb-2">Chapters with wrong answers:</p>
-                    <ul className="text-sm space-y-1 mb-3">
-                      {sr.chaptersWithWrong.map((c) => (
-                        <li key={c.chapterId}>
-                          {c.chapterName} — {c.correct}/{c.total} correct
-                        </li>
-                      ))}
-                    </ul>
+          {filteredAttempts.map((attempt) => {
+            const isLive = attempt.assessmentType === "live_quiz" || attempt.liveQuizSessionId;
+            const pct = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
+            
+            // Resolve subject and chapter names
+            let resolvedSubjectName = "Subject";
+            let resolvedChapterName = "Whole Subject";
+
+            if (attempt.chapterId) {
+              const ch = chapters.find((c) => c.id === attempt.chapterId);
+              resolvedChapterName = ch?.name ?? "Chapter Quiz";
+              const sub = ch ? subjects.find((s) => s.id === ch.subjectId) : null;
+              resolvedSubjectName = sub?.name ?? "Subject";
+            } else if (attempt.subjectId) {
+              const sub = subjects.find((s) => s.id === attempt.subjectId);
+              resolvedSubjectName = sub?.name ?? "Subject";
+            }
+
+            return (
+              <Card key={attempt.id || attempt.date} className="shadow-card border-border hover:shadow-md transition-shadow">
+                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-display font-semibold text-foreground text-sm">
+                        {resolvedSubjectName}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {resolvedChapterName}
+                      </Badge>
+                      <Badge className={`text-[10px] ${isLive ? "bg-info-light text-info" : "bg-teal-light text-primary"}`}>
+                        {isLive ? "Live Quiz" : "Self-Study"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {attempt.date}</span>
+                      <span>•</span>
+                      <span>Score: <strong>{attempt.score}/{attempt.total}</strong> ({pct}%)</span>
+                    </div>
+                    <Progress value={pct} className="h-1.5 max-w-md" />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex-shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => openAttemptSolutions(attempt)}>
+                      Review Solutions
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
+      {/* Solutions Review Modal */}
+      {selectedAttempt && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl border-border">
+            <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <div>
+                <CardTitle className="text-base font-display font-bold">
+                  {selectedAttempt.assessmentType === "live_quiz" ? "Live Session Quiz" : "Self-Study Quiz"} Solutions
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Score: {selectedAttempt.score}/{selectedAttempt.total} ({Math.round((selectedAttempt.score / selectedAttempt.total) * 100)}%) • {selectedAttempt.date}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedAttempt(null); setSelectedAttemptDetails(null); }}>
+                Close
+              </Button>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
+              {loadingDetails ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <p className="text-sm">Loading solutions details...</p>
+                </div>
+              ) : selectedAttemptDetails ? (
+                <div className="space-y-4">
+                  {selectedAttemptDetails.map((q: any, i: number) => {
+                    const isCorrect = q.isCorrect;
+                    const hasOptions = q.optionA && q.optionB && q.optionC && q.optionD;
+
+                    return (
+                      <div key={i} className={`p-4 rounded-xl border ${isCorrect ? "bg-success-light border-success/30" : "bg-destructive/5 border-destructive/20"}`}>
+                        <div className="flex items-start gap-2">
+                          {isCorrect ? (
+                            <CheckCircle2 className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground mb-2">{i + 1}. {q.questionText}</p>
+                            
+                            {hasOptions ? (
+                              <div className="grid gap-2 mb-3">
+                                {[q.optionA, q.optionB, q.optionC, q.optionD].map((opt) => {
+                                  const letter = opt.trim().charAt(0);
+                                  const isSelected = q.selectedOption === letter;
+                                  const isCorrectOption = q.correctOption === letter;
+                                  
+                                  let bgClass = "bg-secondary/40 border-transparent text-foreground";
+                                  if (isSelected && isCorrectOption) bgClass = "bg-success/20 border-success text-success-foreground font-semibold";
+                                  else if (isSelected) bgClass = "bg-destructive/10 border-destructive text-destructive font-semibold";
+                                  else if (isCorrectOption) bgClass = "bg-success/10 border-success/30 text-success-foreground font-semibold";
+
+                                  return (
+                                    <div key={opt} className={`p-2.5 rounded-lg border text-xs leading-relaxed ${bgClass}`}>
+                                      {opt}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground mt-2 grid gap-1 mb-2">
+                                <div>Your answer: <span className="font-semibold text-foreground">{q.selectedOption || "Not answered"}</span></div>
+                                <div>Correct answer: <span className="font-semibold text-success">{q.correctOption}</span></div>
+                              </div>
+                            )}
+
+                            {q.explanation && (
+                              <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2 italic">
+                                💡 {q.explanation}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">Could not load solution details.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

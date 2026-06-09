@@ -15,6 +15,7 @@ import {
 } from "@/api/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePrincipal } from "@/contexts/PrincipalContext";
+import { useAppData } from "@/contexts/DataContext";
 import { toast } from "sonner";
 import { 
   FileSpreadsheet, 
@@ -73,6 +74,8 @@ function excelDateToString(value: any): string | null {
 const BulkUpload: React.FC = () => {
   const { schoolId } = useAuth();
   const principalContext = usePrincipal();
+  const { data } = useAppData();
+  const activeSchoolId = principalContext?.schoolId || schoolId;
   const [type, setType] = useState<UploadType>("students");
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -82,17 +85,17 @@ const BulkUpload: React.FC = () => {
   const [parsedData, setParsedData] = useState<any[]>([]);
 
   const downloadSample = () => {
-    const data = type === "students" 
+    const sampleData = type === "students" 
       ? [
-          ["First Name", "Last Name", "Date of Birth", "Gender", "Grade", "Section", "Caste", "Religion", "Mother Tongue", "Father Name", "Father Number", "Mother Name", "Mother Number", "Address"],
-          ["Rahul", "Kumar", "2010-05-15", "Male", 10, "A", "General", "Hindu", "Telugu", "Suresh Kumar", "9876543210", "Lakshmi Devi", "9876543211", "H.No 1-2-3, Main Road"],
+          ["First Name", "Last Name", "Email", "Password", "Date of Birth", "Gender", "Grade", "Section", "Caste", "Religion", "Mother Tongue", "Father Name", "Father Number", "Mother Name", "Mother Number", "Address"],
+          ["Rahul", "Kumar", "rahul.kumar@school.com", "123456", "2010-05-15", "Male", 10, "A", "General", "Hindu", "Telugu", "Suresh Kumar", "9876543210", "Lakshmi Devi", "9876543211", "H.No 1-2-3, Main Road"],
         ]
       : [
-          ["Teacher Name", "Email", "Date of Birth", "Gender", "Caste", "Religion", "Mother Tongue", "Address", "Subjects Handled", "Phone Number"],
-          ["Priya Sharma", "priya.sharma@school.com", "1990-08-20", "Female", "OC", "Hindu", "Telugu", "H.No 4-5-6, School Street", "Mathematics, Science", "9876543210"],
+          ["Teacher Name", "Email", "Password", "Date of Birth", "Gender", "Caste", "Religion", "Mother Tongue", "Address", "Subjects Handled", "Phone Number"],
+          ["Priya Sharma", "priya.sharma@school.com", "teach123", "1990-08-20", "Female", "OC", "Hindu", "Telugu", "H.No 4-5-6, School Street", "Mathematics, Science", "9876543210"],
         ];
     
-    const ws = XLSX.utils.aoa_to_sheet(data);
+    const ws = XLSX.utils.aoa_to_sheet(sampleData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, `${type}_bulk_template.xlsx`);
@@ -127,7 +130,7 @@ const BulkUpload: React.FC = () => {
   };
 
   const processBulk = async () => {
-    if (!schoolId) {
+    if (!activeSchoolId) {
       toast.error("School ID not found.");
       return;
     }
@@ -152,8 +155,8 @@ const BulkUpload: React.FC = () => {
         });
 
         const studentPayload = parsedData.map((row, i) => {
-          const firstName = row["First Name"] || row["first_name"];
-          const lastName = row["Last Name"] || row["last_name"];
+          const firstName = row["First Name"] || row["first_name"] || "Student";
+          const lastName = row["Last Name"] || row["last_name"] || "";
           const grade = row["Grade"] || row["grade"];
           const sectionCode = row["Section"] || row["section"];
           
@@ -161,12 +164,13 @@ const BulkUpload: React.FC = () => {
           const sectionId = sectionMap[sectionKey];
 
           return {
-            school_id: schoolId,
+            school_id: activeSchoolId,
             section_id: sectionId,
             grade_id: Number(grade),
             first_name: firstName,
             last_name: lastName || "Student",
-            password: "123456", // Default password
+            email: row["Email"] || row["email"] || null,
+            password: row["Password"] || row["password"] || "123456",
             category: row["Caste"] || row["caste"] || "General",
             religion: row["Religion"] || row["religion"],
             mother_tongue: row["Mother Tongue"] || row["mother_tongue"],
@@ -202,12 +206,21 @@ const BulkUpload: React.FC = () => {
           const email = row["Email"] || row["email"];
           const subjectsStr = row["Subjects Handled"] || row["subjects_handled"] || "";
 
+          // Resolve subject names to their database numeric IDs
+          const subjectsList = subjectsStr.split(",")
+            .map((s: string) => s.trim().toLowerCase())
+            .filter(Boolean);
+          const resolvedSubjectIds = subjectsList.map((subjName: string) => {
+            const matchedSubj = data?.subjects?.find((s: any) => s.name?.trim().toLowerCase() === subjName);
+            return matchedSubj ? Number(matchedSubj.id) : null;
+          }).filter((id: any) => id !== null && !isNaN(id));
+
           return {
-            school_id: schoolId,
+            school_id: activeSchoolId,
             full_name: fullName,
             email: email,
-            password: "teach123", // Default password
-            subjects: subjectsStr.split(",").map((s: string) => s.trim()).filter(Boolean),
+            password: row["Password"] || row["password"] || "teach123",
+            subjects: resolvedSubjectIds,
             role: "teacher",
             dob: excelDateToString(row["Date of Birth"] || row["dob"]),
             gender: row["Gender"] || row["gender"],
