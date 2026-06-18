@@ -48,6 +48,7 @@ import QuestionBankPanel from "./QuestionBankPanel";
 import TeachersOverview from "@/components/TeachersOverview";
 import StudentsOverview from "@/components/StudentsOverview";
 import SchoolsOverview from "@/components/SchoolsOverview";
+import { StudentSpotlightModal } from "@/components/StudentSpotlightModal";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -118,6 +119,7 @@ const ModernAdminDashboard = () => {
 
   const [selectedReportTeacherId, setSelectedReportTeacherId] = useState<string | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [spotlightStudent, setSpotlightStudent] = useState<any>(null);
   // ── Audit Logs state ──────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -2093,7 +2095,11 @@ const ModernAdminDashboard = () => {
                             const grade = studentClass?.grade;
                             const section = s.section || studentClass?.section;
                             return (
-                              <tr key={s.id} className="hover:bg-slate-50/50 transition-colors group">
+                              <tr 
+                                key={s.id} 
+                                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                onClick={() => setSpotlightStudent(s)}
+                              >
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
@@ -2135,15 +2141,12 @@ const ModernAdminDashboard = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg font-semibold transition-colors"
-                                    onClick={() => {
-                                      const studentClass = classes.find(c => c.id === s.classId);
-                                      setAiReportStudentId(s.id);
-                                      setAiReportStudentName(s.name);
-                                      setAiReportStudentClass(studentClass?.name || "N/A");
-                                      setAiReportDialogOpen(true);
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSpotlightStudent(s);
                                     }}
                                   >
-                                    <Eye className="w-4 h-4 mr-1.5" /> Report
+                                    <Eye className="w-4 h-4 mr-1.5" /> View Profile
                                   </Button>
                                 </td>
                               </tr>
@@ -2167,7 +2170,14 @@ const ModernAdminDashboard = () => {
                   </div>
                 </CardContent>
              </Card>
+             <StudentSpotlightModal
+               spotlightStudent={spotlightStudent}
+               onClose={() => setSpotlightStudent(null)}
+               safeRawAttendance={data.attendanceLogs || []}
+               safeQuizzes={data.studentQuizResults || []}
+             />
           </TabsContent>
+
 
           <TabsContent value="teachers-overview" className="space-y-6">
             <TeachersOverview data={data} />
@@ -2330,7 +2340,11 @@ const ModernAdminDashboard = () => {
                           .map(t => {
                             const teacherSubjects = t.subjects && Array.isArray(t.subjects) ? t.subjects.join(", ") : "";
                             return (
-                              <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+                              <tr 
+                                key={t.id} 
+                                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                onClick={() => setViewingTeacher(t)}
+                              >
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shadow-sm">
@@ -2360,7 +2374,10 @@ const ModernAdminDashboard = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     className="text-primary hover:bg-primary/5 rounded-lg font-semibold transition-colors"
-                                    onClick={() => setViewingTeacher(t)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewingTeacher(t);
+                                    }}
                                   >
                                     <Eye className="w-4 h-4 mr-1" /> View Profile
                                   </Button>
@@ -3605,7 +3622,7 @@ const ModernAdminDashboard = () => {
                       className="bg-white/10 hover:bg-white/20 text-white border border-white/10 font-bold transition-all flex items-center gap-1.5"
                       onClick={() => setIsEditingProfile(true)}
                     >
-                      <Edit className="w-4 h-4" /> Edit Profile
+                      <Edit className="w-4 h-4" /> Edit Profile & Assignments
                     </Button>
                     <Button 
                       variant="destructive" 
