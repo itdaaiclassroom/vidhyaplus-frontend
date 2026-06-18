@@ -1,16 +1,16 @@
-import React from 'react';
-import { X, Calendar, Award } from 'lucide-react';
+import React from "react";
+import { X, Calendar, Award } from "lucide-react";
 
 interface StudentSpotlightModalProps {
   spotlightStudent: any;
-  setSpotlightStudent: (student: any) => void;
+  onClose: () => void;
   safeRawAttendance: any[];
   safeQuizzes: any[];
 }
 
 export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
   spotlightStudent,
-  setSpotlightStudent,
+  onClose,
   safeRawAttendance,
   safeQuizzes,
 }) => {
@@ -18,20 +18,22 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
 
   // Fetch recent student attendance logs
   const studentAttendanceLogs = safeRawAttendance
-    .filter(a => String(a.studentId) === String(spotlightStudent.id))
+    .filter((a) => String(a.studentId) === String(spotlightStudent.id))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 10);
 
   // Fetch student quiz scores
   const studentQuizzes = safeQuizzes
-    .filter(q => String(q.studentId) === String(spotlightStudent.id) && q.total > 0)
+    .filter((q) => String(q.studentId) === String(spotlightStudent.id) && q.total > 0)
     .sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime())
     .slice(0, 10);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-        
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div 
+        className="bg-white rounded-3xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col border border-slate-100 animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
           <div>
@@ -43,8 +45,8 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
               Grade: <strong className="text-slate-700">{spotlightStudent.grade}</strong> | School: <strong className="text-slate-700">{spotlightStudent.schoolName}</strong>
             </p>
           </div>
-          <button 
-            onClick={() => setSpotlightStudent(null)}
+          <button
+            onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
@@ -53,7 +55,6 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
 
         {/* Modal Content */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          
           {/* Quick Metrics Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150/40">
@@ -77,7 +78,6 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             {/* Attendance Log History */}
             <div className="space-y-3">
               <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -93,7 +93,7 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
                       <div className="text-[9px] text-slate-400 font-medium mt-0.5">Daily Attendance log</div>
                     </div>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                      log.status === "present"
+                      log.status === "present" || log.status?.toLowerCase() === "present"
                         ? "bg-emerald-50 text-emerald-650 border border-emerald-100"
                         : "bg-red-50 text-red-600 border border-red-100"
                     }`}>
@@ -122,7 +122,7 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
                         <span className="text-xs font-extrabold text-indigo-600">{percent}% ({quiz.score}/{quiz.total})</span>
                       </div>
                       <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="bg-indigo-600 h-full rounded-full transition-all duration-300"
                           style={{ width: `${percent}%` }}
                         />
@@ -135,23 +135,19 @@ export const StudentSpotlightModal: React.FC<StudentSpotlightModalProps> = ({
                 )}
               </div>
             </div>
-
           </div>
-
         </div>
 
         {/* Modal Footer */}
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-          <button 
-            onClick={() => setSpotlightStudent(null)}
+          <button
+            onClick={onClose}
             className="px-5 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl hover:bg-slate-700 transition-colors shadow-sm"
           >
             Close Details
           </button>
         </div>
-
       </div>
     </div>
   );
 };
-export default StudentSpotlightModal;

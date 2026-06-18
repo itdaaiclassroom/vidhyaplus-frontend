@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { FileDown, Calendar, Search, Award, Users, BookOpen, Clock, ChevronRight, X, GraduationCap, School, BarChart3, CheckCircle2, Star, Check, ChevronsUpDown, ChevronLeft } from "lucide-react";
-import StudentSpotlightModal from "./StudentSpotlightModal";
+import { 
+  Users, Award, TrendingUp, School, BookOpen, 
+  BarChart3, Calendar, GraduationCap, CheckCircle2, Star,
+  Search, X, ChevronLeft, ChevronRight, Check, ChevronsUpDown
+} from "lucide-react";
+import { StudentSpotlightModal } from "@/components/StudentSpotlightModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -694,12 +698,11 @@ export default function StudentsOverview({ data }: StudentsOverviewProps) {
         </CardContent>
       </Card>
 
-      {/* Student Spotlight Modal Overlay */}
-      <StudentSpotlightModal 
-        spotlightStudent={spotlightStudent} 
-        setSpotlightStudent={setSpotlightStudent} 
-        safeRawAttendance={safeRawAttendance} 
-        safeQuizzes={safeQuizzes} 
+      <StudentSpotlightModal
+        spotlightStudent={spotlightStudent}
+        onClose={() => setSpotlightStudent(null)}
+        safeRawAttendance={safeRawAttendance}
+        safeQuizzes={safeQuizzes}
       />
     </div>
   );
