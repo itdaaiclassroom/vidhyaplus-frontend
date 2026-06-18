@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import StudentReportCard from "@/components/StudentReportCard";
+import StudentSpotlightModal from "@/components/StudentSpotlightModal";
 import SessionAnalytics from "@/components/SessionAnalytics";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
@@ -227,6 +228,7 @@ const ModernAdminDashboard = () => {
   const [aiReportStudentId, setAiReportStudentId] = useState<string | number | undefined>(undefined);
   const [aiReportStudentClass, setAiReportStudentClass] = useState<string>("");
   const reportRef = useRef<HTMLDivElement>(null);
+  const [spotlightStudent, setSpotlightStudent] = useState<any>(null);
 
   // ── Admin Profile state ───────────────────────────────────────────────────
   const [adminProfile, setAdminProfile] = useState<any>(null);
@@ -2093,7 +2095,32 @@ const ModernAdminDashboard = () => {
                             const grade = studentClass?.grade;
                             const section = s.section || studentClass?.section;
                             return (
-                              <tr key={s.id} className="hover:bg-slate-50/50 transition-colors group">
+                              <tr 
+                                key={s.id} 
+                                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                onClick={() => {
+                                  const studentClass = classes.find(c => c.id === s.classId);
+                                  const safeRawAttendance = data.rawAttendance || [];
+                                  const studentAttendance = safeRawAttendance.filter((a: any) => String(a.studentId) === String(s.id));
+                                  const attPct = studentAttendance.length > 0 
+                                    ? Math.round((studentAttendance.filter((a: any) => a.status === 'present').length / studentAttendance.length) * 100) 
+                                    : 0;
+
+                                  const safeQuizzes = data.studentQuizResults || [];
+                                  const studentQuizzes = safeQuizzes.filter((q: any) => String(q.studentId) === String(s.id) && q.total > 0);
+                                  const quizPct = studentQuizzes.length > 0
+                                    ? Math.round(studentQuizzes.reduce((acc: number, curr: any) => acc + (curr.score * 100 / curr.total), 0) / studentQuizzes.length)
+                                    : 0;
+
+                                  setSpotlightStudent({
+                                    ...s,
+                                    grade: studentClass?.grade ? `${studentClass.grade} - ${s.section || studentClass.section || ''}` : 'N/A',
+                                    schoolName: schools.find(sc => sc.id === s.schoolId)?.name || 'Main School',
+                                    attPct,
+                                    quizPct
+                                  });
+                                }}
+                              >
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
@@ -2135,15 +2162,31 @@ const ModernAdminDashboard = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg font-semibold transition-colors"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       const studentClass = classes.find(c => c.id === s.classId);
-                                      setAiReportStudentId(s.id);
-                                      setAiReportStudentName(s.name);
-                                      setAiReportStudentClass(studentClass?.name || "N/A");
-                                      setAiReportDialogOpen(true);
+                                      const safeRawAttendance = data.rawAttendance || [];
+                                      const studentAttendance = safeRawAttendance.filter((a: any) => String(a.studentId) === String(s.id));
+                                      const attPct = studentAttendance.length > 0 
+                                        ? Math.round((studentAttendance.filter((a: any) => a.status === 'present').length / studentAttendance.length) * 100) 
+                                        : 0;
+
+                                      const safeQuizzes = data.studentQuizResults || [];
+                                      const studentQuizzes = safeQuizzes.filter((q: any) => String(q.studentId) === String(s.id) && q.total > 0);
+                                      const quizPct = studentQuizzes.length > 0
+                                        ? Math.round(studentQuizzes.reduce((acc: number, curr: any) => acc + (curr.score * 100 / curr.total), 0) / studentQuizzes.length)
+                                        : 0;
+
+                                      setSpotlightStudent({
+                                        ...s,
+                                        grade: studentClass?.grade ? `${studentClass.grade} - ${s.section || studentClass.section || ''}` : 'N/A',
+                                        schoolName: schools.find(sc => sc.id === s.schoolId)?.name || 'Main School',
+                                        attPct,
+                                        quizPct
+                                      });
                                     }}
                                   >
-                                    <Eye className="w-4 h-4 mr-1.5" /> Report
+                                    <Eye className="w-4 h-4 mr-1.5" /> View Spotlight
                                   </Button>
                                 </td>
                               </tr>
@@ -2330,7 +2373,11 @@ const ModernAdminDashboard = () => {
                           .map(t => {
                             const teacherSubjects = t.subjects && Array.isArray(t.subjects) ? t.subjects.join(", ") : "";
                             return (
-                              <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+                              <tr 
+                                key={t.id} 
+                                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                                onClick={() => setViewingTeacher(t)}
+                              >
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shadow-sm">
@@ -2360,7 +2407,10 @@ const ModernAdminDashboard = () => {
                                     variant="ghost" 
                                     size="sm" 
                                     className="text-primary hover:bg-primary/5 rounded-lg font-semibold transition-colors"
-                                    onClick={() => setViewingTeacher(t)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewingTeacher(t);
+                                    }}
                                   >
                                     <Eye className="w-4 h-4 mr-1" /> View Profile
                                   </Button>
@@ -3602,6 +3652,20 @@ const ModernAdminDashboard = () => {
                     <Button 
                       variant="secondary" 
                       size="sm" 
+                      className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition-all flex items-center gap-1.5"
+                      onClick={() => {
+                        setEditingTeacherId(viewingTeacher.id);
+                        const matchedSchoolId = schools.find((sc) => sc.id === viewingTeacher.schoolId)?.id || schools[0]?.id;
+                        setTeacherEditSchoolId(String(matchedSchoolId));
+                        setTeacherAssignmentDialogOpen(true);
+                        setViewingTeacher(null); // Close profile dialog to show assignments
+                      }}
+                    >
+                      <BookOpen className="w-4 h-4" /> Manage Assignments
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
                       className="bg-white/10 hover:bg-white/20 text-white border border-white/10 font-bold transition-all flex items-center gap-1.5"
                       onClick={() => setIsEditingProfile(true)}
                     >
@@ -4270,6 +4334,13 @@ const ModernAdminDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+      
+      <StudentSpotlightModal 
+        spotlightStudent={spotlightStudent} 
+        setSpotlightStudent={setSpotlightStudent} 
+        safeRawAttendance={data.rawAttendance || []} 
+        safeQuizzes={data.studentQuizResults || []} 
+      />
     </div>
   );
 };
