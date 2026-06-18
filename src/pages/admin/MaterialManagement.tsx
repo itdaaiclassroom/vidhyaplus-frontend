@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2, Settings2, ShieldCheck, BookOpen, Save, Table2, ChevronDown, ChevronRight, ChevronLeft, Search, ExternalLink, X, Download, GraduationCap } from 'lucide-react';
-import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, updateTopicPdf, deleteTopicPdf, updateTopicYoutube, deleteTopicYoutube, updateTopicActivity, deleteTopicActivity, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, getPresignedUploadUrl, uploadToR2Direct, extractTextbookCurriculum, getApiBase, bulkUploadCurriculum, fetchCurriculumStructure, deleteCurriculumEntry, toggleTopicMaterialMandatory, fetchTopicMaterials, type ChapterAssessmentConfigItem, type CurriculumChapter } from '@/api/client';
+import { Upload, Book, FileText, CheckCircle, AlertCircle, Loader, Layers, List, Sparkles, Trash2, Settings2, ShieldCheck, BookOpen, Save, Table2, ChevronDown, ChevronRight, ChevronLeft, Search, ExternalLink, X, Download, GraduationCap, TrendingUp, Edit, Plus } from 'lucide-react';
+import { fetchAll, uploadSubjectMaterial, fetchSubjectMaterials, uploadTopicPpt, deleteSubjectMaterial, deleteTopicPpt, updateTopicPdf, deleteTopicPdf, updateTopicYoutube, deleteTopicYoutube, updateTopicActivity, deleteTopicActivity, fetchGatingConfig, updateGatingConfig, fetchChapterAssessmentConfig, upsertChapterAssessmentConfig, getPresignedUploadUrl, uploadToR2Direct, extractTextbookCurriculum, getApiBase, bulkUploadCurriculum, fetchCurriculumStructure, deleteCurriculumEntry, toggleTopicMaterialMandatory, fetchTopicMaterials, createChapter, createTopic, updateChapter, updateTopic, type ChapterAssessmentConfigItem, type CurriculumChapter } from '@/api/client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,6 +88,39 @@ export default function MaterialManagement() {
   const [curriculumSearchText, setCurriculumSearchText] = useState('');
   const [curriculumPage, setCurriculumPage] = useState(1);
   const [isCurriculumUploadOpen, setIsCurriculumUploadOpen] = useState(false);
+
+  // Edit Curriculum Entry State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    grade: '',
+    subjectId: '',
+    chapterId: '',
+    chapterNo: '',
+    chapterName: '',
+    learningIntent: '',
+    topicId: '',
+    topicName: '',
+    topicOrder: '',
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Add Curriculum Entry State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    grade: '',
+    subjectId: '',
+    chapterId: '',
+    chapterNo: '',
+    chapterName: '',
+    learningIntent: '',
+    topicName: '',
+    topicOrder: '',
+  });
+  const [isSavingAdd, setIsSavingAdd] = useState(false);
+
+  // List of chapters for the currently selected grade/subject in the active modal (Add or Edit)
+  const [modalChapters, setModalChapters] = useState<any[]>([]);
 
   // Curriculum Builder Modal state
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -208,6 +241,162 @@ export default function MaterialManagement() {
       toast.error(err.message || 'Upload failed');
     } finally {
       setCurriculumUploading(false);
+    }
+  };
+
+  const loadModalChapters = async (grade: string, subjectId: string) => {
+    if (!grade || !subjectId) {
+      setModalChapters([]);
+      return;
+    }
+    try {
+      const res = await fetchCurriculumStructure({ grade: Number(grade), subject_id: Number(subjectId) });
+      setModalChapters(res.chapters || []);
+    } catch (err) {
+      console.error("Failed to load modal chapters", err);
+    }
+  };
+
+  const handleAddClick = () => {
+    const defaultGrade = curriculumFilterGrade || (gradesList[0] ? String(gradesList[0].id) : '10');
+    const defaultSubject = curriculumFilterSubject || (subjects[0] ? String(subjects[0].id) : '');
+    
+    setAddForm({
+      grade: defaultGrade,
+      subjectId: defaultSubject,
+      chapterId: '',
+      chapterNo: '',
+      chapterName: '',
+      learningIntent: '',
+      topicName: '',
+      topicOrder: '',
+    });
+    
+    loadModalChapters(defaultGrade, defaultSubject);
+    setIsAddModalOpen(true);
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingAdd(true);
+    try {
+      let finalChapterId: number;
+
+      if (!addForm.chapterId) {
+        // Create a new chapter first
+        if (!addForm.chapterNo || !addForm.chapterName) {
+          throw new Error("Chapter number and Chapter name are required to create a new chapter.");
+        }
+        const chRes = await createChapter({
+          subject_id: Number(addForm.subjectId),
+          grade_id: Number(addForm.grade),
+          chapter_no: Number(addForm.chapterNo),
+          chapter_name: addForm.chapterName,
+        });
+        finalChapterId = chRes.id;
+        
+        // Also update the chapter's learning intent if provided
+        if (addForm.learningIntent) {
+          await updateChapter(finalChapterId, {
+            learning_intent: addForm.learningIntent,
+          });
+        }
+      } else {
+        finalChapterId = Number(addForm.chapterId);
+      }
+
+      // Now create the topic
+      if (!addForm.topicName) {
+        throw new Error("Topic name is required.");
+      }
+      await createTopic({
+        chapter_id: finalChapterId,
+        name: addForm.topicName,
+        order_num: Number(addForm.topicOrder) || 1,
+      });
+
+      toast.success('Curriculum entry added successfully');
+      setIsAddModalOpen(false);
+      
+      // Reload data
+      await loadCurriculumData(curriculumFilterSubject, curriculumFilterGrade);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add curriculum');
+    } finally {
+      setIsSavingAdd(false);
+    }
+  };
+
+  const handleEditClick = async (topic: any) => {
+    setEditingTopic(topic);
+    setEditForm({
+      grade: String(topic.grade),
+      subjectId: String(topic.subjectId),
+      chapterId: String(topic.chapterId),
+      chapterNo: String(topic.chapterNo),
+      chapterName: topic.chapterName,
+      learningIntent: topic.learningIntent,
+      topicId: String(topic.id),
+      topicName: topic.topicName,
+      topicOrder: String(topic.topicOrder),
+    });
+    
+    // Load chapters for that specific grade and subject
+    await loadModalChapters(String(topic.grade), String(topic.subjectId));
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTopic) return;
+    setIsSavingEdit(true);
+    try {
+      let finalChapterId: number;
+
+      if (!editForm.chapterId) {
+        // Create new chapter
+        const chRes = await createChapter({
+          subject_id: Number(editForm.subjectId),
+          grade_id: Number(editForm.grade),
+          chapter_no: Number(editForm.chapterNo),
+          chapter_name: editForm.chapterName,
+        });
+        finalChapterId = chRes.id;
+        if (editForm.learningIntent) {
+          await updateChapter(finalChapterId, {
+            learning_intent: editForm.learningIntent,
+          });
+        }
+      } else {
+        finalChapterId = Number(editForm.chapterId);
+        // Update the existing chapter name, number, intent if they changed
+        await updateChapter(finalChapterId, {
+          chapter_no: Number(editForm.chapterNo),
+          chapter_name: editForm.chapterName,
+          subject_id: Number(editForm.subjectId),
+          grade_id: Number(editForm.grade),
+          learning_intent: editForm.learningIntent,
+        });
+      }
+
+      // Update topic info
+      await updateTopic(editingTopic.id, {
+        name: editForm.topicName,
+        order_num: Number(editForm.topicOrder),
+      });
+
+      toast.success('Curriculum updated successfully');
+      setIsEditModalOpen(false);
+      setEditingTopic(null);
+      
+      // Reload the data
+      await loadCurriculumData(curriculumFilterSubject, curriculumFilterGrade);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update curriculum');
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -1279,6 +1468,14 @@ export default function MaterialManagement() {
                 <Download className="w-4 h-4" /> Template
               </button>
               <button 
+                onClick={handleAddClick}
+                disabled={isReadOnly}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all disabled:opacity-50"
+                title={isReadOnly ? "Read-only access" : ""}
+              >
+                <Plus className="w-4 h-4" /> Add Entry
+              </button>
+              <button 
                 onClick={() => { setCurriculumFile(null); setCurriculumResult(null); setIsCurriculumUploadOpen(true); }}
                 disabled={isReadOnly}
                 className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-100 hover:shadow-none transition-all disabled:opacity-50"
@@ -1288,6 +1485,94 @@ export default function MaterialManagement() {
               </button>
             </div>
           </div>
+
+          {/* Professional Analytics Cards */}
+          {(() => {
+            const statsChaptersCount = curriculumData.length;
+            let statsTopicsCount = 0;
+            let statsCompletedCount = 0;
+            let statsInProgressCount = 0;
+            let statsNotStartedCount = 0;
+
+            curriculumData.forEach(ch => {
+              const topicsList = ch.topics || [];
+              statsTopicsCount += topicsList.length;
+              topicsList.forEach(t => {
+                if (t.status === 'completed') {
+                  statsCompletedCount++;
+                } else if (t.status === 'in_progress') {
+                  statsInProgressCount++;
+                } else {
+                  statsNotStartedCount++;
+                }
+              });
+            });
+
+            const statsCompletionRate = statsTopicsCount > 0 
+              ? Math.round((statsCompletedCount / statsTopicsCount) * 100) 
+              : 0;
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* Card 1: Total Chapters */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Chapters</p>
+                    <h3 className="text-2xl font-extrabold text-slate-800 mt-1">{statsChaptersCount}</h3>
+                  </div>
+                </div>
+
+                {/* Card 2: Total Topics */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-2xl">
+                    <Layers className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Topics</p>
+                    <h3 className="text-2xl font-extrabold text-slate-800 mt-1">{statsTopicsCount}</h3>
+                  </div>
+                </div>
+
+                {/* Card 3: Completion Rate */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between gap-3 hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-violet-50 text-violet-600 rounded-xl">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Completion Rate</p>
+                    </div>
+                    <span className="text-sm font-extrabold text-violet-600">{statsCompletionRate}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div className="bg-violet-600 h-full transition-all duration-500" style={{ width: `${statsCompletionRate}%` }}></div>
+                  </div>
+                </div>
+
+                {/* Card 4: Status Breakdown */}
+                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 flex flex-col justify-between gap-2.5 hover:shadow-md transition-all duration-300">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Topic Status Breakdown</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white border border-slate-100/80 rounded-xl p-1.5 text-center shadow-sm">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase">Done</p>
+                      <p className="text-sm font-extrabold text-slate-700 mt-0.5">{statsCompletedCount}</p>
+                    </div>
+                    <div className="bg-white border border-slate-100/80 rounded-xl p-1.5 text-center shadow-sm">
+                      <p className="text-[10px] font-bold text-blue-500 uppercase">Active</p>
+                      <p className="text-sm font-extrabold text-slate-700 mt-0.5">{statsInProgressCount}</p>
+                    </div>
+                    <div className="bg-white border border-slate-100/80 rounded-xl p-1.5 text-center shadow-sm">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Todo</p>
+                      <p className="text-sm font-extrabold text-slate-700 mt-0.5">{statsNotStartedCount}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Unified Filter & Search Bar */}
           <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 flex flex-wrap gap-4 items-end">
@@ -1299,7 +1584,7 @@ export default function MaterialManagement() {
                 onChange={e => { setCurriculumFilterGrade(e.target.value); setCurriculumFilterChapter(''); loadCurriculumData(curriculumFilterSubject, e.target.value); }}
               >
                 <option value="">All Grades</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => <option key={g} value={String(g)}>Class {g}</option>)}
+                {gradesList.map(g => <option key={g.id} value={String(g.id)}>{g.grade_label}</option>)}
               </select>
             </div>
             
@@ -1375,13 +1660,17 @@ export default function MaterialManagement() {
           {(() => {
             const flatTopics: Array<{
               id: number;
+              chapterId: number;
               chapterName: string;
+              chapterNo: number;
               subjectName: string;
               subjectId: number;
               grade: number;
               source: string;
               learningIntent: string;
               topicName: string;
+              topicOrder: number;
+              status: string;
               subtopics: string[];
             }> = [];
 
@@ -1390,13 +1679,17 @@ export default function MaterialManagement() {
               topicsList.forEach(t => {
                 flatTopics.push({
                   id: t.id,
+                  chapterId: ch.chapter_id,
                   chapterName: ch.chapter_name,
+                  chapterNo: ch.chapter_order || 0,
                   subjectName: ch.subject_name,
                   subjectId: ch.subject_id,
                   grade: ch.grade,
                   source: ch.source || 'excel',
                   learningIntent: ch.learning_intent || '',
                   topicName: t.topic_name,
+                  topicOrder: t.topic_order || 0,
+                  status: t.status || 'not_started',
                   subtopics: t.subtopics || [],
                 });
               });
@@ -1496,21 +1789,30 @@ export default function MaterialManagement() {
                                 )}
                               </td>
                               <td className="py-4 px-4 text-center">
-                                <button
-                                  onClick={async () => {
-                                    if (!window.confirm(`Delete topic "${t.topicName}"?`)) return;
-                                    try {
-                                      await deleteCurriculumEntry(t.id);
-                                      toast.success('Topic deleted');
-                                      loadCurriculumData(curriculumFilterSubject, curriculumFilterGrade);
-                                    } catch (e: any) { toast.error(e.message); }
-                                  }}
-                                  disabled={isReadOnly}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
-                                  title={isReadOnly ? "Read-only access" : "Delete topic"}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    onClick={() => handleEditClick(t)}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                    title="Edit topic/chapter"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      if (!window.confirm(`Delete topic "${t.topicName}"?`)) return;
+                                      try {
+                                        await deleteCurriculumEntry(t.id);
+                                        toast.success('Topic deleted');
+                                        loadCurriculumData(curriculumFilterSubject, curriculumFilterGrade);
+                                      } catch (e: any) { toast.error(e.message); }
+                                    }}
+                                    disabled={isReadOnly}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
+                                    title={isReadOnly ? "Read-only access" : "Delete topic"}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1648,6 +1950,443 @@ export default function MaterialManagement() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Curriculum Entry Modal Dialog */}
+          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+            <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-none shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Edit className="w-5 h-5 text-emerald-600" />
+                  Edit Curriculum Registry Entry
+                </DialogTitle>
+              </DialogHeader>
+              
+              <form onSubmit={handleEditSubmit} className="space-y-4 pt-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Class / Grade</label>
+                    <select
+                      value={editForm.grade}
+                      onChange={e => {
+                        const newGrade = e.target.value;
+                        setEditForm(prev => ({ ...prev, grade: newGrade, chapterId: '', topicName: '' }));
+                        loadModalChapters(newGrade, editForm.subjectId);
+                      }}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    >
+                      {gradesList.map(g => (
+                        <option key={g.id} value={String(g.id)}>{g.grade_label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+                    <select
+                      value={editForm.subjectId}
+                      onChange={e => {
+                        const newSub = e.target.value;
+                        setEditForm(prev => ({ ...prev, subjectId: newSub, chapterId: '', topicName: '' }));
+                        loadModalChapters(editForm.grade, newSub);
+                      }}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    >
+                      {subjects.map((s: any) => (
+                        <option key={s.id} value={String(s.id)}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapter Selection</label>
+                  <select
+                    value={editForm.chapterId}
+                    onChange={e => {
+                      const chId = e.target.value;
+                      if (!chId) {
+                        setEditForm(prev => ({
+                          ...prev,
+                          chapterId: '',
+                          chapterNo: '',
+                          chapterName: '',
+                          learningIntent: '',
+                          topicName: ''
+                        }));
+                      } else {
+                        const ch = modalChapters.find(c => String(c.chapter_id) === String(chId));
+                        setEditForm(prev => ({
+                          ...prev,
+                          chapterId: chId,
+                          chapterNo: ch ? String(ch.chapter_order || '') : '',
+                          chapterName: ch ? ch.chapter_name : '',
+                          learningIntent: ch ? (ch.learning_intent || ch.teaching_plan_summary || '') : '',
+                          topicName: ''
+                        }));
+                      }
+                    }}
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                  >
+                    <option value="">[Create New Chapter...]</option>
+                    {modalChapters.map(ch => (
+                      <option key={ch.chapter_id} value={String(ch.chapter_id)}>
+                        Ch {ch.chapter_order || '?'}: {ch.chapter_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Show Chapter Inputs if "Create New" or overrides are required */}
+                <div className="space-y-4 border border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
+                  <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
+                    {!editForm.chapterId ? "New Chapter Details" : "Chapter Details (Updates existing chapter)"}
+                  </p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Chapter No</label>
+                      <input
+                        type="number"
+                        value={editForm.chapterNo}
+                        onChange={e => setEditForm(prev => ({ ...prev, chapterNo: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                        min="1"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="col-span-2 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Chapter Name</label>
+                      <input
+                        type="text"
+                        value={editForm.chapterName}
+                        onChange={e => setEditForm(prev => ({ ...prev, chapterName: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Learning Intention</label>
+                    <textarea
+                      value={editForm.learningIntent}
+                      onChange={e => setEditForm(prev => ({ ...prev, learningIntent: e.target.value }))}
+                      className="w-full h-16 p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium resize-none"
+                      placeholder="Enter learning intention..."
+                    />
+                  </div>
+                </div>
+
+                {/* Topic Details */}
+                <div className="space-y-4 border border-slate-100 p-4 rounded-2xl">
+                  <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Topic Details</p>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">Topic Selection</label>
+                    <select
+                      value={editForm.topicName}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__new__') {
+                          setEditForm(prev => ({ ...prev, topicName: '', topicOrder: '' }));
+                        } else {
+                          const selectedCh = modalChapters.find(c => String(c.chapter_id) === String(editForm.chapterId));
+                          const topics = selectedCh ? (selectedCh.topics || []) : [];
+                          const tObj = topics.find((t: any) => t.topic_name === val);
+                          setEditForm(prev => ({
+                            ...prev,
+                            topicName: val,
+                            topicOrder: tObj ? String(tObj.topic_order || '') : ''
+                          }));
+                        }
+                      }}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    >
+                      <option value="__new__">[Create New Topic...]</option>
+                      {editForm.chapterId && (() => {
+                        const selectedCh = modalChapters.find(c => String(c.chapter_id) === String(editForm.chapterId));
+                        const topics = selectedCh ? (selectedCh.topics || []) : [];
+                        return topics.map((t: any) => (
+                          <option key={t.id} value={t.topic_name}>
+                            {t.topic_name}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-3 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Topic Name</label>
+                      <input
+                        type="text"
+                        value={editForm.topicName}
+                        onChange={e => setEditForm(prev => ({ ...prev, topicName: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="col-span-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Topic Order</label>
+                      <input
+                        type="number"
+                        value={editForm.topicOrder}
+                        onChange={e => setEditForm(prev => ({ ...prev, topicOrder: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                        min="1"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-end pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditModalOpen(false); setEditingTopic(null); }}
+                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit || isReadOnly}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-emerald-100 disabled:shadow-none"
+                    title={isReadOnly ? "Read-only access" : ""}
+                  >
+                    {isSavingEdit ? (
+                      <span className="flex items-center gap-1"><Loader className="w-3.5 h-3.5 animate-spin" /> Saving...</span>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Add Curriculum Entry Modal Dialog */}
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-none shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-emerald-600" />
+                  Add Curriculum Registry Entry
+                </DialogTitle>
+              </DialogHeader>
+              
+              <form onSubmit={handleAddSubmit} className="space-y-4 pt-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Class / Grade</label>
+                    <select
+                      value={addForm.grade}
+                      onChange={e => {
+                        const newGrade = e.target.value;
+                        setAddForm(prev => ({ ...prev, grade: newGrade, chapterId: '', topicName: '' }));
+                        loadModalChapters(newGrade, addForm.subjectId);
+                      }}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    >
+                      {gradesList.map(g => (
+                        <option key={g.id} value={String(g.id)}>{g.grade_label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</label>
+                    <select
+                      value={addForm.subjectId}
+                      onChange={e => {
+                        const newSub = e.target.value;
+                        setAddForm(prev => ({ ...prev, subjectId: newSub, chapterId: '', topicName: '' }));
+                        loadModalChapters(addForm.grade, newSub);
+                      }}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    >
+                      {subjects.map((s: any) => (
+                        <option key={s.id} value={String(s.id)}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chapter Selection</label>
+                  <select
+                    value={addForm.chapterId}
+                    onChange={e => {
+                      const chId = e.target.value;
+                      if (!chId) {
+                        setAddForm(prev => ({
+                          ...prev,
+                          chapterId: '',
+                          chapterNo: '',
+                          chapterName: '',
+                          learningIntent: '',
+                          topicName: ''
+                        }));
+                      } else {
+                        const ch = modalChapters.find(c => String(c.chapter_id) === String(chId));
+                        setAddForm(prev => ({
+                          ...prev,
+                          chapterId: chId,
+                          chapterNo: ch ? String(ch.chapter_order || '') : '',
+                          chapterName: ch ? ch.chapter_name : '',
+                          learningIntent: ch ? (ch.learning_intent || ch.teaching_plan_summary || '') : '',
+                          topicName: ''
+                        }));
+                      }
+                    }}
+                    className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                  >
+                    <option value="">[Create New Chapter...]</option>
+                    {modalChapters.map(ch => (
+                      <option key={ch.chapter_id} value={String(ch.chapter_id)}>
+                        Ch {ch.chapter_order || '?'}: {ch.chapter_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Show Chapter Inputs if "Create New" is selected */}
+                {!addForm.chapterId ? (
+                  <div className="space-y-4 border border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
+                    <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">New Chapter Details</p>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="col-span-1 space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Chapter No</label>
+                        <input
+                          type="number"
+                          value={addForm.chapterNo}
+                          onChange={e => setAddForm(prev => ({ ...prev, chapterNo: e.target.value }))}
+                          className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                          min="1"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="col-span-2 space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Chapter Name</label>
+                        <input
+                          type="text"
+                          value={addForm.chapterName}
+                          onChange={e => setAddForm(prev => ({ ...prev, chapterName: e.target.value }))}
+                          className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Learning Intention</label>
+                      <textarea
+                        value={addForm.learningIntent}
+                        onChange={e => setAddForm(prev => ({ ...prev, learningIntent: e.target.value }))}
+                        className="w-full h-16 p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium resize-none"
+                        placeholder="Enter learning intention..."
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  // Read-only info if existing chapter is selected
+                  <div className="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-xl p-3 leading-relaxed">
+                    <span className="font-bold text-slate-700">Selected Chapter:</span> Ch {addForm.chapterNo}: {addForm.chapterName}
+                    {addForm.learningIntent && <p className="mt-1 italic">🎯 {addForm.learningIntent}</p>}
+                  </div>
+                )}
+
+                {/* Topic dropdown/input */}
+                <div className="space-y-4 border border-slate-100 p-4 rounded-2xl">
+                  <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Topic Details</p>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Topic Selection</label>
+                    <select
+                      value={addForm.topicName}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__new__') {
+                          setAddForm(prev => ({ ...prev, topicName: '', topicOrder: '' }));
+                        } else {
+                          // Find topic order if selected existing
+                          const selectedCh = modalChapters.find(c => String(c.chapter_id) === String(addForm.chapterId));
+                          const topics = selectedCh ? (selectedCh.topics || []) : [];
+                          const tObj = topics.find((t: any) => t.topic_name === val);
+                          setAddForm(prev => ({
+                            ...prev,
+                            topicName: val,
+                            topicOrder: tObj ? String(tObj.topic_order || '') : ''
+                          }));
+                        }
+                      }}
+                      className="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                    >
+                      <option value="__new__">[Create New Topic...]</option>
+                      {addForm.chapterId && (() => {
+                        const selectedCh = modalChapters.find(c => String(c.chapter_id) === String(addForm.chapterId));
+                        const topics = selectedCh ? (selectedCh.topics || []) : [];
+                        return topics.map((t: any) => (
+                          <option key={t.id} value={t.topic_name}>
+                            {t.topic_name}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-3 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Topic Name</label>
+                      <input
+                        type="text"
+                        value={addForm.topicName}
+                        onChange={e => setAddForm(prev => ({ ...prev, topicName: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                        required
+                      />
+                    </div>
+                    
+                    <div className="col-span-1 space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase">Topic Order</label>
+                      <input
+                        type="number"
+                        value={addForm.topicOrder}
+                        onChange={e => setAddForm(prev => ({ ...prev, topicOrder: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
+                        min="1"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-end pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddModalOpen(false); }}
+                    className="px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingAdd || isReadOnly}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-emerald-100 disabled:shadow-none"
+                    title={isReadOnly ? "Read-only access" : ""}
+                  >
+                    {isSavingAdd ? (
+                      <span className="flex items-center gap-1"><Loader className="w-3.5 h-3.5 animate-spin" /> Adding...</span>
+                    ) : (
+                      'Add Entry'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
@@ -1738,8 +2477,8 @@ export default function MaterialManagement() {
                 setChapterConfigs([]);
               }}
             >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => (
-                <option key={g} value={g}>Class {g}</option>
+              {gradesList.map(g => (
+                <option key={g.id} value={String(g.id)}>{g.grade_label}</option>
               ))}
             </select>
           </div>

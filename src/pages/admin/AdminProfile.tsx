@@ -133,7 +133,7 @@ export default function AdminProfile() {
                     <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                       <Shield className="w-3.5 h-3.5" /> Account ID
                     </Label>
-                    <p className="text-lg font-medium text-slate-800 font-mono bg-slate-50 inline-block px-2 py-0.5 rounded border border-slate-200">{`${role === 'superadmin' ? 'SA' : 'A'}${String(adminProfile?.id || localStorage.getItem("auth.teamId") || 1).padStart(4, '0')}`}</p>
+                    <p className="text-lg font-medium text-slate-800 font-mono bg-slate-50 inline-block px-2 py-0.5 rounded border border-slate-200">{String(adminProfile?.sequence_no || adminProfile?.id || localStorage.getItem("auth.teamId") || 1)}</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">

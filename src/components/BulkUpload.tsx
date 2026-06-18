@@ -71,12 +71,12 @@ function excelDateToString(value: any): string | null {
   return null;
 }
 
-const BulkUpload: React.FC = () => {
+const BulkUpload: React.FC<{ fixedType?: UploadType }> = ({ fixedType }) => {
   const { schoolId } = useAuth();
   const principalContext = usePrincipal();
   const { data } = useAppData();
   const activeSchoolId = principalContext?.schoolId || schoolId;
-  const [type, setType] = useState<UploadType>("students");
+  const [type, setType] = useState<UploadType>(fixedType || "students");
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -294,27 +294,29 @@ const BulkUpload: React.FC = () => {
             <CardTitle className="text-sm">Upload Settings</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">Registration Type</label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant={type === "students" ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => { setType("students"); setFile(null); setParsedData([]); setLogs([]); }}
-                  disabled={processing}
-                >
-                  Students
-                </Button>
-                <Button 
-                  variant={type === "teachers" ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => { setType("teachers"); setFile(null); setParsedData([]); setLogs([]); }}
-                  disabled={processing}
-                >
-                  Teachers
-                </Button>
+            {!fixedType && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Registration Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant={type === "students" ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => { setType("students"); setFile(null); setParsedData([]); setLogs([]); }}
+                    disabled={processing}
+                  >
+                    Students
+                  </Button>
+                  <Button 
+                    variant={type === "teachers" ? "default" : "outline"} 
+                    size="sm" 
+                    onClick={() => { setType("teachers"); setFile(null); setParsedData([]); setLogs([]); }}
+                    disabled={processing}
+                  >
+                    Teachers
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Excel File</label>
