@@ -566,7 +566,7 @@ const TeacherRegistration: React.FC = () => {
                 </div>
               </div>
             )}
-            <BulkUpload />
+            <BulkUpload fixedType="teachers" />
           </Card>
         </TabsContent>
       </Tabs>

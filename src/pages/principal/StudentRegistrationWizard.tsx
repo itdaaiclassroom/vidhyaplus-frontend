@@ -423,7 +423,7 @@ const StudentRegistrationWizard: React.FC = () => {
                 </div>
               </div>
             )}
-            <BulkUpload />
+            <BulkUpload fixedType="students" />
           </Card>
         </TabsContent>
       </Tabs>

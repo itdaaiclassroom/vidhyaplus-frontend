@@ -202,10 +202,8 @@ const UserManagementPanel = () => {
     }
   };
 
-  const formatId = (id: number, role: string) => {
-    if (role === 'superadmin') return `SA${String(id).padStart(4, '0')}`;
-    if (role === 'question_bank_admin') return `QB${String(id).padStart(4, '0')}`;
-    return `A${String(id).padStart(4, '0')}`;
+  const formatId = (sequenceNo: number | undefined, id: number) => {
+    return String(sequenceNo || id || 1);
   };
 
   const superadmins = admins.filter(a => a.role === 'superadmin');
@@ -217,7 +215,7 @@ const UserManagementPanel = () => {
   const filteredAdmins = currentAdmins.filter(admin => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
-    const idString = formatId(admin.id, admin.role).toLowerCase();
+    const idString = formatId(admin.sequence_no, admin.id).toLowerCase();
     return idString.includes(term) || admin.name.toLowerCase().includes(term) || admin.email.toLowerCase().includes(term);
   });
 
@@ -267,7 +265,7 @@ const UserManagementPanel = () => {
                 <tr><td colSpan={currentUserRole === 'superadmin' ? 7 : 6} className="px-6 py-8 text-center text-slate-400">No admins found</td></tr>
               ) : paginatedAdmins.map(admin => (
                 <tr key={admin.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-slate-600 font-mono">{formatId(admin.id, admin.role)}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-slate-600 font-mono">{formatId(admin.sequence_no, admin.id)}</td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-800">{admin.name}</td>
                   <td className="px-6 py-4 text-sm text-slate-500 font-medium">{admin.designation || '-'}</td>
                   <td className="px-6 py-4 text-sm text-slate-500">{admin.email}</td>
@@ -377,7 +375,7 @@ const UserManagementPanel = () => {
                      <h2 className="text-2xl font-bold text-slate-800">{editingAdmin.name}</h2>
                      {getRoleBadge(editingAdmin.role)}
                    </div>
-                   <p className="text-slate-500 font-medium font-mono">{formatId(editingAdmin.id, editingAdmin.role)} • <span className="font-sans">{editingAdmin.designation || 'No Designation'}</span></p>
+                   <p className="text-slate-500 font-medium font-mono">{formatId(editingAdmin.sequence_no, editingAdmin.id)} • <span className="font-sans">{editingAdmin.designation || 'No Designation'}</span></p>
                  </div>
               </div>
             )}

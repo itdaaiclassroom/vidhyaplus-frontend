@@ -2,19 +2,21 @@ import React, { useState } from "react";
 import { useAppData } from "@/contexts/DataContext";
 import { PrincipalProvider } from "@/contexts/PrincipalContext";
 import { Card, CardContent } from "@/components/ui/card";
-import { School, Check, ChevronsUpDown, Search } from "lucide-react";
+import { School, Check, ChevronsUpDown, Search, Users, GraduationCap, Layers } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface AdminSchoolContextWrapperProps {
   children: React.ReactNode;
   title?: string;
   description?: string;
+  type?: "students" | "teachers";
 }
 
-export const AdminSchoolContextWrapper: React.FC<AdminSchoolContextWrapperProps> = ({ children, title, description }) => {
+export const AdminSchoolContextWrapper: React.FC<AdminSchoolContextWrapperProps> = ({ children, title, description, type }) => {
   const { data } = useAppData();
   const [selectedSchool, setSelectedSchool] = useState<string>("");
   const [open, setOpen] = useState(false);
@@ -53,11 +55,11 @@ export const AdminSchoolContextWrapper: React.FC<AdminSchoolContextWrapperProps>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[320px] p-0 shadow-lg border-slate-100 rounded-xl overflow-hidden" align="end">
+              <PopoverContent className="w-[320px] p-0 shadow-lg border-slate-100 rounded-xl overflow-hidden bg-white z-50" align="end">
                 <Command>
                   <div className="flex items-center border-b px-3 bg-slate-50/50">
                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                    <CommandInput placeholder="Type a school name to search..." className="h-12 border-0 focus:ring-0 outline-none w-full bg-transparent text-sm" />
+                    <CommandInput placeholder="Type a school name to search..." className="h-12 border-0 focus:ring-0 outline-hidden w-full bg-transparent text-sm text-slate-850" />
                   </div>
                   <CommandList className="max-h-[300px]">
                     <CommandEmpty className="py-6 text-center text-sm text-slate-500">No school found.</CommandEmpty>
@@ -70,7 +72,7 @@ export const AdminSchoolContextWrapper: React.FC<AdminSchoolContextWrapperProps>
                             setSelectedSchool(String(school.id));
                             setOpen(false);
                           }}
-                          className="cursor-pointer flex items-center py-2.5 px-3 mb-1 last:mb-0 rounded-lg aria-selected:bg-teal-50 aria-selected:text-teal-900"
+                          className="cursor-pointer flex items-center py-2.5 px-3 mb-1 last:mb-0 rounded-lg aria-selected:bg-teal-50 aria-selected:text-teal-900 text-sm"
                         >
                           <div className="flex items-center gap-3 w-full">
                             <div className="w-8 h-8 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
@@ -105,17 +107,113 @@ export const AdminSchoolContextWrapper: React.FC<AdminSchoolContextWrapperProps>
           </PrincipalProvider>
         </div>
       ) : (
-        <div className="py-24 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50 transition-all hover:bg-slate-50/80 hover:border-slate-300">
-          <div className="w-20 h-20 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center mb-5 relative animate-in zoom-in duration-500 delay-100 fill-mode-both">
-            <School className="w-8 h-8 text-slate-300" />
-            <div className="absolute -bottom-1 -right-1 bg-teal-100 rounded-full p-1.5 border-2 border-white shadow-sm">
-              <Search className="w-3.5 h-3.5 text-teal-600" />
+        <div className="space-y-6">
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 animate-in fade-in duration-500">
+            {type === "teachers" ? (
+              <>
+                <Card className="border border-slate-100 shadow-sm rounded-2xl bg-white p-5 flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="p-3 bg-emerald-50 text-emerald-650 rounded-xl">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Registered Teachers</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-0.5">{data.teachers?.length || 0}</h3>
+                  </div>
+                </Card>
+                <Card className="border border-slate-100 shadow-sm rounded-2xl bg-white p-5 flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="p-3 bg-indigo-50 text-indigo-650 rounded-xl">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Classrooms</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-0.5">{data.classes?.length || 0}</h3>
+                  </div>
+                </Card>
+              </>
+            ) : (
+              <>
+                <Card className="border border-slate-100 shadow-sm rounded-2xl bg-white p-5 flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="p-3 bg-indigo-50 text-indigo-650 rounded-xl">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Registered Students</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-0.5">{data.students?.length || 0}</h3>
+                  </div>
+                </Card>
+                <Card className="border border-slate-100 shadow-sm rounded-2xl bg-white p-5 flex items-center gap-4 transition-all hover:shadow-md">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Onboarded Classes</p>
+                    <h3 className="text-xl font-bold text-slate-800 mt-0.5">{data.classes?.length || 0}</h3>
+                  </div>
+                </Card>
+              </>
+            )}
+            <Card className="border border-slate-100 shadow-sm rounded-2xl bg-white p-5 flex items-center gap-4 transition-all hover:shadow-md">
+              <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
+                <School className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Onboarded Schools</p>
+                <h3 className="text-xl font-bold text-slate-800 mt-0.5">{data.schools?.length || 0}</h3>
+              </div>
+            </Card>
+          </div>
+
+          {/* School Selection Grid */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4 animate-in fade-in duration-500 delay-100 fill-mode-both">
+            <div>
+              <h4 className="text-base font-bold text-slate-800">Quick School Directory Selector</h4>
+              <p className="text-xs text-slate-500 mt-0.5">Click directly on any school below to select it and manage registrations.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.schools.map((school) => {
+                const schoolStudents = (data.students || []).filter(st => String(st.schoolId) === String(school.id)).length;
+                const schoolTeachers = (data.teachers || []).filter(t => String(t.schoolId) === String(school.id)).length;
+                const schoolClasses = (data.classes || []).filter(c => String(c.schoolId) === String(school.id)).length;
+                
+                return (
+                  <div 
+                    key={school.id}
+                    onClick={() => setSelectedSchool(String(school.id))}
+                    className="border border-slate-150 rounded-xl p-4 bg-slate-50/40 hover:bg-white hover:border-teal-400 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+                  >
+                    <div>
+                      <h5 className="font-bold text-sm text-slate-800 group-hover:text-teal-600 transition-colors">{school.name}</h5>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{school.district ? `${school.district} District` : "Main District"}</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                      {type === "teachers" ? (
+                        <>
+                          <Badge variant="outline" className="bg-emerald-50/55 text-emerald-700 hover:bg-emerald-50 border-emerald-100 text-[9px] font-bold px-2 py-0.5">
+                            {schoolTeachers} Teachers
+                          </Badge>
+                          <Badge variant="outline" className="bg-indigo-50/55 text-indigo-700 hover:bg-indigo-50 border-indigo-100 text-[9px] font-bold px-2 py-0.5">
+                            {schoolClasses} Classes
+                          </Badge>
+                        </>
+                      ) : (
+                        <>
+                          <Badge variant="outline" className="bg-indigo-50/55 text-indigo-700 hover:bg-indigo-50 border-indigo-100 text-[9px] font-bold px-2 py-0.5">
+                            {schoolStudents} Students
+                          </Badge>
+                          <Badge variant="outline" className="bg-emerald-50/55 text-emerald-700 hover:bg-emerald-50 border-emerald-100 text-[9px] font-bold px-2 py-0.5">
+                            {schoolClasses} Classes
+                          </Badge>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <h4 className="text-lg font-semibold text-slate-700 mb-1 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200 fill-mode-both">No School Selected</h4>
-          <p className="text-slate-400 text-sm max-w-[250px] text-center animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300 fill-mode-both">
-            Use the directory search above to select a school and load its data.
-          </p>
         </div>
       )}
     </div>

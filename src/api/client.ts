@@ -76,6 +76,7 @@ export interface AllDataResponse {
   classRecordings: Array<{ id: string; teacherId: string; classId: string; subject: string; chapter: string; date: string; duration: string; size: string; status: string }>;
   homework: Array<{ id: string; classId: string; subjectName: string; chapterName: string; title: string; dueDate: string | null; assignedDate: string | null; submissions: number; totalStudents: number }>;
   studentAttendance: Array<{ studentId: string; present: number; total: number; percentage: number }>;
+  rawAttendance?: Array<{ id: string; studentId: string; classId: string; date: string; status: string }>;
   studyMaterials: Array<{ id: string; chapterId: string; type: string; title: string; url: string }>;
   liveSessions: Array<{ id: string; teacherId: string; classId: string; subjectId: string; chapterId: string; topicId: string; topicName: string; teacherName: string; className: string; subjectName: string; startTime: string; status: string; attendanceMarked: boolean; quizSubmitted: boolean; recordingId: string | null }>;
   chapterQuizzes: Array<{ id: string; chapterId: string; question: string; options: string[]; correct: string }>;
@@ -1651,6 +1652,7 @@ export async function fetchChapterOverrides(teacherId?: string, classId?: string
 
 export interface AdminAccount {
   id: number;
+  sequence_no?: number;
   name: string;
   email: string;
   phone?: string;
@@ -2104,9 +2106,11 @@ export interface CurriculumTopic {
   subtopics: string[];
   uploaded_by: string | null;
   created_at: string;
+  status?: string;
 }
 
 export interface CurriculumChapter {
+  chapter_id: number;
   subject_id: number;
   subject_name: string;
   grade: number;
@@ -2281,7 +2285,7 @@ export async function createChapter(data: { subject_id: number; grade_id: number
   return res.json();
 }
 
-export async function updateChapter(id: string | number, data: { chapter_no: number; chapter_name: string }) {
+export async function updateChapter(id: string | number, data: { chapter_no?: number; chapter_name?: string; subject_id?: number; grade_id?: number; learning_intent?: string }) {
   if (!API_BASE) throw new Error("API URL not set.");
   const res = await fetch(`${API_BASE}/api/curriculum/chapters/${id}`, {
     method: 'PUT',
@@ -2313,7 +2317,7 @@ export async function createTopic(data: { chapter_id: number; name: string; orde
   return res.json();
 }
 
-export async function updateTopic(id: string | number, data: { name: string; order_num: number }) {
+export async function updateTopic(id: string | number, data: { name?: string; order_num?: number }) {
   if (!API_BASE) throw new Error("API URL not set.");
   const res = await fetch(`${API_BASE}/api/curriculum/topics/${id}`, {
     method: 'PUT',
