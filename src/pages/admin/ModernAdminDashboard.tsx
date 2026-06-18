@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import StudentReportCard from "@/components/StudentReportCard";
-import StudentSpotlightModal from "@/components/StudentSpotlightModal";
 import SessionAnalytics from "@/components/SessionAnalytics";
 import { 
   School, Users, GraduationCap, BarChart3, Activity, 
@@ -49,6 +48,7 @@ import QuestionBankPanel from "./QuestionBankPanel";
 import TeachersOverview from "@/components/TeachersOverview";
 import StudentsOverview from "@/components/StudentsOverview";
 import SchoolsOverview from "@/components/SchoolsOverview";
+import { StudentSpotlightModal } from "@/components/StudentSpotlightModal";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -119,6 +119,7 @@ const ModernAdminDashboard = () => {
 
   const [selectedReportTeacherId, setSelectedReportTeacherId] = useState<string | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [spotlightStudent, setSpotlightStudent] = useState<any>(null);
   // ── Audit Logs state ──────────────────────────────────────────────────────
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -228,7 +229,6 @@ const ModernAdminDashboard = () => {
   const [aiReportStudentId, setAiReportStudentId] = useState<string | number | undefined>(undefined);
   const [aiReportStudentClass, setAiReportStudentClass] = useState<string>("");
   const reportRef = useRef<HTMLDivElement>(null);
-  const [spotlightStudent, setSpotlightStudent] = useState<any>(null);
 
   // ── Admin Profile state ───────────────────────────────────────────────────
   const [adminProfile, setAdminProfile] = useState<any>(null);
@@ -2098,28 +2098,7 @@ const ModernAdminDashboard = () => {
                               <tr 
                                 key={s.id} 
                                 className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
-                                onClick={() => {
-                                  const studentClass = classes.find(c => c.id === s.classId);
-                                  const safeRawAttendance = data.rawAttendance || [];
-                                  const studentAttendance = safeRawAttendance.filter((a: any) => String(a.studentId) === String(s.id));
-                                  const attPct = studentAttendance.length > 0 
-                                    ? Math.round((studentAttendance.filter((a: any) => a.status === 'present').length / studentAttendance.length) * 100) 
-                                    : 0;
-
-                                  const safeQuizzes = data.studentQuizResults || [];
-                                  const studentQuizzes = safeQuizzes.filter((q: any) => String(q.studentId) === String(s.id) && q.total > 0);
-                                  const quizPct = studentQuizzes.length > 0
-                                    ? Math.round(studentQuizzes.reduce((acc: number, curr: any) => acc + (curr.score * 100 / curr.total), 0) / studentQuizzes.length)
-                                    : 0;
-
-                                  setSpotlightStudent({
-                                    ...s,
-                                    grade: studentClass?.grade ? `${studentClass.grade} - ${s.section || studentClass.section || ''}` : 'N/A',
-                                    schoolName: schools.find(sc => sc.id === s.schoolId)?.name || 'Main School',
-                                    attPct,
-                                    quizPct
-                                  });
-                                }}
+                                onClick={() => setSpotlightStudent(s)}
                               >
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
@@ -2164,29 +2143,10 @@ const ModernAdminDashboard = () => {
                                     className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg font-semibold transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const studentClass = classes.find(c => c.id === s.classId);
-                                      const safeRawAttendance = data.rawAttendance || [];
-                                      const studentAttendance = safeRawAttendance.filter((a: any) => String(a.studentId) === String(s.id));
-                                      const attPct = studentAttendance.length > 0 
-                                        ? Math.round((studentAttendance.filter((a: any) => a.status === 'present').length / studentAttendance.length) * 100) 
-                                        : 0;
-
-                                      const safeQuizzes = data.studentQuizResults || [];
-                                      const studentQuizzes = safeQuizzes.filter((q: any) => String(q.studentId) === String(s.id) && q.total > 0);
-                                      const quizPct = studentQuizzes.length > 0
-                                        ? Math.round(studentQuizzes.reduce((acc: number, curr: any) => acc + (curr.score * 100 / curr.total), 0) / studentQuizzes.length)
-                                        : 0;
-
-                                      setSpotlightStudent({
-                                        ...s,
-                                        grade: studentClass?.grade ? `${studentClass.grade} - ${s.section || studentClass.section || ''}` : 'N/A',
-                                        schoolName: schools.find(sc => sc.id === s.schoolId)?.name || 'Main School',
-                                        attPct,
-                                        quizPct
-                                      });
+                                      setSpotlightStudent(s);
                                     }}
                                   >
-                                    <Eye className="w-4 h-4 mr-1.5" /> View Spotlight
+                                    <Eye className="w-4 h-4 mr-1.5" /> View Profile
                                   </Button>
                                 </td>
                               </tr>
@@ -2210,7 +2170,14 @@ const ModernAdminDashboard = () => {
                   </div>
                 </CardContent>
              </Card>
+             <StudentSpotlightModal
+               spotlightStudent={spotlightStudent}
+               onClose={() => setSpotlightStudent(null)}
+               safeRawAttendance={data.attendanceLogs || []}
+               safeQuizzes={data.studentQuizResults || []}
+             />
           </TabsContent>
+
 
           <TabsContent value="teachers-overview" className="space-y-6">
             <TeachersOverview data={data} />
@@ -3652,24 +3619,10 @@ const ModernAdminDashboard = () => {
                     <Button 
                       variant="secondary" 
                       size="sm" 
-                      className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition-all flex items-center gap-1.5"
-                      onClick={() => {
-                        setEditingTeacherId(viewingTeacher.id);
-                        const matchedSchoolId = schools.find((sc) => sc.id === viewingTeacher.schoolId)?.id || schools[0]?.id;
-                        setTeacherEditSchoolId(String(matchedSchoolId));
-                        setTeacherAssignmentDialogOpen(true);
-                        setViewingTeacher(null); // Close profile dialog to show assignments
-                      }}
-                    >
-                      <BookOpen className="w-4 h-4" /> Manage Assignments
-                    </Button>
-                    <Button 
-                      variant="secondary" 
-                      size="sm" 
                       className="bg-white/10 hover:bg-white/20 text-white border border-white/10 font-bold transition-all flex items-center gap-1.5"
                       onClick={() => setIsEditingProfile(true)}
                     >
-                      <Edit className="w-4 h-4" /> Edit Profile
+                      <Edit className="w-4 h-4" /> Edit Profile & Assignments
                     </Button>
                     <Button 
                       variant="destructive" 
@@ -4334,13 +4287,6 @@ const ModernAdminDashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
-      
-      <StudentSpotlightModal 
-        spotlightStudent={spotlightStudent} 
-        setSpotlightStudent={setSpotlightStudent} 
-        safeRawAttendance={data.rawAttendance || []} 
-        safeQuizzes={data.studentQuizResults || []} 
-      />
     </div>
   );
 };
